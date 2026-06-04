@@ -326,6 +326,10 @@
       display: block;
     }
 
+    .saveToast.error {
+      background: #a61c00;
+    }
+
     .modalFooter {
       padding: 14px 18px;
       border-top: 1px solid var(--line);
@@ -933,7 +937,11 @@
     }
 
     .tabButton {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 36px;
+      line-height: 1;
       border-radius: 999px;
       padding: 0 16px;
       border: 1px solid #c7d0dc;
@@ -1278,6 +1286,8 @@
       </div>
       <div class="modalFooter">
         <button type="button" class="deleteButton" id="modalDeleteButton" onclick="deleteTextModal()">削除</button>
+        <button type="button" id="modalCopyButton" onclick="copyTextModalContent()">コピー</button>
+        <button type="button" id="modalExportButton" onclick="exportTextModalContent()">出力</button>
         <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
         <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
       </div>
@@ -1361,6 +1371,7 @@
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
+    let editingRowRef = null;
     let editingField = null;
     let textModalSaving = false;
     let saveToastTimer = null;
@@ -2835,8 +2846,11 @@
 
       google.script.run
         .withSuccessHandler(result => {
-          showMessage(successMessage || '入力内容を保存しました。', false, true);
-          if (options.onSuccess) options.onSuccess(result);
+          try {
+            if (options.onSuccess) options.onSuccess(result);
+          } finally {
+            showMessage(successMessage || '入力内容を保存しました。', false, true);
+          }
         })
         .withFailureHandler(error => {
           if (rollback) rollback();
@@ -3267,9 +3281,10 @@
       }
 
       editingRowIndex = findManualInputRowIndex(currentRows, row);
+      editingRowRef = editingRowIndex >= 0 ? currentRows[editingRowIndex] : null;
       editingField = field;
 
-      if (editingRowIndex < 0) {
+      if (editingRowIndex < 0 || !editingRowRef) {
         showMessage('編集対象の行を特定できませんでした。', true);
         return;
       }
@@ -3289,7 +3304,7 @@
 
     function setTextModalSaving(isSaving, statusText, isError) {
       textModalSaving = Boolean(isSaving);
-      ['modalSaveButton', 'modalDeleteButton', 'modalCancelButton', 'modalTextarea'].forEach(id => {
+      ['modalSaveButton', 'modalDeleteButton', 'modalCopyButton', 'modalExportButton', 'modalCancelButton', 'modalTextarea'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = textModalSaving;
       });
@@ -3305,6 +3320,7 @@
       document.getElementById('textModal').style.display = 'none';
       setTextModalSaving(false, '');
       editingRowIndex = null;
+      editingRowRef = null;
       editingField = null;
     }
 
@@ -3313,7 +3329,7 @@
       if (event.target && event.target.id === 'textModal') closeTextModal();
     }
 
-    function showSaveToast(text) {
+    function showSaveToast(text, isError) {
       const toast = document.getElementById('saveToast');
       if (!toast) return;
 
@@ -3323,11 +3339,84 @@
       }
 
       toast.textContent = text || '保存しました';
-      toast.className = 'saveToast show';
+      toast.className = 'saveToast show' + (isError ? ' error' : '');
       saveToastTimer = setTimeout(() => {
         toast.className = 'saveToast';
         saveToastTimer = null;
       }, 2500);
+    }
+
+    function getTextModalOutput() {
+      const title = document.getElementById('modalTitle').textContent || '入力内容';
+      const meta = document.getElementById('modalMeta').textContent || '';
+      const value = document.getElementById('modalTextarea').value.trim();
+      const lines = [
+        `項目：${title}`,
+        meta,
+        '',
+        '内容：',
+        value || '（未入力）'
+      ];
+      return lines.filter((line, index) => index !== 1 || line).join('\n');
+    }
+
+    function createTextModalOutputFileName() {
+      const row = editingRowRef || (editingRowIndex !== null ? currentRows[editingRowIndex] : null) || {};
+      const fieldLabel = document.getElementById('modalTitle').textContent || '入力内容';
+      const employeeCode = row.employeeCode || row.employeeName || 'employee';
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
+      const baseName = `${employeeCode}_${fieldLabel}_${timestamp}`;
+      return baseName.replace(/[\\/:*?"<>|\s]+/g, '_') + '.txt';
+    }
+
+    function exportTextModalContent() {
+      const text = getTextModalOutput();
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = createTextModalOutputFileName();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setTextModalSaving(false, '入力内容をテキスト出力しました。');
+    }
+
+    function copyTextModalContent() {
+      const text = getTextModalOutput();
+
+      const clipboard = window.navigator && window.navigator.clipboard;
+
+      if (clipboard && clipboard.writeText) {
+        clipboard.writeText(text)
+          .then(() => setTextModalSaving(false, '入力内容をコピーしました。'))
+          .catch(() => copyTextModalContentFallback(text));
+        return;
+      }
+
+      copyTextModalContentFallback(text);
+    }
+
+    function copyTextModalContentFallback(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setTextModalSaving(false, copied ? '入力内容をコピーしました。' : 'コピーできませんでした。テキストを選択してコピーしてください。', !copied);
+    }
+
+    function applyManualInputLocal(row, fieldName, value) {
+      row[fieldName] = value;
+      refreshMissingItems(row);
+      syncManualInputToPayload(row, fieldName, value);
+      updateSummary(createSummaryClient(currentRows));
+      applyFilters();
     }
 
     function saveTextModal() {
@@ -3344,27 +3433,29 @@
 
       const fieldName = editingField;
       const value = document.getElementById('modalTextarea').value.trim();
-      const row = currentRows[editingRowIndex];
+      const row = editingRowRef || currentRows[editingRowIndex];
+
+      if (!row) {
+        closeTextModal();
+        showMessage('編集対象の行を特定できませんでした。画面を再読み込みしてから再度お試しください。', true);
+        return;
+      }
+
       const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
-
-      row[fieldName] = value;
-      refreshMissingItems(row);
-      syncManualInputToPayload(row, fieldName, value);
-
-      updateSummary(createSummaryClient(currentRows));
-      applyFilters();
-
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       setTextModalSaving(true, '保存しています。');
+      closeTextModal();
+      showSaveToast('保存中です…');
+      applyManualInputLocal(row, fieldName, value);
+
       persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback, {
         onSuccess: () => {
-          closeTextModal();
           showSaveToast('保存しました');
         },
-        onFailure: error => {
-          setTextModalSaving(false, '保存に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        onFailure: () => {
+          showSaveToast('保存に失敗しました', true);
         }
       });
     }
@@ -3411,33 +3502,35 @@
       }
 
       const fieldName = editingField;
-      const row = currentRows[editingRowIndex];
+      const row = editingRowRef || currentRows[editingRowIndex];
+
+      if (!row) {
+        closeTextModal();
+        showMessage('削除対象の行を特定できませんでした。画面を再読み込みしてから再度お試しください。', true);
+        return;
+      }
+
       const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
-
-      row[fieldName] = '';
-      refreshMissingItems(row);
-      syncManualInputToPayload(row, fieldName, '');
-
-      updateSummary(createSummaryClient(currentRows));
-      applyFilters();
-
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       setTextModalSaving(true, '削除しています。');
+      closeTextModal();
+      showSaveToast('削除中です…');
+      applyManualInputLocal(row, fieldName, '');
+
       persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback, {
         onSuccess: () => {
-          closeTextModal();
           showSaveToast('削除しました');
         },
-        onFailure: error => {
-          setTextModalSaving(false, '削除に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        onFailure: () => {
+          showSaveToast('削除に失敗しました', true);
         }
       });
     }
 
     function refreshMissingItems(row) {
-      row.missingItems = expectedMissingItems(row);
+      row.missingItems = detectMissingItems(row);
     }
 
     function createSummaryClient(rows) {
