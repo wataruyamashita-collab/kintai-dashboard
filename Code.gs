@@ -74,6 +74,7 @@ function doGet() {
 function getInitialData() {
   const user = getCurrentUser_();
   const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+  const availableMonths = listAvailableSnapshotMonths_();
 
   if (!snapshot) {
     return {
@@ -86,10 +87,34 @@ function getInitialData() {
       clientConfig: getClientConfigForUser_(user),
       permissions: createClientPermissions_(user),
       departmentGroups: createDepartmentGroupOptions_(),
-      departmentGroupStatus: createDepartmentGroupStatus_([])
+      departmentGroupStatus: createDepartmentGroupStatus_([]),
+      availableMonths
     };
   }
 
+  return createSnapshotResponse_(user, snapshot, availableMonths);
+}
+
+
+/**
+ * 指定月の保存済みスナップショットを取得する。
+ * month は yyyy/MM または yyyy-MM を受け付ける。
+ */
+function getSnapshotByMonth(month) {
+  const user = getCurrentUser_();
+  const targetMonth = normalizeTargetMonth_(month);
+  if (!targetMonth) throw new Error('対象月の形式が不正です。');
+
+  const snapshot = loadSnapshotByMonth_(targetMonth);
+  if (!snapshot) {
+    throw new Error(`${targetMonth.replace('/', '年')}月の保存済みデータがありません。`);
+  }
+
+  return createSnapshotResponse_(user, snapshot, listAvailableSnapshotMonths_());
+}
+
+
+function createSnapshotResponse_(user, snapshot, availableMonths) {
   const targetMonth = snapshot.meta && snapshot.meta.targetMonth
     ? snapshot.meta.targetMonth
     : '';
@@ -107,7 +132,8 @@ function getInitialData() {
     clientConfig: getClientConfigForUser_(user),
     permissions: createClientPermissions_(user),
     departmentGroups: createDepartmentGroupOptions_(),
-    departmentGroupStatus: createDepartmentGroupStatus_(mergedRows)
+    departmentGroupStatus: createDepartmentGroupStatus_(mergedRows),
+    availableMonths: availableMonths || listAvailableSnapshotMonths_()
   };
 }
 
@@ -176,7 +202,8 @@ function saveClientSnapshot(payload) {
     clientConfig: getClientConfigForUser_(user),
     permissions: createClientPermissions_(user),
     departmentGroups: createDepartmentGroupOptions_(snapshot.rows),
-    departmentGroupStatus: createDepartmentGroupStatus_(snapshot.rows)
+    departmentGroupStatus: createDepartmentGroupStatus_(snapshot.rows),
+    availableMonths: listAvailableSnapshotMonths_()
   };
 }
 
@@ -575,8 +602,49 @@ function loadEmployeeMaster_() {
 
 function saveSnapshot_(snapshot) {
   saveJsonFile_(APP_CONFIG.LATEST_FILE_NAME, snapshot);
-  const monthFileName = `alert_snapshot_${snapshot.meta.targetMonth.replace('/', '-')}.json`;
-  saveJsonFile_(monthFileName, snapshot);
+  saveJsonFile_(getSnapshotFileNameForMonth_(snapshot.meta.targetMonth), snapshot);
+}
+
+function getSnapshotFileNameForMonth_(targetMonth) {
+  const normalized = normalizeTargetMonth_(targetMonth);
+  if (!normalized) throw new Error('対象月の形式が不正です。');
+  return `alert_snapshot_${normalized.replace('/', '-')}.json`;
+}
+
+function loadSnapshotByMonth_(targetMonth) {
+  return loadJsonFile_(getSnapshotFileNameForMonth_(targetMonth));
+}
+
+function listAvailableSnapshotMonths_() {
+  const folder = getOrCreateFolder_();
+  const files = folder.getFiles();
+  const monthMap = {};
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const match = String(file.getName() || '').match(/^alert_snapshot_(\d{4})-(\d{2})\.json$/);
+    if (match) {
+      monthMap[`${match[1]}/${match[2]}`] = true;
+    }
+  }
+
+  const latest = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+  if (latest && latest.meta && latest.meta.targetMonth) {
+    const latestMonth = normalizeTargetMonth_(latest.meta.targetMonth);
+    if (latestMonth) monthMap[latestMonth] = true;
+  }
+
+  return Object.keys(monthMap).sort().reverse().map(month => ({
+    value: month,
+    label: formatYearMonthLabel_(month)
+  }));
+}
+
+function formatYearMonthLabel_(targetMonth) {
+  const normalized = normalizeTargetMonth_(targetMonth);
+  if (!normalized) return String(targetMonth || '');
+  const parts = normalized.split('/');
+  return `${parts[0]}年${Number(parts[1])}月`;
 }
 
 function saveJsonFile_(fileName, data) {
@@ -1736,14 +1804,16 @@ function assertCanEditManualInput_(user, targetMonth, payloadRow) {
  * ブラウザ側の改ざん対策として、departmentGroup はサーバー側データを優先する。
  */
 function resolveAuthoritativeRow_(targetMonth, payloadRow) {
-  const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+  const normalizedTargetMonth = normalizeTargetMonth_(targetMonth);
+  let snapshot = normalizedTargetMonth ? loadSnapshotByMonth_(normalizedTargetMonth) : null;
+  if (!snapshot) snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
   if (!snapshot || !Array.isArray(snapshot.rows)) return null;
 
   const snapshotMonth = snapshot.meta && snapshot.meta.targetMonth
     ? normalizeTargetMonth_(snapshot.meta.targetMonth)
     : '';
 
-  if (snapshotMonth && targetMonth && snapshotMonth !== targetMonth) {
+  if (snapshotMonth && normalizedTargetMonth && snapshotMonth !== normalizedTargetMonth) {
     return null;
   }
 
