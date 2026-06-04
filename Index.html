@@ -326,6 +326,10 @@
       display: block;
     }
 
+    .saveToast.error {
+      background: #a61c00;
+    }
+
     .modalFooter {
       padding: 14px 18px;
       border-top: 1px solid var(--line);
@@ -3319,7 +3323,7 @@
       if (event.target && event.target.id === 'textModal') closeTextModal();
     }
 
-    function showSaveToast(text) {
+    function showSaveToast(text, isError) {
       const toast = document.getElementById('saveToast');
       if (!toast) return;
 
@@ -3329,11 +3333,19 @@
       }
 
       toast.textContent = text || '保存しました';
-      toast.className = 'saveToast show';
+      toast.className = 'saveToast show' + (isError ? ' error' : '');
       saveToastTimer = setTimeout(() => {
         toast.className = 'saveToast';
         saveToastTimer = null;
       }, 2500);
+    }
+
+    function applyManualInputLocal(row, fieldName, value) {
+      row[fieldName] = value;
+      refreshMissingItems(row);
+      syncManualInputToPayload(row, fieldName, value);
+      updateSummary(createSummaryClient(currentRows));
+      applyFilters();
     }
 
     function saveTextModal() {
@@ -3363,21 +3375,16 @@
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       setTextModalSaving(true, '保存しています。');
+      closeTextModal();
+      showSaveToast('保存中です…');
+      applyManualInputLocal(row, fieldName, value);
+
       persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback, {
         onSuccess: () => {
-          try {
-            row[fieldName] = value;
-            refreshMissingItems(row);
-            syncManualInputToPayload(row, fieldName, value);
-            updateSummary(createSummaryClient(currentRows));
-            applyFilters();
-          } finally {
-            closeTextModal();
-            showSaveToast('保存しました');
-          }
+          showSaveToast('保存しました');
         },
-        onFailure: error => {
-          setTextModalSaving(false, '保存に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        onFailure: () => {
+          showSaveToast('保存に失敗しました', true);
         }
       });
     }
@@ -3437,21 +3444,16 @@
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       setTextModalSaving(true, '削除しています。');
+      closeTextModal();
+      showSaveToast('削除中です…');
+      applyManualInputLocal(row, fieldName, '');
+
       persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback, {
         onSuccess: () => {
-          try {
-            row[fieldName] = '';
-            refreshMissingItems(row);
-            syncManualInputToPayload(row, fieldName, '');
-            updateSummary(createSummaryClient(currentRows));
-            applyFilters();
-          } finally {
-            closeTextModal();
-            showSaveToast('削除しました');
-          }
+          showSaveToast('削除しました');
         },
-        onFailure: error => {
-          setTextModalSaving(false, '削除に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        onFailure: () => {
+          showSaveToast('削除に失敗しました', true);
         }
       });
     }
