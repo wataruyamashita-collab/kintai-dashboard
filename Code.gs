@@ -8,15 +8,9 @@ const APP_CONFIG = {
   COMPANY_CALENDAR_PREFIX: 'company_calendar_'
 };
 
-const DEFAULT_AUTH_RULES = [
-  { email: 'bltjm205311@broadleaf.co.jp', department: '全社', role: 'admin' },
-  { email: 'wataru.yamashita@bl.tjk.co.jp', department: '全社', role: 'admin' },
-
-  // サンプル。実運用前に実メールへ差し替えてください。
-  { email: 'sales.manager@example.co.jp', department: '営業ユニット', role: 'viewer' },
-  { email: 'support.manager@example.co.jp', department: '営業支援ユニット', role: 'viewer' },
-  { email: 'kanri.manager@example.co.jp', department: '管理課', role: 'viewer' }
-];
+// 本番用の初期権限は、権限管理テーブルまたは auth_rules.json で設定してください。
+// 実メールアドレスをコードに固定しないため、デフォルトは空にしています。
+const DEFAULT_AUTH_RULES = [];
 
 const DEFAULT_EMPLOYEE_MASTER = {};
 
@@ -70,6 +64,10 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
 
+/**
+ * 初期表示データを取得する。
+ * 保存済みスナップショットに手入力内容を復元し、ログインユーザーの権限で表示範囲を絞り込む。
+ */
 function getInitialData() {
   const user = getCurrentUser_();
   const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
@@ -82,11 +80,17 @@ function getInitialData() {
       rows: [],
       summary: createSummary_([]),
       departments: [],
-      clientConfig: getClientConfigForUser_(user)
+      clientConfig: getClientConfigForUser_(user),
+      permissions: createClientPermissions_(user)
     };
   }
 
-  const rows = filterRowsByAuthority_(snapshot.rows || [], user);
+  const targetMonth = snapshot.meta && snapshot.meta.targetMonth
+    ? snapshot.meta.targetMonth
+    : '';
+
+  const mergedRows = mergeManualInputsToRows_(snapshot.rows || [], targetMonth);
+  const rows = filterRowsByAuthority_(mergedRows, user);
 
   return {
     user,
@@ -95,7 +99,8 @@ function getInitialData() {
     rows,
     summary: createSummary_(rows),
     departments: createDepartmentList_(rows),
-    clientConfig: getClientConfigForUser_(user)
+    clientConfig: getClientConfigForUser_(user),
+    permissions: createClientPermissions_(user)
   };
 }
 
@@ -117,6 +122,8 @@ function saveClientSnapshot(payload) {
   if (!targetMonth) throw new Error('対象月の形式が不正です。');
   if (!cutoffDate) throw new Error('集計基準日の形式が不正です。');
 
+  const validationMetrics = validateClientSnapshotPayload_(payload, targetMonth, cutoffDate);
+
   const snapshot = {
     meta: {
       targetMonth,
@@ -133,9 +140,10 @@ function saveClientSnapshot(payload) {
       businessDaySource: payload.businessDaySource || null,
       holidays: payload.holidays || [],
       calculationAudit: payload.calculationAudit || null,
+      validationMetrics,
       over45Definition: '45h超過回数は、対象年1月以降、法定時間外残業が45時間以上となった月数です。',
       forecastDefinition: '月末予測は、早期警戒を目的として、MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。本人の過去月実績補正は任意です。固定値補正は使用しません。',
-      approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与計算には使用しません。ファイル取込はチャンク分割のストリーミング処理で必要列のみを抽出し、長時間フリーズを防ぎます。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
+      approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与計算には使用しません。CSV取込は10MB未満のファイルを対象に、引用符内のカンマ・改行を考慮して必要列のみを抽出します。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
     },
     rows: payload.rows
   };
@@ -158,8 +166,154 @@ function saveClientSnapshot(payload) {
     rows: filteredRows,
     summary: createSummary_(filteredRows),
     departments: createDepartmentList_(filteredRows),
-    clientConfig: getClientConfigForUser_(user)
+    clientConfig: getClientConfigForUser_(user),
+    permissions: createClientPermissions_(user)
   };
+}
+
+
+function validateClientSnapshotPayload_(payload, targetMonth, cutoffDate) {
+  const rows = payload.rows;
+  if (rows.length === 0) {
+    throw new Error('保存対象の集計結果が0件です。');
+  }
+  if (rows.length > 10000) {
+    throw new Error('保存対象の集計結果が多すぎます。条件を絞り込んでください。');
+  }
+
+  const sourceRows = Number(payload.sourceRows || 0);
+  if (!Number.isFinite(sourceRows) || sourceRows < 0) {
+    throw new Error('元データ行数が不正です。');
+  }
+
+  const businessDays = payload.businessDays === null || payload.businessDays === undefined || payload.businessDays === ''
+    ? null
+    : Number(payload.businessDays);
+  if (businessDays !== null && (!Number.isFinite(businessDays) || businessDays <= 0 || businessDays > 31)) {
+    throw new Error('営業日数が不正です。');
+  }
+
+  const metrics = createSnapshotValidationMetrics_(rows);
+  const clientMetrics = payload.validationMetrics;
+  if (!clientMetrics || typeof clientMetrics !== 'object') {
+    throw new Error('保存前検証情報が不足しています。画面を再読み込みしてから再集計してください。');
+  }
+
+  compareMetric_(clientMetrics, metrics, 'rowCount', '表示人数');
+  compareMetric_(clientMetrics, metrics, 'highCount', '高リスク人数');
+  compareMetric_(clientMetrics, metrics, 'mediumHighCount', '中高リスク人数');
+  compareMetric_(clientMetrics, metrics, 'mediumCount', '中リスク人数');
+  compareMetric_(clientMetrics, metrics, 'lowCount', 'リスクなし人数');
+  compareMetric_(clientMetrics, metrics, 'missingCount', '未入力あり人数');
+  compareMetric_(clientMetrics, metrics, 'estimatedOtTotal', '概算残業時間合計');
+  compareMetric_(clientMetrics, metrics, 'fixedOtTotal', '確定残業時間合計');
+  compareMetric_(clientMetrics, metrics, 'forecastTotal', '月末予測残業時間合計');
+  compareMetric_(clientMetrics, metrics, 'over45Total', '45h超過回数合計');
+
+  if (payload.calculationAudit && typeof payload.calculationAudit === 'object') {
+    const checkedRows = Number(payload.calculationAudit.checkedRows);
+    if (!Number.isFinite(checkedRows) || checkedRows !== rows.length) {
+      throw new Error('検算済み件数と保存対象件数が一致しません。再集計してから保存してください。');
+    }
+  }
+
+  return Object.assign({}, metrics, {
+    targetMonth,
+    cutoffDate,
+    sourceRows,
+    businessDays,
+    validatedAt: Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm:ss')
+  });
+}
+
+function createSnapshotValidationMetrics_(rows) {
+  const riskCounts = { high: 0, mediumHigh: 0, medium: 0, low: 0 };
+  const errors = [];
+  const totals = rows.reduce((acc, row, index) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      errors.push(`${index + 1}行目の形式が不正です。`);
+      return acc;
+    }
+
+    const label = `${row.employeeName || '氏名不明'}（${row.employeeCode || 'コードなし'}）`;
+    if (!String(row.employeeCode || '').trim() && !String(row.employeeName || '').trim()) {
+      errors.push(`${index + 1}行目の社員コードまたは社員名を特定できません。`);
+    }
+
+    const riskLevel = String(row.riskLevel || 'low');
+    if (!Object.prototype.hasOwnProperty.call(riskCounts, riskLevel)) {
+      errors.push(`${label} のリスク区分が不正です。`);
+    } else {
+      riskCounts[riskLevel] += 1;
+    }
+
+    const estimatedOt = readSnapshotNumber_(row.estimatedOt, `${label} 概算残業時間`, errors);
+    const fixedOt = readSnapshotNumber_(row.fixedOt, `${label} 確定残業時間`, errors);
+    const forecast = readSnapshotNumber_(row.monthEndForecastValue, `${label} 月末予測残業時間`, errors);
+    const over45 = readSnapshotNumber_(row.over45Count, `${label} 45h超過回数`, errors);
+
+    if (estimatedOt < 0) errors.push(`${label} 概算残業時間がマイナスです。`);
+    if (fixedOt < 0) errors.push(`${label} 確定残業時間がマイナスです。`);
+    if (forecast < 0) errors.push(`${label} 月末予測残業時間がマイナスです。`);
+    if (over45 < 0) errors.push(`${label} 45h超過回数がマイナスです。`);
+
+    const expectedMissing = calculateMissingItemsServer_(row).slice().sort().join('|');
+    const actualMissing = (Array.isArray(row.missingItems) ? row.missingItems : []).slice().sort().join('|');
+    if (expectedMissing !== actualMissing) {
+      errors.push(`${label} の未入力判定が計算結果と一致しません。`);
+    }
+
+    acc.estimatedOtTotal += estimatedOt;
+    acc.fixedOtTotal += fixedOt;
+    acc.forecastTotal += forecast;
+    acc.over45Total += over45;
+    if (Array.isArray(row.missingItems) && row.missingItems.length > 0) acc.missingCount += 1;
+    return acc;
+  }, {
+    estimatedOtTotal: 0,
+    fixedOtTotal: 0,
+    forecastTotal: 0,
+    over45Total: 0,
+    missingCount: 0
+  });
+
+  if (errors.length > 0) {
+    throw new Error('保存前検証エラー：' + errors.slice(0, 8).join(' / ') + (errors.length > 8 ? ` ほか${errors.length - 8}件` : ''));
+  }
+
+  return {
+    rowCount: rows.length,
+    highCount: riskCounts.high,
+    mediumHighCount: riskCounts.mediumHigh,
+    mediumCount: riskCounts.medium,
+    lowCount: riskCounts.low,
+    missingCount: totals.missingCount,
+    estimatedOtTotal: roundSnapshotMetric_(totals.estimatedOtTotal),
+    fixedOtTotal: roundSnapshotMetric_(totals.fixedOtTotal),
+    forecastTotal: roundSnapshotMetric_(totals.forecastTotal),
+    over45Total: roundSnapshotMetric_(totals.over45Total)
+  };
+}
+
+function readSnapshotNumber_(value, label, errors) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    errors.push(`${label} が数値ではありません。`);
+    return 0;
+  }
+  return num;
+}
+
+function compareMetric_(clientMetrics, serverMetrics, key, label) {
+  const clientValue = Number(clientMetrics[key]);
+  const serverValue = Number(serverMetrics[key]);
+  if (!Number.isFinite(clientValue) || Math.abs(clientValue - serverValue) > 0.02) {
+    throw new Error(`${label}の検証に失敗しました。画面を再読み込みしてから再集計してください。`);
+  }
+}
+
+function roundSnapshotMetric_(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function getClientConfigForUser_(user) {
@@ -202,7 +356,11 @@ function getCurrentUser_() {
 
   const authRules = loadAuthRules_();
   const normalizedEmail = String(email).trim().toLowerCase();
-  const rule = authRules.find(r => String(r.email).trim().toLowerCase() === normalizedEmail);
+  let rule = authRules.find(r => String(r.email).trim().toLowerCase() === normalizedEmail);
+
+  if (!rule && authRules.length === 0) {
+    rule = bootstrapInitialAdminRule_(normalizedEmail);
+  }
 
   if (!rule) {
     throw new Error(`閲覧権限が設定されていません：${email}`);
@@ -215,15 +373,83 @@ function getCurrentUser_() {
   };
 }
 
+/**
+ * 権限が一切未設定の初回起動時だけ、現在のログインユーザーを管理者として登録する。
+ * 実メールアドレスをソースコードへ固定せず、以後は権限管理テーブルで管理するための救済処理。
+ */
+function bootstrapInitialAdminRule_(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || hasAnyAuthConfiguration_()) return null;
+
+  setupManagementBaseTables();
+
+  const ss = getOrCreateManualInputSpreadsheet_();
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+  const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
+  if (!sheet) return null;
+
+  const now = getNowText_();
+  const record = {
+    email: normalizedEmail,
+    name: '',
+    department: '全社',
+    role: 'admin',
+    enabled: 'TRUE',
+    note: '初回起動時に自動登録',
+    createdAt: now,
+    createdBy: 'system/bootstrap',
+    updatedAt: now,
+    updatedBy: 'system/bootstrap'
+  };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    if (sheet.getLastRow() > 1 || hasAnyAuthConfiguration_()) return null;
+    upsertObjectByKey_(sheet, 'email', normalizedEmail, record);
+    if (historySheet) appendAuthHistoryIfChanged_(historySheet, null, record, 'system/bootstrap');
+  } finally {
+    lock.releaseLock();
+  }
+
+  return {
+    email: normalizedEmail,
+    department: record.department,
+    role: record.role
+  };
+}
+
+function hasAnyAuthConfiguration_() {
+  const ss = getManualManagementSpreadsheetIfExists_();
+  if (ss) {
+    const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+    if (sheet && sheet.getLastRow() > 1) return true;
+  }
+
+  const data = loadJsonFile_(APP_CONFIG.AUTH_FILE_NAME);
+  if (Array.isArray(data) && data.length > 0) return true;
+
+  return DEFAULT_AUTH_RULES.length > 0;
+}
+
 function assertAdmin_(user) {
   if (!user || user.role !== 'admin') {
     throw new Error('この操作は管理者のみ実行できます。');
   }
 }
 
+/**
+ * 閲覧・入力権限を取得する。
+ * 管理テーブルを優先し、未設定の場合のみ JSON / 初期設定へフォールバックする。
+ */
 function loadAuthRules_() {
+  const tableRules = loadAuthRulesFromTable_();
+  if (tableRules.length > 0) return tableRules;
+
   const data = loadJsonFile_(APP_CONFIG.AUTH_FILE_NAME);
   if (Array.isArray(data) && data.length > 0) return data;
+
   return DEFAULT_AUTH_RULES;
 }
 
@@ -903,14 +1129,15 @@ function setupManagementBaseTables() {
 
 
 /**
- * 権限テーブルが空の場合、DEFAULT_AUTH_RULES を初期投入する。
+ * 権限テーブルが空で、かつ DEFAULT_AUTH_RULES が設定されている場合のみ初期投入する。
+ * 本番環境の実メールアドレスはコードではなく、権限管理テーブルまたは auth_rules.json で管理する。
  */
 function seedDefaultAuthRulesIfEmpty_() {
   const ss = getOrCreateManualInputSpreadsheet_();
   const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
   if (!sheet) return;
 
-  if (sheet.getLastRow() > 1) return;
+  if (sheet.getLastRow() > 1 || DEFAULT_AUTH_RULES.length === 0) return;
 
   const now = getNowText_();
   const rows = DEFAULT_AUTH_RULES.map(rule => [
@@ -930,22 +1157,6 @@ function seedDefaultAuthRulesIfEmpty_() {
     sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
   }
 }
-
-
-/**
- * 既存の loadAuthRules_ をこの関数に差し替えてください。
- * 権限管理テーブルを優先し、未設定の場合は auth_rules.json / DEFAULT_AUTH_RULES に戻します。
- */
-function loadAuthRules_() {
-  const tableRules = loadAuthRulesFromTable_();
-  if (tableRules.length > 0) return tableRules;
-
-  const data = loadJsonFile_(APP_CONFIG.AUTH_FILE_NAME);
-  if (Array.isArray(data) && data.length > 0) return data;
-
-  return DEFAULT_AUTH_RULES;
-}
-
 
 /**
  * 権限管理テーブルから有効な権限だけ取得する。
@@ -1308,48 +1519,6 @@ function applyManualInputsToRows(payload) {
   return mergeManualInputsToRows_(payload.rows, targetMonth);
 }
 
-
-/**
- * getInitialData をこの内容に差し替えると、
- * 画面初期表示時にも手入力内容が復元されます。
- */
-function getInitialData() {
-  const user = getCurrentUser_();
-  const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
-
-  if (!snapshot) {
-    return {
-      user,
-      hasSnapshot: false,
-      snapshotMeta: null,
-      rows: [],
-      summary: createSummary_([]),
-      departments: [],
-      clientConfig: getClientConfigForUser_(user),
-      permissions: createClientPermissions_(user)
-    };
-  }
-
-  const targetMonth = snapshot.meta && snapshot.meta.targetMonth
-    ? snapshot.meta.targetMonth
-    : '';
-
-  const mergedRows = mergeManualInputsToRows_(snapshot.rows || [], targetMonth);
-  const rows = filterRowsByAuthority_(mergedRows, user);
-
-  return {
-    user,
-    hasSnapshot: true,
-    snapshotMeta: snapshot.meta,
-    rows,
-    summary: createSummary_(rows),
-    departments: createDepartmentList_(rows),
-    clientConfig: getClientConfigForUser_(user),
-    permissions: createClientPermissions_(user)
-  };
-}
-
-
 /**
  * クライアント側に返す権限情報。
  */
@@ -1381,7 +1550,7 @@ function mergeManualInputsToRows_(rows, targetMonth) {
     const key = createManualInputKey_(normalizedMonth, employeeCode, employeeName);
     const fallbackKey = createManualInputKey_(normalizedMonth, '', employeeName);
 
-    const manual = manualMap[key] || manualMap[fallbackKey];
+    const manual = employeeCode ? manualMap[key] : manualMap[fallbackKey];
 
     if (!manual) return row;
 
@@ -1465,11 +1634,14 @@ function resolveAuthoritativeRow_(targetMonth, payloadRow) {
   const employeeCode = String(payloadRow.employeeCode || '').trim();
   const employeeName = String(payloadRow.employeeName || '').trim();
 
-  return snapshot.rows.find(row => {
-    const codeMatched = employeeCode && String(row.employeeCode || '').trim() === employeeCode;
-    const nameMatched = employeeName && String(row.employeeName || '').trim() === employeeName;
-    return codeMatched || nameMatched;
-  }) || null;
+  if (employeeCode) {
+    return snapshot.rows.find(row => String(row.employeeCode || '').trim() === employeeCode) || null;
+  }
+
+  if (!employeeName) return null;
+
+  const nameMatches = snapshot.rows.filter(row => String(row.employeeName || '').trim() === employeeName);
+  return nameMatches.length === 1 ? nameMatches[0] : null;
 }
 
 
