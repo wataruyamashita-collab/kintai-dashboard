@@ -755,6 +755,120 @@
     }
 
 
+
+
+    /* ===== UI polish: insight strip and filter controls ===== */
+    .insightStrip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #ffffff 0%, #f4f8fc 100%);
+      border: 1px solid #e1e6ee;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .filterStatus {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 210px;
+    }
+
+    .filterStatus .eyebrow {
+      color: #5f6b7a;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .filterStatus .count {
+      color: #1d2b3a;
+      font-size: 18px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .riskLegend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .legendChip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid #e1e6ee;
+      border-radius: 999px;
+      background: #fff;
+      color: #26384d;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .legendChip::before {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #8aa1b8;
+    }
+
+    .legendChip.high::before { background: #a61c00; }
+    .legendChip.mediumHigh::before { background: #d46b08; }
+    .legendChip.medium::before { background: #b7791f; }
+    .legendChip.low::before { background: #2f855a; }
+
+    .legendChip.active {
+      border-color: #1f4e79;
+      box-shadow: 0 0 0 3px rgba(31, 78, 121, .10);
+    }
+
+    .toolbar label {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+      color: #5f6b7a;
+      font-size: 11px;
+      letter-spacing: .02em;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      min-width: 160px;
+    }
+
+    .toolbar .clearButton {
+      align-self: flex-end;
+    }
+
+    .tableHint {
+      margin: 8px 0 10px;
+      color: #5f6b7a;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      .insightStrip { align-items: stretch; }
+      .filterStatus { width: 100%; }
+      .toolbar label,
+      .toolbar input,
+      .toolbar select,
+      .toolbar .clearButton { width: 100%; }
+    }
+
+
     /* ===== 画面タブ ===== */
     .tabBar {
       display: none;
@@ -1017,20 +1131,42 @@
       <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
     </div>
 
-    <div class="panel toolbar">
-      <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
-      <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
-      <select id="riskFilter" onchange="applyFilters()">
-        <option value="">すべてのリスク</option>
-        <option value="high">高リスク</option>
-        <option value="mediumHigh">中高リスク</option>
-        <option value="medium">中リスク</option>
-        <option value="low">リスクなし</option>
-      </select>
-      <select id="missingFilter" onchange="applyFilters()">
-        <option value="">未入力すべて</option>
-        <option value="missing">未入力あり</option>
-      </select>
+    <div class="insightStrip" aria-label="表示状況とリスク凡例">
+      <div class="filterStatus">
+        <span class="eyebrow">現在の表示</span>
+        <span class="count" id="filterStatusText">0件を表示中</span>
+      </div>
+      <div class="riskLegend" aria-label="リスクで絞り込み">
+        <button type="button" class="legendChip high" data-risk="high" onclick="setRiskFilter('high')">高リスク</button>
+        <button type="button" class="legendChip mediumHigh" data-risk="mediumHigh" onclick="setRiskFilter('mediumHigh')">中高リスク</button>
+        <button type="button" class="legendChip medium" data-risk="medium" onclick="setRiskFilter('medium')">中リスク</button>
+        <button type="button" class="legendChip low" data-risk="low" onclick="setRiskFilter('low')">リスクなし</button>
+      </div>
+    </div>
+
+    <div class="panel toolbar" aria-label="表示フィルター">
+      <label>キーワード
+        <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
+      </label>
+      <label>部署
+        <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
+      </label>
+      <label>リスク
+        <select id="riskFilter" onchange="applyFilters()">
+          <option value="">すべてのリスク</option>
+          <option value="high">高リスク</option>
+          <option value="mediumHigh">中高リスク</option>
+          <option value="medium">中リスク</option>
+          <option value="low">リスクなし</option>
+        </select>
+      </label>
+      <label>入力状況
+        <select id="missingFilter" onchange="applyFilters()">
+          <option value="">未入力すべて</option>
+          <option value="missing">未入力あり</option>
+        </select>
+      </label>
+      <button type="button" class="clearButton" onclick="clearFilters()">絞り込み解除</button>
     </div>
 
     <div class="definition" id="definitionBox">
@@ -1038,6 +1174,8 @@
       <strong>45h超過回数</strong>：対象年1月以降、法定時間外残業が45時間以上となった月数です。<br>
       <strong>月末予測残業時間</strong>：MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。
     </div>
+
+    <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
 
     <div class="tableWrap">
       <table class="fixedLayout">
@@ -1508,6 +1646,10 @@
       return `${value}B`;
     }
 
+    function formatCount(value) {
+      return (Number(value) || 0).toLocaleString('ja-JP');
+    }
+
     function validateCsvText(text) {
       const value = String(text || '');
       if (!value.trim()) {
@@ -1522,9 +1664,9 @@
     /* =================================================================
        標準CSVパース関数：引用符内のカンマ・改行・エスケープされた引用符に対応
     ================================================================= */
-    function parseAndCompactCsvFast(csvText) {
+    async function parseAndCompactCsvFast(csvText, onProgress) {
       const delimiter = detectCsvDelimiter(csvText);
-      const csvRows = parseCsvRows(csvText, delimiter);
+      const csvRows = await parseCsvRowsWithProgress(csvText, delimiter, onProgress);
 
       let headers = null;
       let headerIndex = null;
@@ -1533,9 +1675,25 @@
       let sourceRows = 0;
       const resultRows = [];
       const monthIndex = {};
+      const totalRows = csvRows.length;
+
+      if (onProgress) {
+        onProgress(60, '必要列を抽出中', `CSV ${formatCount(totalRows)}行から必要列を抽出しています。`);
+        await waitForUi();
+      }
 
       for (let i = 0; i < csvRows.length; i++) {
         const row = csvRows[i].map(cleanCellText);
+
+        if (onProgress && (i === 0 || i % 500 === 0)) {
+          const percent = 60 + Math.round((i / Math.max(totalRows, 1)) * 25);
+          onProgress(
+            percent,
+            '必要列を抽出中',
+            `CSV ${formatCount(i)} / ${formatCount(totalRows)}行を確認中 ／ 取込対象 ${formatCount(resultRows.length)}行`
+          );
+          await waitForUi();
+        }
 
         if (!row.some(cell => cell !== '')) continue;
 
@@ -1581,6 +1739,11 @@
         monthIndex[monthKey].push(compact);
       }
 
+      if (onProgress) {
+        onProgress(85, '必要列の抽出完了', `CSV ${formatCount(totalRows)}行を確認し、取込対象 ${formatCount(resultRows.length)}行を抽出しました。`);
+        await waitForUi();
+      }
+
       if (!headers) {
         throw new Error('CSV内に必要な見出し行が見つかりません。');
       }
@@ -1597,16 +1760,29 @@
       };
     }
 
-    function parseCsvRows(text, delimiter) {
+    async function parseCsvRowsWithProgress(text, delimiter, onProgress) {
       const rows = [];
       let row = [];
       let cell = '';
       let inQuotes = false;
       const value = String(text || '');
+      const totalChars = value.length;
+      let lastProgressAt = 0;
 
-      for (let i = 0; i < value.length; i++) {
+      for (let i = 0; i < totalChars; i++) {
         const char = value[i];
         const next = value[i + 1];
+
+        if (onProgress && (i === 0 || i - lastProgressAt >= 50000)) {
+          lastProgressAt = i;
+          const percent = 40 + Math.round((i / Math.max(totalChars, 1)) * 20);
+          onProgress(
+            percent,
+            'CSV行を読み取り中',
+            `${formatFileSize(i)} / ${formatFileSize(totalChars)} を解析中 ／ ${formatCount(rows.length)}行を検出`
+          );
+          await waitForUi();
+        }
 
         if (char === '"') {
           if (inQuotes && next === '"') {
@@ -1643,6 +1819,11 @@
       if (cell !== '' || row.length > 0) {
         row.push(cell);
         rows.push(row);
+      }
+
+      if (onProgress) {
+        onProgress(60, 'CSV行の読取完了', `${formatCount(rows.length)}行を検出しました。必要列の抽出に進みます。`);
+        await waitForUi();
       }
 
       return rows;
@@ -1722,10 +1903,10 @@
           await waitForUi();
           validateCsvText(csvText);
 
-          setImportProgress(55, 'CSV解析中', '必要列だけを抽出しています。');
+          setImportProgress(40, 'CSV解析中', 'CSVの行数と必要列を確認しています。');
           await waitForUi();
 
-          const parsed = parseAndCompactCsvFast(csvText);
+          const parsed = await parseAndCompactCsvFast(csvText, setImportProgress);
 
           cachedRows = parsed.rows;
           cachedRowsByMonth = parsed.monthIndex || {};
@@ -1740,8 +1921,8 @@
           document.getElementById('importButton').disabled = true;
           updateCacheStatus();
 
-          setImportProgress(100, 'CSV取込完了', `${cachedRows.length}行を保持しました。続けて対象月を自動集計します。`, true);
-          showMessage(`CSVを取り込みました。${cachedRows.length}行を保持しています。続けて対象月を自動集計します。`, false, true);
+          setImportProgress(100, 'CSV取込完了', `${formatCount(cachedRows.length)}行を保持しました。続けて対象月を自動集計します。`, true);
+          showMessage(`CSVを取り込みました。${formatCount(cachedRows.length)}行を保持しています。続けて対象月を自動集計します。`, false, true);
 
           setTimeout(() => {
             analyzeCachedData();
@@ -2484,7 +2665,7 @@
 
       updateSummary(data.summary || {});
       setupDepartmentFilter(data.departments || []);
-      renderRows(currentRows);
+      applyFilters();
     }
 
     function createClientPermissionsFallback(user) {
@@ -2543,7 +2724,7 @@
         rowRef.missingItems = missingItemsSnapshot.slice();
         syncManualInputToPayload(rowRef, fieldName, previousValue);
         updateSummary(createSummaryClient(currentRows));
-        renderRows(currentRows);
+        applyFilters();
       };
     }
 
@@ -2808,7 +2989,36 @@
         if (missing === 'missing' && (!row.missingItems || row.missingItems.length === 0)) return false;
         return true;
       });
+      updateFilterStatus(rows.length);
       renderRows(rows);
+    }
+
+    function setRiskFilter(risk) {
+      const riskFilter = document.getElementById('riskFilter');
+      if (!riskFilter) return;
+      riskFilter.value = riskFilter.value === risk ? '' : risk;
+      applyFilters();
+    }
+
+    function clearFilters() {
+      document.getElementById('keyword').value = '';
+      document.getElementById('departmentFilter').value = '';
+      document.getElementById('riskFilter').value = '';
+      document.getElementById('missingFilter').value = '';
+      applyFilters();
+    }
+
+    function updateFilterStatus(visibleCount) {
+      const status = document.getElementById('filterStatusText');
+      if (status) {
+        const total = currentRows.length || 0;
+        status.textContent = `${visibleCount}件 / 全${total}件を表示中`;
+      }
+
+      const activeRisk = document.getElementById('riskFilter').value;
+      document.querySelectorAll('.legendChip').forEach(chip => {
+        chip.classList.toggle('active', chip.getAttribute('data-risk') === activeRisk);
+      });
     }
 
     function renderRows(rows) {
@@ -2960,22 +3170,23 @@
         return;
       }
 
+      const fieldName = editingField;
       const value = document.getElementById('modalTextarea').value.trim();
       const row = currentRows[editingRowIndex];
-      const previousValue = row[editingField] || '';
+      const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
-      row[editingField] = value;
+      row[fieldName] = value;
       refreshMissingItems(row);
-      syncManualInputToPayload(row, editingField, value);
+      syncManualInputToPayload(row, fieldName, value);
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
-      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+      const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       closeTextModal();
-      persistManualInput(row, editingField, value, '入力内容を保存しました。', rollback);
+      persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback);
     }
 
     function updateAgreement36(row, value) {
@@ -3001,7 +3212,7 @@
       syncManualInputToPayload(targetRow, 'agreement36', value);
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
       const rollback = createManualInputRollback(targetRow, 'agreement36', previousValue, previousMissingItems);
       persistManualInput(targetRow, 'agreement36', value, '36協定適用事前申請を保存しました。', rollback);
@@ -3019,21 +3230,22 @@
         return;
       }
 
+      const fieldName = editingField;
       const row = currentRows[editingRowIndex];
-      const previousValue = row[editingField] || '';
+      const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
-      row[editingField] = '';
+      row[fieldName] = '';
       refreshMissingItems(row);
-      syncManualInputToPayload(row, editingField, '');
+      syncManualInputToPayload(row, fieldName, '');
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
-      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+      const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       closeTextModal();
-      persistManualInput(row, editingField, '', '入力内容を削除しました。', rollback);
+      persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback);
     }
 
     function refreshMissingItems(row) {
