@@ -883,7 +883,7 @@
       <h3>管理者用：勤怠データ取込・月別再集計</h3>
       <div class="sub">CSVの取込、計算・再集計、保存を分けて操作します。共有する場合のみ、表示中の結果を保存してください。</div>
       <div class="guideSteps" aria-label="操作手順">
-        <div class="guideStep"><span class="num">1</span><div><strong>CSV取込</strong><br>初回のみCSVを読み込み、対象月を自動集計します。</div></div>
+        <div class="guideStep"><span class="num">1</span><div><strong>CSV取込</strong><br>初回のみCSVを読み込み、対象月を自動集計します（10MB未満）。</div></div>
         <div class="guideStep"><span class="num">2</span><div><strong>計算・再集計</strong><br>月を変更した場合や再確認時は、取込済みデータから再計算します。</div></div>
         <div class="guideStep"><span class="num">3</span><div><strong>保存</strong><br>共有する場合だけ、表示中の集計結果を保存します。</div></div>
       </div>
@@ -1132,6 +1132,8 @@
     const SOURCE_COLUMN_S_INDEX = 18;
     const SOURCE_COLUMN_T_INDEX = 19;
 
+    const MAX_CSV_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
     const FIELD = {
       DEPARTMENT: 0,
       EMPLOYEE_CODE: 1,
@@ -1165,6 +1167,7 @@
     let cachedFileName = '';
     let currentSnapshotPayload = null;
     let lastCalculationAudit = null;
+    let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
     let editingField = null;
 
@@ -1229,7 +1232,8 @@
     }
 
     function parseCompanyCalendarText() {
-      const text = normalizeCalendarText(document.getElementById('calendarTextInput').value || '');
+      const rawText = document.getElementById('calendarTextInput').value || '';
+      const text = normalizeCalendarText(rawText);
       if (!text) {
         showMessage('年間勤務カレンダーのテキストを貼り付けてください。', true);
         return;
@@ -1263,8 +1267,9 @@
         if (input) input.value = values[month - 1];
       }
 
+      lastCompanyCalendarImportText = rawText;
       updateCompanyCalendarTotalStatus();
-      showMessage('貼付テキストから月別労働日数を反映しました。合計日数を確認してから「会社カレンダー保存」を押してください。', false, true);
+      showMessage('貼付テキストから月別労働日数を反映しました。合計日数を確認してから「会社カレンダー保存」を押すと、取込内容も記録されます。', false, true);
     }
 
     function extractLaborDaysFromCalendarText(text) {
@@ -1377,8 +1382,9 @@
 
       google.script.run
         .withSuccessHandler(data => {
+          lastCompanyCalendarImportText = data.importedText || lastCompanyCalendarImportText;
           renderCompanyCalendarStatus(data);
-          showMessage('会社カレンダーを保存しました。次回集計からこの営業日数を優先して使用します。', false, true);
+          showMessage('会社カレンダーを保存しました。取込内容を記録したため、次回以降は登録済みカレンダーを自動で読み込みます。', false, true);
         })
         .withFailureHandler(showError)
         .saveCompanyCalendar({
@@ -1386,24 +1392,25 @@
           months,
           expectedTotalDays,
           sourceName: `${year}年 年間勤務カレンダー`,
+          importedText: lastCompanyCalendarImportText || document.getElementById('calendarTextInput').value || '',
           note: '管理者画面から登録'
         });
     }
 
-    function loadCompanyCalendarToForm() {
+    function loadCompanyCalendarToForm(silent) {
       const year = Number(document.getElementById('calendarYear').value || 0);
       if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-        showMessage('対象年を正しく入力してください。', true);
+        if (!silent) showMessage('対象年を正しく入力してください。', true);
         return;
       }
 
-      showMessage('登録済み会社カレンダーを確認しています。');
+      if (!silent) showMessage('登録済み会社カレンダーを確認しています。');
 
       google.script.run
         .withSuccessHandler(data => {
           if (!data || !data.months) {
             document.getElementById('companyCalendarStatus').textContent = `${year}年の会社カレンダーは未登録です。`;
-            showMessage(`${year}年の会社カレンダーは未登録です。`, false);
+            if (!silent) showMessage(`${year}年の会社カレンダーは未登録です。`, false);
             return;
           }
 
@@ -1416,9 +1423,13 @@
           const expectedInput = document.getElementById('expectedTotalDays');
           if (expectedInput) expectedInput.value = data.expectedTotalDays || data.actualTotalDays || '';
 
+          lastCompanyCalendarImportText = data.importedText || '';
+          const textInput = document.getElementById('calendarTextInput');
+          if (textInput && data.importedText) textInput.value = data.importedText;
+
           updateCompanyCalendarTotalStatus();
           renderCompanyCalendarStatus(data);
-          showMessage('登録済み会社カレンダーを読み込みました。', false, true);
+          if (!silent) showMessage('登録済み会社カレンダーを読み込みました。', false, true);
         })
         .withFailureHandler(showError)
         .getCompanyCalendar(year);
@@ -1428,7 +1439,8 @@
       const el = document.getElementById('companyCalendarStatus');
       if (!el || !data) return;
       const totalText = data.actualTotalDays ? ` ／ 年間労働日数：${data.actualTotalDays}日` : '';
-      el.textContent = `${data.year}年 会社カレンダー登録済み${totalText} ／ 保存日時：${data.savedAt || ''} ／ 保存者：${data.savedBy || ''}`;
+      const recordedText = (data.importedTextRecorded || data.importedText) ? ' ／ 取込内容：記録済み' : '';
+      el.textContent = `${data.year}年 会社カレンダー登録済み${totalText}${recordedText} ／ 保存日時：${data.savedAt || ''} ／ 保存者：${data.savedBy || ''}`;
     }
 
     function normalizeCalendarText(text) {
@@ -1508,14 +1520,12 @@
     }
 
     /* =================================================================
-       🚀 高速化された CSV パース関数 (ボトルネック解消箇所)
+       標準CSVパース関数：引用符内のカンマ・改行・エスケープされた引用符に対応
     ================================================================= */
     function parseAndCompactCsvFast(csvText) {
       const delimiter = detectCsvDelimiter(csvText);
-      
-      // 文字単位ループを廃止し、ブラウザのネイティブ処理で一括行分割
-      const lines = csvText.split(/\r?\n/);
-      
+      const csvRows = parseCsvRows(csvText, delimiter);
+
       let headers = null;
       let headerIndex = null;
       let prescribedExcessSource = null;
@@ -1524,18 +1534,8 @@
       const resultRows = [];
       const monthIndex = {};
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line || !line.trim()) continue;
-
-        // デリミタで分割し、前後のダブルクォーテーションを高速除去
-        const row = line.split(delimiter).map(cell => {
-          let c = cell.trim();
-          if (c.startsWith('"') && c.endsWith('"')) {
-            c = c.slice(1, -1);
-          }
-          return cleanCellText(c);
-        });
+      for (let i = 0; i < csvRows.length; i++) {
+        const row = csvRows[i].map(cleanCellText);
 
         if (!row.some(cell => cell !== '')) continue;
 
@@ -1597,15 +1597,89 @@
       };
     }
 
+    function parseCsvRows(text, delimiter) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
+      const value = String(text || '');
+
+      for (let i = 0; i < value.length; i++) {
+        const char = value[i];
+        const next = value[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            cell += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (char === delimiter && !inQuotes) {
+          row.push(cell);
+          cell = '';
+          continue;
+        }
+
+        if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && next === '\n') i += 1;
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = '';
+          continue;
+        }
+
+        cell += char;
+      }
+
+      if (inQuotes) {
+        throw new Error('CSVの引用符が閉じられていません。ファイル形式を確認してください。');
+      }
+
+      if (cell !== '' || row.length > 0) {
+        row.push(cell);
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
     function getCsvCell(row, index) {
       return index >= 0 && index < row.length ? (row[index] || '') : '';
     }
 
     function detectCsvDelimiter(text) {
-      const sample = String(text || '').split(/\r?\n/).slice(0, 10).join('\n');
-      const commaCount = (sample.match(/,/g) || []).length;
-      const tabCount = (sample.match(/\t/g) || []).length;
+      const sample = String(text || '').slice(0, 20000);
+      const commaCount = countDelimiterOutsideQuotes(sample, ',');
+      const tabCount = countDelimiterOutsideQuotes(sample, '\t');
       return tabCount > commaCount ? '\t' : ',';
+    }
+
+    function countDelimiterOutsideQuotes(text, delimiter) {
+      let count = 0;
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (char === delimiter && !inQuotes) count += 1;
+      }
+
+      return count;
     }
 
     async function importFileOnce() {
@@ -1615,6 +1689,11 @@
       const fileName = String(file.name || '').toLowerCase();
       if (!fileName.endsWith('.csv')) {
         showMessage('CSVファイルを選択してください。HTML形式のxlsは対象外です。', true);
+        return;
+      }
+
+      if (file.size >= MAX_CSV_FILE_SIZE_BYTES) {
+        showMessage(`CSVファイルは10MB未満にしてください。選択ファイル：${formatFileSize(file.size)}`, true);
         return;
       }
 
@@ -1830,7 +1909,8 @@
         businessDays: context.businessDays,
         businessDaySource: context.businessDayInfo.source,
         holidays: context.businessDayInfo.holidays || [],
-        calculationAudit: lastCalculationAudit
+        calculationAudit: lastCalculationAudit,
+        validationMetrics: createSnapshotValidationMetricsClient(rows)
       };
 
       renderAnalysisResult({
@@ -1869,6 +1949,8 @@
       if (!currentSnapshotPayload || !currentSnapshotPayload.rows) {
         return showMessage('保存する集計結果がありません。先に集計表示してください。', true);
       }
+
+      currentSnapshotPayload.validationMetrics = createSnapshotValidationMetricsClient(currentSnapshotPayload.rows);
 
       document.getElementById('saveButton').disabled = true;
       showMessage('表示中の集計結果だけを保存しています。CSV再取込は行いません。');
@@ -2374,6 +2456,7 @@
 
       if (data.user.role === 'admin') {
         loadAuthUsersForAdmin();
+        loadCompanyCalendarToForm(true);
       }
 
       if (!data.hasSnapshot) {
@@ -2430,21 +2513,55 @@
       return '';
     }
 
+    function findManualInputRow(rows, targetRow) {
+      if (!Array.isArray(rows) || !targetRow) return null;
+
+      const employeeCode = normalizeText(targetRow.employeeCode);
+      const employeeName = normalizeText(targetRow.employeeName);
+
+      if (employeeCode) {
+        return rows.find(item => normalizeText(item.employeeCode) === employeeCode) || null;
+      }
+
+      if (!employeeName) return null;
+
+      const matches = rows.filter(item => normalizeText(item.employeeName) === employeeName);
+      return matches.length === 1 ? matches[0] : null;
+    }
+
+    function findManualInputRowIndex(rows, targetRow) {
+      const match = findManualInputRow(rows, targetRow);
+      return match ? rows.indexOf(match) : -1;
+    }
+
+    function createManualInputRollback(row, fieldName, previousValue, previousMissingItems) {
+      const rowRef = row;
+      const missingItemsSnapshot = Array.isArray(previousMissingItems) ? previousMissingItems.slice() : [];
+
+      return () => {
+        rowRef[fieldName] = previousValue;
+        rowRef.missingItems = missingItemsSnapshot.slice();
+        syncManualInputToPayload(rowRef, fieldName, previousValue);
+        updateSummary(createSummaryClient(currentRows));
+        renderRows(currentRows);
+      };
+    }
+
     function syncManualInputToPayload(row, fieldName, value) {
       if (!currentSnapshotPayload || !Array.isArray(currentSnapshotPayload.rows)) return;
 
-      const payloadRow = currentSnapshotPayload.rows.find(item =>
-        item.employeeCode === row.employeeCode && item.employeeName === row.employeeName
-      );
+      const payloadRow = findManualInputRow(currentSnapshotPayload.rows, row);
 
       if (payloadRow) {
         payloadRow[fieldName] = value;
         payloadRow.missingItems = row.missingItems;
+        currentSnapshotPayload.validationMetrics = createSnapshotValidationMetricsClient(currentSnapshotPayload.rows);
       }
     }
 
-    function persistManualInput(row, fieldName, value, successMessage) {
+    function persistManualInput(row, fieldName, value, successMessage, rollback) {
       if (!canEditManualInputClient()) {
+        if (rollback) rollback();
         showMessage('このユーザーは入力内容を保存できません。', true);
         return;
       }
@@ -2452,6 +2569,7 @@
       const targetMonth = getActiveTargetMonthForManualInput();
 
       if (!targetMonth) {
+        if (rollback) rollback();
         showMessage('対象月を特定できないため保存できません。', true);
         return;
       }
@@ -2463,6 +2581,7 @@
           showMessage(successMessage || '入力内容を保存しました。', false, true);
         })
         .withFailureHandler(error => {
+          if (rollback) rollback();
           showError(error);
         })
         .saveManualInput({
@@ -2799,7 +2918,7 @@
         return;
       }
 
-      editingRowIndex = currentRows.findIndex(item => item.employeeCode === row.employeeCode && item.employeeName === row.employeeName);
+      editingRowIndex = findManualInputRowIndex(currentRows, row);
       editingField = field;
 
       if (editingRowIndex < 0) {
@@ -2843,6 +2962,8 @@
 
       const value = document.getElementById('modalTextarea').value.trim();
       const row = currentRows[editingRowIndex];
+      const previousValue = row[editingField] || '';
+      const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
       row[editingField] = value;
       refreshMissingItems(row);
@@ -2851,8 +2972,10 @@
       updateSummary(createSummaryClient(currentRows));
       renderRows(currentRows);
 
+      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+
       closeTextModal();
-      persistManualInput(row, editingField, value, '入力内容を保存しました。');
+      persistManualInput(row, editingField, value, '入力内容を保存しました。', rollback);
     }
 
     function updateAgreement36(row, value) {
@@ -2862,21 +2985,26 @@
         return;
       }
 
-      const targetIndex = currentRows.findIndex(item => item.employeeCode === row.employeeCode && item.employeeName === row.employeeName);
+      const targetIndex = findManualInputRowIndex(currentRows, row);
 
       if (targetIndex < 0) {
         showMessage('更新対象の行を特定できませんでした。', true);
         return;
       }
 
-      currentRows[targetIndex].agreement36 = value;
-      refreshMissingItems(currentRows[targetIndex]);
-      syncManualInputToPayload(currentRows[targetIndex], 'agreement36', value);
+      const targetRow = currentRows[targetIndex];
+      const previousValue = targetRow.agreement36 || '';
+      const previousMissingItems = Array.isArray(targetRow.missingItems) ? targetRow.missingItems.slice() : [];
+
+      targetRow.agreement36 = value;
+      refreshMissingItems(targetRow);
+      syncManualInputToPayload(targetRow, 'agreement36', value);
 
       updateSummary(createSummaryClient(currentRows));
       renderRows(currentRows);
 
-      persistManualInput(currentRows[targetIndex], 'agreement36', value, '36協定適用事前申請を保存しました。');
+      const rollback = createManualInputRollback(targetRow, 'agreement36', previousValue, previousMissingItems);
+      persistManualInput(targetRow, 'agreement36', value, '36協定適用事前申請を保存しました。', rollback);
     }
 
     function deleteTextModal() {
@@ -2892,6 +3020,8 @@
       }
 
       const row = currentRows[editingRowIndex];
+      const previousValue = row[editingField] || '';
+      const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
       row[editingField] = '';
       refreshMissingItems(row);
@@ -2900,8 +3030,10 @@
       updateSummary(createSummaryClient(currentRows));
       renderRows(currentRows);
 
+      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+
       closeTextModal();
-      persistManualInput(row, editingField, '', '入力内容を削除しました。');
+      persistManualInput(row, editingField, '', '入力内容を削除しました。', rollback);
     }
 
     function refreshMissingItems(row) {
@@ -2916,6 +3048,22 @@
         medium: rows.filter(r => r.riskLevel === 'medium').length,
         low: rows.filter(r => r.riskLevel === 'low').length,
         missing: rows.filter(r => r.missingItems && r.missingItems.length > 0).length
+      };
+    }
+
+    function createSnapshotValidationMetricsClient(rows) {
+      const summary = createSummaryClient(rows);
+      return {
+        rowCount: rows.length,
+        highCount: summary.high,
+        mediumHighCount: summary.mediumHigh,
+        mediumCount: summary.medium,
+        lowCount: summary.low,
+        missingCount: summary.missing,
+        estimatedOtTotal: round2(rows.reduce((sum, row) => sum + Number(row.estimatedOt || 0), 0)),
+        fixedOtTotal: round2(rows.reduce((sum, row) => sum + Number(row.fixedOt || 0), 0)),
+        forecastTotal: round2(rows.reduce((sum, row) => sum + Number(row.monthEndForecastValue || 0), 0)),
+        over45Total: round2(rows.reduce((sum, row) => sum + Number(row.over45Count || 0), 0))
       };
     }
 
