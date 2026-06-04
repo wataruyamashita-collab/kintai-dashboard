@@ -755,6 +755,120 @@
     }
 
 
+
+
+    /* ===== UI polish: insight strip and filter controls ===== */
+    .insightStrip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #ffffff 0%, #f4f8fc 100%);
+      border: 1px solid #e1e6ee;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .filterStatus {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 210px;
+    }
+
+    .filterStatus .eyebrow {
+      color: #5f6b7a;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .filterStatus .count {
+      color: #1d2b3a;
+      font-size: 18px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .riskLegend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .legendChip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid #e1e6ee;
+      border-radius: 999px;
+      background: #fff;
+      color: #26384d;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .legendChip::before {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #8aa1b8;
+    }
+
+    .legendChip.high::before { background: #a61c00; }
+    .legendChip.mediumHigh::before { background: #d46b08; }
+    .legendChip.medium::before { background: #b7791f; }
+    .legendChip.low::before { background: #2f855a; }
+
+    .legendChip.active {
+      border-color: #1f4e79;
+      box-shadow: 0 0 0 3px rgba(31, 78, 121, .10);
+    }
+
+    .toolbar label {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+      color: #5f6b7a;
+      font-size: 11px;
+      letter-spacing: .02em;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      min-width: 160px;
+    }
+
+    .toolbar .clearButton {
+      align-self: flex-end;
+    }
+
+    .tableHint {
+      margin: 8px 0 10px;
+      color: #5f6b7a;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      .insightStrip { align-items: stretch; }
+      .filterStatus { width: 100%; }
+      .toolbar label,
+      .toolbar input,
+      .toolbar select,
+      .toolbar .clearButton { width: 100%; }
+    }
+
+
     /* ===== 画面タブ ===== */
     .tabBar {
       display: none;
@@ -1017,20 +1131,42 @@
       <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
     </div>
 
-    <div class="panel toolbar">
-      <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
-      <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
-      <select id="riskFilter" onchange="applyFilters()">
-        <option value="">すべてのリスク</option>
-        <option value="high">高リスク</option>
-        <option value="mediumHigh">中高リスク</option>
-        <option value="medium">中リスク</option>
-        <option value="low">リスクなし</option>
-      </select>
-      <select id="missingFilter" onchange="applyFilters()">
-        <option value="">未入力すべて</option>
-        <option value="missing">未入力あり</option>
-      </select>
+    <div class="insightStrip" aria-label="表示状況とリスク凡例">
+      <div class="filterStatus">
+        <span class="eyebrow">現在の表示</span>
+        <span class="count" id="filterStatusText">0件を表示中</span>
+      </div>
+      <div class="riskLegend" aria-label="リスクで絞り込み">
+        <button type="button" class="legendChip high" data-risk="high" onclick="setRiskFilter('high')">高リスク</button>
+        <button type="button" class="legendChip mediumHigh" data-risk="mediumHigh" onclick="setRiskFilter('mediumHigh')">中高リスク</button>
+        <button type="button" class="legendChip medium" data-risk="medium" onclick="setRiskFilter('medium')">中リスク</button>
+        <button type="button" class="legendChip low" data-risk="low" onclick="setRiskFilter('low')">リスクなし</button>
+      </div>
+    </div>
+
+    <div class="panel toolbar" aria-label="表示フィルター">
+      <label>キーワード
+        <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
+      </label>
+      <label>部署
+        <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
+      </label>
+      <label>リスク
+        <select id="riskFilter" onchange="applyFilters()">
+          <option value="">すべてのリスク</option>
+          <option value="high">高リスク</option>
+          <option value="mediumHigh">中高リスク</option>
+          <option value="medium">中リスク</option>
+          <option value="low">リスクなし</option>
+        </select>
+      </label>
+      <label>入力状況
+        <select id="missingFilter" onchange="applyFilters()">
+          <option value="">未入力すべて</option>
+          <option value="missing">未入力あり</option>
+        </select>
+      </label>
+      <button type="button" class="clearButton" onclick="clearFilters()">絞り込み解除</button>
     </div>
 
     <div class="definition" id="definitionBox">
@@ -1038,6 +1174,8 @@
       <strong>45h超過回数</strong>：対象年1月以降、法定時間外残業が45時間以上となった月数です。<br>
       <strong>月末予測残業時間</strong>：MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。
     </div>
+
+    <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
 
     <div class="tableWrap">
       <table class="fixedLayout">
@@ -2484,7 +2622,7 @@
 
       updateSummary(data.summary || {});
       setupDepartmentFilter(data.departments || []);
-      renderRows(currentRows);
+      applyFilters();
     }
 
     function createClientPermissionsFallback(user) {
@@ -2808,7 +2946,36 @@
         if (missing === 'missing' && (!row.missingItems || row.missingItems.length === 0)) return false;
         return true;
       });
+      updateFilterStatus(rows.length);
       renderRows(rows);
+    }
+
+    function setRiskFilter(risk) {
+      const riskFilter = document.getElementById('riskFilter');
+      if (!riskFilter) return;
+      riskFilter.value = riskFilter.value === risk ? '' : risk;
+      applyFilters();
+    }
+
+    function clearFilters() {
+      document.getElementById('keyword').value = '';
+      document.getElementById('departmentFilter').value = '';
+      document.getElementById('riskFilter').value = '';
+      document.getElementById('missingFilter').value = '';
+      applyFilters();
+    }
+
+    function updateFilterStatus(visibleCount) {
+      const status = document.getElementById('filterStatusText');
+      if (status) {
+        const total = currentRows.length || 0;
+        status.textContent = `${visibleCount}件 / 全${total}件を表示中`;
+      }
+
+      const activeRisk = document.getElementById('riskFilter').value;
+      document.querySelectorAll('.legendChip').forEach(chip => {
+        chip.classList.toggle('active', chip.getAttribute('data-risk') === activeRisk);
+      });
     }
 
     function renderRows(rows) {
