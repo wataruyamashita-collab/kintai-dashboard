@@ -895,6 +895,30 @@
       color: #5f6b7a;
       font-size: 11px;
       letter-spacing: .02em;
+      text-align: center;
+    }
+
+    .filterLabelText {
+      text-align: center;
+    }
+
+    .monthLoadingStatus {
+      display: none;
+      margin-left: 4px;
+      color: #1f4e79;
+      font-weight: 700;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .monthLoadingStatus.show {
+      display: inline-block;
+      animation: monthLoadingPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes monthLoadingPulse {
+      0%, 100% { opacity: .55; }
+      50% { opacity: 1; }
     }
 
     .toolbar input,
@@ -1201,7 +1225,7 @@
     </div>
 
     <div class="panel toolbar" aria-label="表示フィルター">
-      <label>対象月
+      <label class="monthFilterLabel"><span class="filterLabelText">対象月<span id="monthLoadingStatus" class="monthLoadingStatus" aria-live="polite"></span></span>
         <select id="displayMonthFilter" onchange="loadSnapshotForSelectedMonth()"><option value="">選択中の月</option></select>
       </label>
       <label>キーワード
@@ -2804,6 +2828,18 @@
       return `${parts[0]}年${Number(parts[1])}月`;
     }
 
+    function setMonthLoadingStatus(isLoading, selectedMonth) {
+      const status = document.getElementById('monthLoadingStatus');
+      const select = document.getElementById('displayMonthFilter');
+      if (status) {
+        status.textContent = isLoading ? `⌛ ${formatMonthSelectLabel(selectedMonth)}を読み込み中` : '';
+        status.className = 'monthLoadingStatus' + (isLoading ? ' show' : '');
+      }
+      if (select) {
+        select.disabled = Boolean(isLoading) || select.options.length <= 1;
+      }
+    }
+
     function loadSnapshotForSelectedMonth() {
       const select = document.getElementById('displayMonthFilter');
       if (!select || !select.value) return;
@@ -2813,15 +2849,17 @@
       if (!selectedMonth || selectedMonth === currentMonth) return;
 
       showMessage(`${formatMonthSelectLabel(selectedMonth)}のデータを読み込んでいます。`);
-      select.disabled = true;
+      setMonthLoadingStatus(true, selectedMonth);
 
       google.script.run
         .withSuccessHandler(data => {
           renderApp(data);
+          setMonthLoadingStatus(false, selectedMonth);
           showMessage(`${formatMonthSelectLabel(selectedMonth)}のデータを表示しました。`, false, true);
         })
         .withFailureHandler(error => {
           setupDisplayMonthFilter(availableSnapshotMonths, currentMonth);
+          setMonthLoadingStatus(false, currentMonth);
           showError(error);
         })
         .getSnapshotByMonth(selectedMonth);
