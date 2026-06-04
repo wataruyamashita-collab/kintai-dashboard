@@ -291,6 +291,22 @@
       resize: vertical;
     }
 
+    .modalStatus {
+      min-height: 20px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .modalStatus.error {
+      color: #a61c00;
+    }
+
+    .modalStatus.ok {
+      color: #274e13;
+    }
+
     .modalFooter {
       padding: 14px 18px;
       border-top: 1px solid var(--line);
@@ -379,6 +395,20 @@
       font-weight: 700;
     }
 
+    .departmentGroupWarning {
+      display: none;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border: 1px solid #f6b26b;
+      border-left: 5px solid #d46b08;
+      border-radius: 12px;
+      background: #fff7ed;
+      color: #7c3d00;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
     .progressBox {
       display: none;
       margin-top: 12px;
@@ -461,6 +491,7 @@
 
     body > .top,
     body > .message,
+    body > .departmentGroupWarning,
     body > .tabBar,
     body > .uploadBox,
     body > #main {
@@ -755,6 +786,120 @@
     }
 
 
+
+
+    /* ===== UI polish: insight strip and filter controls ===== */
+    .insightStrip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 12px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #ffffff 0%, #f4f8fc 100%);
+      border: 1px solid #e1e6ee;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .filterStatus {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 210px;
+    }
+
+    .filterStatus .eyebrow {
+      color: #5f6b7a;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .filterStatus .count {
+      color: #1d2b3a;
+      font-size: 18px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .riskLegend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .legendChip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid #e1e6ee;
+      border-radius: 999px;
+      background: #fff;
+      color: #26384d;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .legendChip::before {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #8aa1b8;
+    }
+
+    .legendChip.high::before { background: #a61c00; }
+    .legendChip.mediumHigh::before { background: #d46b08; }
+    .legendChip.medium::before { background: #b7791f; }
+    .legendChip.low::before { background: #2f855a; }
+
+    .legendChip.active {
+      border-color: #1f4e79;
+      box-shadow: 0 0 0 3px rgba(31, 78, 121, .10);
+    }
+
+    .toolbar label {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+      color: #5f6b7a;
+      font-size: 11px;
+      letter-spacing: .02em;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      min-width: 160px;
+    }
+
+    .toolbar .clearButton {
+      align-self: flex-end;
+    }
+
+    .tableHint {
+      margin: 8px 0 10px;
+      color: #5f6b7a;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      .insightStrip { align-items: stretch; }
+      .filterStatus { width: 100%; }
+      .toolbar label,
+      .toolbar input,
+      .toolbar select,
+      .toolbar .clearButton { width: 100%; }
+    }
+
+
     /* ===== 画面タブ ===== */
     .tabBar {
       display: none;
@@ -870,6 +1015,7 @@
   </div>
 
   <div id="message" class="message">保存済みデータを確認しています。</div>
+  <div id="departmentGroupWarning" class="departmentGroupWarning" role="alert"></div>
 
   <div id="tabBar" class="tabBar" aria-label="画面切替">
     <button type="button" class="tabButton active" data-tab="alert" onclick="switchTab('alert')">勤怠アラート</button>
@@ -959,9 +1105,6 @@
           <label>表示範囲：
             <select id="authDepartment">
               <option value="全社">全社</option>
-              <option value="営業ユニット">営業ユニット</option>
-              <option value="営業支援ユニット">営業支援ユニット</option>
-              <option value="管理課">管理課</option>
             </select>
           </label>
           <label>権限：
@@ -1017,20 +1160,42 @@
       <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
     </div>
 
-    <div class="panel toolbar">
-      <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
-      <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
-      <select id="riskFilter" onchange="applyFilters()">
-        <option value="">すべてのリスク</option>
-        <option value="high">高リスク</option>
-        <option value="mediumHigh">中高リスク</option>
-        <option value="medium">中リスク</option>
-        <option value="low">リスクなし</option>
-      </select>
-      <select id="missingFilter" onchange="applyFilters()">
-        <option value="">未入力すべて</option>
-        <option value="missing">未入力あり</option>
-      </select>
+    <div class="insightStrip" aria-label="表示状況とリスク凡例">
+      <div class="filterStatus">
+        <span class="eyebrow">現在の表示</span>
+        <span class="count" id="filterStatusText">0件を表示中</span>
+      </div>
+      <div class="riskLegend" aria-label="リスクで絞り込み">
+        <button type="button" class="legendChip high" data-risk="high" onclick="setRiskFilter('high')">高リスク</button>
+        <button type="button" class="legendChip mediumHigh" data-risk="mediumHigh" onclick="setRiskFilter('mediumHigh')">中高リスク</button>
+        <button type="button" class="legendChip medium" data-risk="medium" onclick="setRiskFilter('medium')">中リスク</button>
+        <button type="button" class="legendChip low" data-risk="low" onclick="setRiskFilter('low')">リスクなし</button>
+      </div>
+    </div>
+
+    <div class="panel toolbar" aria-label="表示フィルター">
+      <label>キーワード
+        <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
+      </label>
+      <label>部署
+        <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
+      </label>
+      <label>リスク
+        <select id="riskFilter" onchange="applyFilters()">
+          <option value="">すべてのリスク</option>
+          <option value="high">高リスク</option>
+          <option value="mediumHigh">中高リスク</option>
+          <option value="medium">中リスク</option>
+          <option value="low">リスクなし</option>
+        </select>
+      </label>
+      <label>入力状況
+        <select id="missingFilter" onchange="applyFilters()">
+          <option value="">未入力すべて</option>
+          <option value="missing">未入力あり</option>
+        </select>
+      </label>
+      <button type="button" class="clearButton" onclick="clearFilters()">絞り込み解除</button>
     </div>
 
     <div class="definition" id="definitionBox">
@@ -1038,6 +1203,8 @@
       <strong>45h超過回数</strong>：対象年1月以降、法定時間外残業が45時間以上となった月数です。<br>
       <strong>月末予測残業時間</strong>：MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。
     </div>
+
+    <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
 
     <div class="tableWrap">
       <table class="fixedLayout">
@@ -1088,11 +1255,12 @@
       <div class="modalBody">
         <div class="modalMeta" id="modalMeta"></div>
         <textarea id="modalTextarea" placeholder="内容を入力してください。入力内容はセル内に全文表示せず、クリック時に確認できます。"></textarea>
+        <div class="modalStatus" id="modalStatus" aria-live="polite"></div>
       </div>
       <div class="modalFooter">
-        <button class="deleteButton" onclick="deleteTextModal()">削除</button>
-        <button onclick="closeTextModal()">キャンセル</button>
-        <button class="save" onclick="saveTextModal()">保存</button>
+        <button type="button" class="deleteButton" id="modalDeleteButton" onclick="deleteTextModal()">削除</button>
+        <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
+        <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
       </div>
     </div>
   </div>
@@ -1133,6 +1301,8 @@
     const SOURCE_COLUMN_T_INDEX = 19;
 
     const MAX_CSV_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+    const DEPARTMENT_GROUP_ALL = '全社';
+    const DEPARTMENT_GROUP_UNCLASSIFIED = '未分類';
 
     const FIELD = {
       DEPARTMENT: 0,
@@ -1166,6 +1336,7 @@
     let cachedRowsByMonth = {};
     let cachedFileName = '';
     let currentSnapshotPayload = null;
+    let currentDepartmentGroups = [DEPARTMENT_GROUP_ALL];
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -1508,6 +1679,10 @@
       return `${value}B`;
     }
 
+    function formatCount(value) {
+      return (Number(value) || 0).toLocaleString('ja-JP');
+    }
+
     function validateCsvText(text) {
       const value = String(text || '');
       if (!value.trim()) {
@@ -1522,9 +1697,9 @@
     /* =================================================================
        標準CSVパース関数：引用符内のカンマ・改行・エスケープされた引用符に対応
     ================================================================= */
-    function parseAndCompactCsvFast(csvText) {
+    async function parseAndCompactCsvFast(csvText, onProgress) {
       const delimiter = detectCsvDelimiter(csvText);
-      const csvRows = parseCsvRows(csvText, delimiter);
+      const csvRows = await parseCsvRowsWithProgress(csvText, delimiter, onProgress);
 
       let headers = null;
       let headerIndex = null;
@@ -1533,9 +1708,25 @@
       let sourceRows = 0;
       const resultRows = [];
       const monthIndex = {};
+      const totalRows = csvRows.length;
+
+      if (onProgress) {
+        onProgress(60, '必要列を抽出中', `CSV ${formatCount(totalRows)}行から必要列を抽出しています。`);
+        await waitForUi();
+      }
 
       for (let i = 0; i < csvRows.length; i++) {
         const row = csvRows[i].map(cleanCellText);
+
+        if (onProgress && (i === 0 || i % 500 === 0)) {
+          const percent = 60 + Math.round((i / Math.max(totalRows, 1)) * 25);
+          onProgress(
+            percent,
+            '必要列を抽出中',
+            `CSV ${formatCount(i)} / ${formatCount(totalRows)}行を確認中 ／ 取込対象 ${formatCount(resultRows.length)}行`
+          );
+          await waitForUi();
+        }
 
         if (!row.some(cell => cell !== '')) continue;
 
@@ -1581,6 +1772,11 @@
         monthIndex[monthKey].push(compact);
       }
 
+      if (onProgress) {
+        onProgress(85, '必要列の抽出完了', `CSV ${formatCount(totalRows)}行を確認し、取込対象 ${formatCount(resultRows.length)}行を抽出しました。`);
+        await waitForUi();
+      }
+
       if (!headers) {
         throw new Error('CSV内に必要な見出し行が見つかりません。');
       }
@@ -1597,16 +1793,29 @@
       };
     }
 
-    function parseCsvRows(text, delimiter) {
+    async function parseCsvRowsWithProgress(text, delimiter, onProgress) {
       const rows = [];
       let row = [];
       let cell = '';
       let inQuotes = false;
       const value = String(text || '');
+      const totalChars = value.length;
+      let lastProgressAt = 0;
 
-      for (let i = 0; i < value.length; i++) {
+      for (let i = 0; i < totalChars; i++) {
         const char = value[i];
         const next = value[i + 1];
+
+        if (onProgress && (i === 0 || i - lastProgressAt >= 50000)) {
+          lastProgressAt = i;
+          const percent = 40 + Math.round((i / Math.max(totalChars, 1)) * 20);
+          onProgress(
+            percent,
+            'CSV行を読み取り中',
+            `${formatFileSize(i)} / ${formatFileSize(totalChars)} を解析中 ／ ${formatCount(rows.length)}行を検出`
+          );
+          await waitForUi();
+        }
 
         if (char === '"') {
           if (inQuotes && next === '"') {
@@ -1643,6 +1852,11 @@
       if (cell !== '' || row.length > 0) {
         row.push(cell);
         rows.push(row);
+      }
+
+      if (onProgress) {
+        onProgress(60, 'CSV行の読取完了', `${formatCount(rows.length)}行を検出しました。必要列の抽出に進みます。`);
+        await waitForUi();
       }
 
       return rows;
@@ -1722,10 +1936,10 @@
           await waitForUi();
           validateCsvText(csvText);
 
-          setImportProgress(55, 'CSV解析中', '必要列だけを抽出しています。');
+          setImportProgress(40, 'CSV解析中', 'CSVの行数と必要列を確認しています。');
           await waitForUi();
 
-          const parsed = parseAndCompactCsvFast(csvText);
+          const parsed = await parseAndCompactCsvFast(csvText, setImportProgress);
 
           cachedRows = parsed.rows;
           cachedRowsByMonth = parsed.monthIndex || {};
@@ -1740,8 +1954,8 @@
           document.getElementById('importButton').disabled = true;
           updateCacheStatus();
 
-          setImportProgress(100, 'CSV取込完了', `${cachedRows.length}行を保持しました。続けて対象月を自動集計します。`, true);
-          showMessage(`CSVを取り込みました。${cachedRows.length}行を保持しています。続けて対象月を自動集計します。`, false, true);
+          setImportProgress(100, 'CSV取込完了', `${formatCount(cachedRows.length)}行を保持しました。続けて対象月を自動集計します。`, true);
+          showMessage(`CSVを取り込みました。${formatCount(cachedRows.length)}行を保持しています。続けて対象月を自動集計します。`, false, true);
 
           setTimeout(() => {
             analyzeCachedData();
@@ -1924,7 +2138,9 @@
         },
         rows,
         summary,
-        departments
+        departments,
+        departmentGroups: createDepartmentGroupListClient(rows),
+        departmentGroupStatus: createDepartmentGroupStatusClient(rows)
       });
 
       document.getElementById('saveButton').disabled = false;
@@ -2270,6 +2486,12 @@
     }
 
     function resolveDepartmentGroupByKeyword(department) {
+      const departmentGroupMaster = clientConfig && clientConfig.departmentGroupMaster ? clientConfig.departmentGroupMaster : {};
+      const exactDepartment = String(department || '').trim();
+      if (exactDepartment && departmentGroupMaster[exactDepartment]) {
+        return departmentGroupMaster[exactDepartment];
+      }
+
       const rules = clientConfig && clientConfig.departmentGroupRules ? clientConfig.departmentGroupRules : [];
       const dept = normalizeText(department);
 
@@ -2429,6 +2651,9 @@
     function renderApp(data) {
       currentUser = data.user;
       clientConfig = data.clientConfig;
+      currentDepartmentGroups = resolveDepartmentGroupOptions(data);
+      setupAuthDepartmentOptions();
+      renderDepartmentGroupWarning(data.departmentGroupStatus || (clientConfig && clientConfig.departmentGroupStatus));
       clientPermissions = data.permissions || createClientPermissionsFallback(data.user);
       currentRows = data.rows || [];
 
@@ -2472,6 +2697,9 @@
 
     function renderAnalysisResult(data) {
       currentRows = data.rows || [];
+      currentDepartmentGroups = resolveDepartmentGroupOptions(data);
+      setupAuthDepartmentOptions();
+      renderDepartmentGroupWarning(data.departmentGroupStatus || createDepartmentGroupStatusClient(currentRows));
       const meta = data.snapshotMeta;
       document.getElementById('metaText').textContent =
         '対象月：' + meta.targetMonth +
@@ -2484,7 +2712,7 @@
 
       updateSummary(data.summary || {});
       setupDepartmentFilter(data.departments || []);
-      renderRows(currentRows);
+      applyFilters();
     }
 
     function createClientPermissionsFallback(user) {
@@ -2543,7 +2771,7 @@
         rowRef.missingItems = missingItemsSnapshot.slice();
         syncManualInputToPayload(rowRef, fieldName, previousValue);
         updateSummary(createSummaryClient(currentRows));
-        renderRows(currentRows);
+        applyFilters();
       };
     }
 
@@ -2559,10 +2787,14 @@
       }
     }
 
-    function persistManualInput(row, fieldName, value, successMessage, rollback) {
+    function persistManualInput(row, fieldName, value, successMessage, rollback, callbacks) {
+      const options = callbacks || {};
+
       if (!canEditManualInputClient()) {
         if (rollback) rollback();
-        showMessage('このユーザーは入力内容を保存できません。', true);
+        const error = new Error('このユーザーは入力内容を保存できません。');
+        showMessage(error.message, true);
+        if (options.onFailure) options.onFailure(error);
         return;
       }
 
@@ -2570,7 +2802,9 @@
 
       if (!targetMonth) {
         if (rollback) rollback();
-        showMessage('対象月を特定できないため保存できません。', true);
+        const error = new Error('対象月を特定できないため保存できません。');
+        showMessage(error.message, true);
+        if (options.onFailure) options.onFailure(error);
         return;
       }
 
@@ -2579,10 +2813,12 @@
       google.script.run
         .withSuccessHandler(result => {
           showMessage(successMessage || '入力内容を保存しました。', false, true);
+          if (options.onSuccess) options.onSuccess(result);
         })
         .withFailureHandler(error => {
           if (rollback) rollback();
           showError(error);
+          if (options.onFailure) options.onFailure(error);
         })
         .saveManualInput({
           targetMonth,
@@ -2616,6 +2852,63 @@
           }
         })
         .listAuthUsers();
+    }
+
+    function resolveDepartmentGroupOptions(data) {
+      const groups = new Set([DEPARTMENT_GROUP_ALL]);
+      const sources = [
+        data && data.departmentGroups,
+        clientConfig && clientConfig.departmentGroups,
+        createDepartmentGroupListClient(data && data.rows ? data.rows : currentRows)
+      ];
+
+      sources.forEach(list => {
+        (Array.isArray(list) ? list : []).forEach(group => {
+          const value = String(group || '').trim();
+          if (value && value !== DEPARTMENT_GROUP_UNCLASSIFIED) groups.add(value);
+        });
+      });
+
+      return [DEPARTMENT_GROUP_ALL].concat(
+        [...groups].filter(group => group !== DEPARTMENT_GROUP_ALL).sort()
+      );
+    }
+
+    function setupAuthDepartmentOptions(selectedValue) {
+      const select = document.getElementById('authDepartment');
+      if (!select) return;
+
+      const selected = selectedValue || select.value || DEPARTMENT_GROUP_ALL;
+      const groups = currentDepartmentGroups.length ? currentDepartmentGroups : [DEPARTMENT_GROUP_ALL];
+      const options = groups.includes(selected) || !selected ? groups : groups.concat([selected]);
+
+      select.innerHTML = '';
+      options.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        select.appendChild(option);
+      });
+      select.value = options.includes(selected) ? selected : DEPARTMENT_GROUP_ALL;
+    }
+
+    function renderDepartmentGroupWarning(status) {
+      const el = document.getElementById('departmentGroupWarning');
+      if (!el) return;
+
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      const count = Number(status && status.unclassifiedCount || 0);
+      if (!isAdmin || count <= 0) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+      }
+
+      const departments = Array.isArray(status.unclassifiedDepartments) ? status.unclassifiedDepartments : [];
+      const sample = departments.slice(0, 5).join('、');
+      const suffix = departments.length > 5 ? ` ほか${departments.length - 5}部署` : '';
+      el.style.display = 'block';
+      el.textContent = `部署グループが「${DEPARTMENT_GROUP_UNCLASSIFIED}」のデータが${formatCount(count)}件あります。権限管理や社員マスタの部署グループを見直してください。${sample ? '対象部署例：' + sample + suffix : ''}`;
     }
 
     function renderAuthUsers(users) {
@@ -2697,7 +2990,8 @@
     function setAuthForm(user) {
       document.getElementById('authEmail').value = user.email || '';
       document.getElementById('authName').value = user.name || '';
-      document.getElementById('authDepartment').value = user.department || '営業ユニット';
+      setupAuthDepartmentOptions(user.department || DEPARTMENT_GROUP_ALL);
+      document.getElementById('authDepartment').value = user.department || DEPARTMENT_GROUP_ALL;
       document.getElementById('authRole').value = user.role || 'viewer';
       document.getElementById('authEnabled').checked = user.enabled !== false;
       document.getElementById('authNote').value = user.note || '';
@@ -2706,7 +3000,9 @@
     function resetAuthForm() {
       document.getElementById('authEmail').value = '';
       document.getElementById('authName').value = '';
-      document.getElementById('authDepartment').value = '営業ユニット';
+      const defaultDepartment = currentDepartmentGroups.find(group => group !== DEPARTMENT_GROUP_ALL) || DEPARTMENT_GROUP_ALL;
+      setupAuthDepartmentOptions(defaultDepartment);
+      document.getElementById('authDepartment').value = defaultDepartment;
       document.getElementById('authRole').value = 'manager';
       document.getElementById('authEnabled').checked = true;
       document.getElementById('authNote').value = '';
@@ -2808,7 +3104,36 @@
         if (missing === 'missing' && (!row.missingItems || row.missingItems.length === 0)) return false;
         return true;
       });
+      updateFilterStatus(rows.length);
       renderRows(rows);
+    }
+
+    function setRiskFilter(risk) {
+      const riskFilter = document.getElementById('riskFilter');
+      if (!riskFilter) return;
+      riskFilter.value = riskFilter.value === risk ? '' : risk;
+      applyFilters();
+    }
+
+    function clearFilters() {
+      document.getElementById('keyword').value = '';
+      document.getElementById('departmentFilter').value = '';
+      document.getElementById('riskFilter').value = '';
+      document.getElementById('missingFilter').value = '';
+      applyFilters();
+    }
+
+    function updateFilterStatus(visibleCount) {
+      const status = document.getElementById('filterStatusText');
+      if (status) {
+        const total = currentRows.length || 0;
+        status.textContent = `${visibleCount}件 / 全${total}件を表示中`;
+      }
+
+      const activeRisk = document.getElementById('riskFilter').value;
+      document.querySelectorAll('.legendChip').forEach(chip => {
+        chip.classList.toggle('active', chip.getAttribute('data-risk') === activeRisk);
+      });
     }
 
     function renderRows(rows) {
@@ -2933,13 +3258,28 @@
         `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
 
       document.getElementById('modalTextarea').value = row[field] || '';
+      setTextModalSaving(false, '');
       document.getElementById('textModal').style.display = 'flex';
 
       setTimeout(() => { document.getElementById('modalTextarea').focus(); }, 0);
     }
 
+    function setTextModalSaving(isSaving, statusText, isError) {
+      ['modalSaveButton', 'modalDeleteButton', 'modalCancelButton', 'modalTextarea'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = Boolean(isSaving);
+      });
+
+      const status = document.getElementById('modalStatus');
+      if (status) {
+        status.className = 'modalStatus' + (isError ? ' error' : (statusText ? ' ok' : ''));
+        status.textContent = statusText || '';
+      }
+    }
+
     function closeTextModal() {
       document.getElementById('textModal').style.display = 'none';
+      setTextModalSaving(false, '');
       editingRowIndex = null;
       editingField = null;
     }
@@ -2960,22 +3300,31 @@
         return;
       }
 
+      const fieldName = editingField;
       const value = document.getElementById('modalTextarea').value.trim();
       const row = currentRows[editingRowIndex];
-      const previousValue = row[editingField] || '';
+      const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
-      row[editingField] = value;
+      row[fieldName] = value;
       refreshMissingItems(row);
-      syncManualInputToPayload(row, editingField, value);
+      syncManualInputToPayload(row, fieldName, value);
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
-      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+      const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
-      closeTextModal();
-      persistManualInput(row, editingField, value, '入力内容を保存しました。', rollback);
+      setTextModalSaving(true, '保存しています。');
+      persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback, {
+        onSuccess: () => {
+          setTextModalSaving(false, '保存しました。');
+          closeTextModal();
+        },
+        onFailure: error => {
+          setTextModalSaving(false, '保存に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        }
+      });
     }
 
     function updateAgreement36(row, value) {
@@ -3001,7 +3350,7 @@
       syncManualInputToPayload(targetRow, 'agreement36', value);
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
       const rollback = createManualInputRollback(targetRow, 'agreement36', previousValue, previousMissingItems);
       persistManualInput(targetRow, 'agreement36', value, '36協定適用事前申請を保存しました。', rollback);
@@ -3019,21 +3368,30 @@
         return;
       }
 
+      const fieldName = editingField;
       const row = currentRows[editingRowIndex];
-      const previousValue = row[editingField] || '';
+      const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
-      row[editingField] = '';
+      row[fieldName] = '';
       refreshMissingItems(row);
-      syncManualInputToPayload(row, editingField, '');
+      syncManualInputToPayload(row, fieldName, '');
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
-      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+      const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
-      closeTextModal();
-      persistManualInput(row, editingField, '', '入力内容を削除しました。', rollback);
+      setTextModalSaving(true, '削除しています。');
+      persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback, {
+        onSuccess: () => {
+          setTextModalSaving(false, '削除しました。');
+          closeTextModal();
+        },
+        onFailure: error => {
+          setTextModalSaving(false, '削除に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        }
+      });
     }
 
     function refreshMissingItems(row) {
@@ -3069,6 +3427,28 @@
 
     function createDepartmentListClient(rows) {
       return [...new Set(rows.map(r => r.department).filter(Boolean))].sort();
+    }
+
+    function createDepartmentGroupListClient(rows) {
+      const groups = new Set([DEPARTMENT_GROUP_ALL]);
+      (Array.isArray(rows) ? rows : []).forEach(row => {
+        const group = String(row.departmentGroup || '').trim();
+        if (group && group !== DEPARTMENT_GROUP_UNCLASSIFIED) groups.add(group);
+      });
+      (clientConfig && Array.isArray(clientConfig.departmentGroups) ? clientConfig.departmentGroups : []).forEach(group => {
+        const value = String(group || '').trim();
+        if (value && value !== DEPARTMENT_GROUP_UNCLASSIFIED) groups.add(value);
+      });
+
+      return [DEPARTMENT_GROUP_ALL].concat([...groups].filter(group => group !== DEPARTMENT_GROUP_ALL).sort());
+    }
+
+    function createDepartmentGroupStatusClient(rows) {
+      const list = (Array.isArray(rows) ? rows : []).filter(row => row.departmentGroup === DEPARTMENT_GROUP_UNCLASSIFIED);
+      return {
+        unclassifiedCount: list.length,
+        unclassifiedDepartments: [...new Set(list.map(row => row.department).filter(Boolean))].sort()
+      };
     }
 
     function updateCacheStatus() {

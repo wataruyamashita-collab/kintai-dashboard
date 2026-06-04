@@ -14,6 +14,9 @@ const DEFAULT_AUTH_RULES = [];
 
 const DEFAULT_EMPLOYEE_MASTER = {};
 
+const DEPARTMENT_GROUP_ALL = '全社';
+const DEPARTMENT_GROUP_UNCLASSIFIED = '未分類';
+
 const DEPARTMENT_GROUP_RULES = [
   {
     group: '営業支援ユニット',
@@ -81,7 +84,9 @@ function getInitialData() {
       summary: createSummary_([]),
       departments: [],
       clientConfig: getClientConfigForUser_(user),
-      permissions: createClientPermissions_(user)
+      permissions: createClientPermissions_(user),
+      departmentGroups: createDepartmentGroupOptions_(),
+      departmentGroupStatus: createDepartmentGroupStatus_([])
     };
   }
 
@@ -100,7 +105,9 @@ function getInitialData() {
     summary: createSummary_(rows),
     departments: createDepartmentList_(rows),
     clientConfig: getClientConfigForUser_(user),
-    permissions: createClientPermissions_(user)
+    permissions: createClientPermissions_(user),
+    departmentGroups: createDepartmentGroupOptions_(),
+    departmentGroupStatus: createDepartmentGroupStatus_(mergedRows)
   };
 }
 
@@ -167,7 +174,9 @@ function saveClientSnapshot(payload) {
     summary: createSummary_(filteredRows),
     departments: createDepartmentList_(filteredRows),
     clientConfig: getClientConfigForUser_(user),
-    permissions: createClientPermissions_(user)
+    permissions: createClientPermissions_(user),
+    departmentGroups: createDepartmentGroupOptions_(snapshot.rows),
+    departmentGroupStatus: createDepartmentGroupStatus_(snapshot.rows)
   };
 }
 
@@ -323,12 +332,15 @@ function getClientConfigForUser_(user) {
 
   return {
     departmentGroupRules: DEPARTMENT_GROUP_RULES,
+    departmentGroups: createDepartmentGroupOptions_(),
+    departmentGroupStatus: createDepartmentGroupStatus_(),
+    departmentGroupMaster: createDepartmentGroupMaster_(),
     employeeMaster: loadEmployeeMaster_()
   };
 }
 
 function filterRowsByAuthority_(rows, user) {
-  if (user.role === 'admin' || user.department === '全社') return rows;
+  if (user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL) return rows;
   return rows.filter(row => row.departmentGroup === user.department);
 }
 
@@ -345,6 +357,108 @@ function createSummary_(rows) {
 
 function createDepartmentList_(rows) {
   return [...new Set(rows.map(r => r.department).filter(Boolean))].sort();
+}
+
+
+function createDepartmentGroupOptions_(extraRows) {
+  const groups = new Set([DEPARTMENT_GROUP_ALL]);
+
+  collectDepartmentGroupsFromRows_(groups, extraRows || []);
+
+  const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+  if (snapshot && Array.isArray(snapshot.rows)) {
+    collectDepartmentGroupsFromRows_(groups, snapshot.rows);
+  }
+
+  loadManualInputsAll_().forEach(record => addDepartmentGroupOption_(groups, record.departmentGroup));
+  loadAuthDepartments_().forEach(department => addDepartmentGroupOption_(groups, department));
+
+  const employeeMaster = loadEmployeeMaster_();
+  Object.keys(employeeMaster || {}).forEach(key => {
+    addDepartmentGroupOption_(groups, employeeMaster[key] && employeeMaster[key].departmentGroup);
+  });
+
+  DEPARTMENT_GROUP_RULES.forEach(rule => addDepartmentGroupOption_(groups, rule.group));
+
+  return [DEPARTMENT_GROUP_ALL].concat(
+    [...groups]
+      .filter(group => group && group !== DEPARTMENT_GROUP_ALL && group !== DEPARTMENT_GROUP_UNCLASSIFIED)
+      .sort()
+  );
+}
+
+function createDepartmentGroupStatus_(rows) {
+  const sourceRows = Array.isArray(rows) && rows.length > 0
+    ? rows
+    : ((loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME) || {}).rows || []);
+  const unclassifiedRows = sourceRows.filter(row => String(row.departmentGroup || '') === DEPARTMENT_GROUP_UNCLASSIFIED);
+  const departments = [...new Set(unclassifiedRows.map(row => String(row.department || '').trim()).filter(Boolean))].sort();
+
+  return {
+    unclassifiedCount: unclassifiedRows.length,
+    unclassifiedDepartments: departments
+  };
+}
+
+function collectDepartmentGroupsFromRows_(groups, rows) {
+  (Array.isArray(rows) ? rows : []).forEach(row => addDepartmentGroupOption_(groups, row && row.departmentGroup));
+}
+
+function addDepartmentGroupOption_(groups, value) {
+  const group = String(value || '').trim();
+  if (group) groups.add(group);
+}
+
+function loadManualInputsAll_() {
+  const ss = getManualManagementSpreadsheetIfExists_();
+  if (!ss) return [];
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.MANUAL_CURRENT_SHEET);
+  if (!sheet || sheet.getLastRow() <= 1) return [];
+  return readSheetObjects_(sheet)
+    .filter(row => String(row.deleted || '').toUpperCase() !== 'TRUE');
+}
+
+function loadAuthDepartments_() {
+  const ss = getManualManagementSpreadsheetIfExists_();
+  if (!ss) return [];
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+  if (!sheet || sheet.getLastRow() <= 1) return [];
+  return readSheetObjects_(sheet)
+    .filter(row => String(row.enabled || '').toUpperCase() !== 'FALSE')
+    .map(row => String(row.department || '').trim())
+    .filter(Boolean);
+}
+
+
+function createDepartmentGroupMaster_() {
+  const master = {};
+  const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+  if (snapshot && Array.isArray(snapshot.rows)) {
+    addDepartmentGroupMasterRows_(master, snapshot.rows);
+  }
+
+  addDepartmentGroupMasterRows_(master, loadManualInputsAll_());
+
+  const employeeMaster = loadEmployeeMaster_();
+  Object.keys(employeeMaster || {}).forEach(key => {
+    const item = employeeMaster[key] || {};
+    addDepartmentGroupMasterEntry_(master, item.department, item.departmentGroup);
+  });
+
+  return master;
+}
+
+function addDepartmentGroupMasterRows_(master, rows) {
+  (Array.isArray(rows) ? rows : []).forEach(row => {
+    addDepartmentGroupMasterEntry_(master, row && row.department, row && row.departmentGroup);
+  });
+}
+
+function addDepartmentGroupMasterEntry_(master, department, departmentGroup) {
+  const dept = String(department || '').trim();
+  const group = String(departmentGroup || '').trim();
+  if (!dept || !group || group === DEPARTMENT_GROUP_UNCLASSIFIED) return;
+  if (!master[dept]) master[dept] = group;
 }
 
 function getCurrentUser_() {
@@ -392,7 +506,7 @@ function bootstrapInitialAdminRule_(email) {
   const record = {
     email: normalizedEmail,
     name: '',
-    department: '全社',
+    department: DEPARTMENT_GROUP_ALL,
     role: 'admin',
     enabled: 'TRUE',
     note: '初回起動時に自動登録',
@@ -1028,7 +1142,6 @@ const MANAGEMENT_BASE = {
   AUTH_CURRENT_SHEET: '権限_現在値',
   AUTH_HISTORY_SHEET: '権限_履歴',
   ROLES: ['admin', 'manager', 'viewer'],
-  DEPARTMENTS: ['全社', '営業ユニット', '営業支援ユニット', '管理課'],
   MANUAL_FIELDS: ['agreement36', 'specialReason', 'healthMeasure', 'note']
 };
 
@@ -1258,11 +1371,11 @@ function saveAuthUser(payload) {
     throw new Error('権限は admin / manager / viewer のいずれかを指定してください。');
   }
 
-  if (!MANAGEMENT_BASE.DEPARTMENTS.includes(department)) {
-    throw new Error('表示範囲は 全社 / 営業ユニット / 営業支援ユニット / 管理課 のいずれかを指定してください。');
+  if (!createDepartmentGroupOptions_().includes(department)) {
+    throw new Error('表示範囲は現在の部署グループ一覧から選択してください。新しい部署グループは、保存済みデータまたは最新スナップショットに反映後に選択できます。');
   }
 
-  if (role === 'admin' && department !== '全社') {
+  if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
     throw new Error('admin 権限は表示範囲を「全社」にしてください。');
   }
 
@@ -1650,7 +1763,7 @@ function resolveAuthoritativeRow_(targetMonth, payloadRow) {
 
 function canViewManualInput_(user, record) {
   if (!user) return false;
-  if (user.role === 'admin' || user.department === '全社') return true;
+  if (user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL) return true;
   return String(record.departmentGroup || '') === String(user.department || '');
 }
 
