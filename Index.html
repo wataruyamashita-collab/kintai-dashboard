@@ -2724,7 +2724,7 @@
         rowRef.missingItems = missingItemsSnapshot.slice();
         syncManualInputToPayload(rowRef, fieldName, previousValue);
         updateSummary(createSummaryClient(currentRows));
-        renderRows(currentRows);
+        applyFilters();
       };
     }
 
@@ -3170,22 +3170,23 @@
         return;
       }
 
+      const fieldName = editingField;
       const value = document.getElementById('modalTextarea').value.trim();
       const row = currentRows[editingRowIndex];
-      const previousValue = row[editingField] || '';
+      const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
-      row[editingField] = value;
+      row[fieldName] = value;
       refreshMissingItems(row);
-      syncManualInputToPayload(row, editingField, value);
+      syncManualInputToPayload(row, fieldName, value);
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
-      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+      const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       closeTextModal();
-      persistManualInput(row, editingField, value, '入力内容を保存しました。', rollback);
+      persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback);
     }
 
     function updateAgreement36(row, value) {
@@ -3211,7 +3212,7 @@
       syncManualInputToPayload(targetRow, 'agreement36', value);
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
       const rollback = createManualInputRollback(targetRow, 'agreement36', previousValue, previousMissingItems);
       persistManualInput(targetRow, 'agreement36', value, '36協定適用事前申請を保存しました。', rollback);
@@ -3229,21 +3230,22 @@
         return;
       }
 
+      const fieldName = editingField;
       const row = currentRows[editingRowIndex];
-      const previousValue = row[editingField] || '';
+      const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
-      row[editingField] = '';
+      row[fieldName] = '';
       refreshMissingItems(row);
-      syncManualInputToPayload(row, editingField, '');
+      syncManualInputToPayload(row, fieldName, '');
 
       updateSummary(createSummaryClient(currentRows));
-      renderRows(currentRows);
+      applyFilters();
 
-      const rollback = createManualInputRollback(row, editingField, previousValue, previousMissingItems);
+      const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       closeTextModal();
-      persistManualInput(row, editingField, '', '入力内容を削除しました。', rollback);
+      persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback);
     }
 
     function refreshMissingItems(row) {
