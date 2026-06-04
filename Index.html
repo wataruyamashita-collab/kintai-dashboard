@@ -291,6 +291,22 @@
       resize: vertical;
     }
 
+    .modalStatus {
+      min-height: 20px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .modalStatus.error {
+      color: #a61c00;
+    }
+
+    .modalStatus.ok {
+      color: #274e13;
+    }
+
     .modalFooter {
       padding: 14px 18px;
       border-top: 1px solid var(--line);
@@ -379,6 +395,20 @@
       font-weight: 700;
     }
 
+    .departmentGroupWarning {
+      display: none;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border: 1px solid #f6b26b;
+      border-left: 5px solid #d46b08;
+      border-radius: 12px;
+      background: #fff7ed;
+      color: #7c3d00;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
     .progressBox {
       display: none;
       margin-top: 12px;
@@ -461,6 +491,7 @@
 
     body > .top,
     body > .message,
+    body > .departmentGroupWarning,
     body > .tabBar,
     body > .uploadBox,
     body > #main {
@@ -984,6 +1015,7 @@
   </div>
 
   <div id="message" class="message">保存済みデータを確認しています。</div>
+  <div id="departmentGroupWarning" class="departmentGroupWarning" role="alert"></div>
 
   <div id="tabBar" class="tabBar" aria-label="画面切替">
     <button type="button" class="tabButton active" data-tab="alert" onclick="switchTab('alert')">勤怠アラート</button>
@@ -1073,9 +1105,6 @@
           <label>表示範囲：
             <select id="authDepartment">
               <option value="全社">全社</option>
-              <option value="営業ユニット">営業ユニット</option>
-              <option value="営業支援ユニット">営業支援ユニット</option>
-              <option value="管理課">管理課</option>
             </select>
           </label>
           <label>権限：
@@ -1226,11 +1255,12 @@
       <div class="modalBody">
         <div class="modalMeta" id="modalMeta"></div>
         <textarea id="modalTextarea" placeholder="内容を入力してください。入力内容はセル内に全文表示せず、クリック時に確認できます。"></textarea>
+        <div class="modalStatus" id="modalStatus" aria-live="polite"></div>
       </div>
       <div class="modalFooter">
-        <button class="deleteButton" onclick="deleteTextModal()">削除</button>
-        <button onclick="closeTextModal()">キャンセル</button>
-        <button class="save" onclick="saveTextModal()">保存</button>
+        <button type="button" class="deleteButton" id="modalDeleteButton" onclick="deleteTextModal()">削除</button>
+        <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
+        <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
       </div>
     </div>
   </div>
@@ -1271,6 +1301,8 @@
     const SOURCE_COLUMN_T_INDEX = 19;
 
     const MAX_CSV_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+    const DEPARTMENT_GROUP_ALL = '全社';
+    const DEPARTMENT_GROUP_UNCLASSIFIED = '未分類';
 
     const FIELD = {
       DEPARTMENT: 0,
@@ -1304,6 +1336,7 @@
     let cachedRowsByMonth = {};
     let cachedFileName = '';
     let currentSnapshotPayload = null;
+    let currentDepartmentGroups = [DEPARTMENT_GROUP_ALL];
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -2105,7 +2138,9 @@
         },
         rows,
         summary,
-        departments
+        departments,
+        departmentGroups: createDepartmentGroupListClient(rows),
+        departmentGroupStatus: createDepartmentGroupStatusClient(rows)
       });
 
       document.getElementById('saveButton').disabled = false;
@@ -2451,6 +2486,12 @@
     }
 
     function resolveDepartmentGroupByKeyword(department) {
+      const departmentGroupMaster = clientConfig && clientConfig.departmentGroupMaster ? clientConfig.departmentGroupMaster : {};
+      const exactDepartment = String(department || '').trim();
+      if (exactDepartment && departmentGroupMaster[exactDepartment]) {
+        return departmentGroupMaster[exactDepartment];
+      }
+
       const rules = clientConfig && clientConfig.departmentGroupRules ? clientConfig.departmentGroupRules : [];
       const dept = normalizeText(department);
 
@@ -2610,6 +2651,9 @@
     function renderApp(data) {
       currentUser = data.user;
       clientConfig = data.clientConfig;
+      currentDepartmentGroups = resolveDepartmentGroupOptions(data);
+      setupAuthDepartmentOptions();
+      renderDepartmentGroupWarning(data.departmentGroupStatus || (clientConfig && clientConfig.departmentGroupStatus));
       clientPermissions = data.permissions || createClientPermissionsFallback(data.user);
       currentRows = data.rows || [];
 
@@ -2653,6 +2697,9 @@
 
     function renderAnalysisResult(data) {
       currentRows = data.rows || [];
+      currentDepartmentGroups = resolveDepartmentGroupOptions(data);
+      setupAuthDepartmentOptions();
+      renderDepartmentGroupWarning(data.departmentGroupStatus || createDepartmentGroupStatusClient(currentRows));
       const meta = data.snapshotMeta;
       document.getElementById('metaText').textContent =
         '対象月：' + meta.targetMonth +
@@ -2740,10 +2787,14 @@
       }
     }
 
-    function persistManualInput(row, fieldName, value, successMessage, rollback) {
+    function persistManualInput(row, fieldName, value, successMessage, rollback, callbacks) {
+      const options = callbacks || {};
+
       if (!canEditManualInputClient()) {
         if (rollback) rollback();
-        showMessage('このユーザーは入力内容を保存できません。', true);
+        const error = new Error('このユーザーは入力内容を保存できません。');
+        showMessage(error.message, true);
+        if (options.onFailure) options.onFailure(error);
         return;
       }
 
@@ -2751,7 +2802,9 @@
 
       if (!targetMonth) {
         if (rollback) rollback();
-        showMessage('対象月を特定できないため保存できません。', true);
+        const error = new Error('対象月を特定できないため保存できません。');
+        showMessage(error.message, true);
+        if (options.onFailure) options.onFailure(error);
         return;
       }
 
@@ -2760,10 +2813,12 @@
       google.script.run
         .withSuccessHandler(result => {
           showMessage(successMessage || '入力内容を保存しました。', false, true);
+          if (options.onSuccess) options.onSuccess(result);
         })
         .withFailureHandler(error => {
           if (rollback) rollback();
           showError(error);
+          if (options.onFailure) options.onFailure(error);
         })
         .saveManualInput({
           targetMonth,
@@ -2797,6 +2852,63 @@
           }
         })
         .listAuthUsers();
+    }
+
+    function resolveDepartmentGroupOptions(data) {
+      const groups = new Set([DEPARTMENT_GROUP_ALL]);
+      const sources = [
+        data && data.departmentGroups,
+        clientConfig && clientConfig.departmentGroups,
+        createDepartmentGroupListClient(data && data.rows ? data.rows : currentRows)
+      ];
+
+      sources.forEach(list => {
+        (Array.isArray(list) ? list : []).forEach(group => {
+          const value = String(group || '').trim();
+          if (value && value !== DEPARTMENT_GROUP_UNCLASSIFIED) groups.add(value);
+        });
+      });
+
+      return [DEPARTMENT_GROUP_ALL].concat(
+        [...groups].filter(group => group !== DEPARTMENT_GROUP_ALL).sort()
+      );
+    }
+
+    function setupAuthDepartmentOptions(selectedValue) {
+      const select = document.getElementById('authDepartment');
+      if (!select) return;
+
+      const selected = selectedValue || select.value || DEPARTMENT_GROUP_ALL;
+      const groups = currentDepartmentGroups.length ? currentDepartmentGroups : [DEPARTMENT_GROUP_ALL];
+      const options = groups.includes(selected) || !selected ? groups : groups.concat([selected]);
+
+      select.innerHTML = '';
+      options.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        select.appendChild(option);
+      });
+      select.value = options.includes(selected) ? selected : DEPARTMENT_GROUP_ALL;
+    }
+
+    function renderDepartmentGroupWarning(status) {
+      const el = document.getElementById('departmentGroupWarning');
+      if (!el) return;
+
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      const count = Number(status && status.unclassifiedCount || 0);
+      if (!isAdmin || count <= 0) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+      }
+
+      const departments = Array.isArray(status.unclassifiedDepartments) ? status.unclassifiedDepartments : [];
+      const sample = departments.slice(0, 5).join('、');
+      const suffix = departments.length > 5 ? ` ほか${departments.length - 5}部署` : '';
+      el.style.display = 'block';
+      el.textContent = `部署グループが「${DEPARTMENT_GROUP_UNCLASSIFIED}」のデータが${formatCount(count)}件あります。権限管理や社員マスタの部署グループを見直してください。${sample ? '対象部署例：' + sample + suffix : ''}`;
     }
 
     function renderAuthUsers(users) {
@@ -2878,7 +2990,8 @@
     function setAuthForm(user) {
       document.getElementById('authEmail').value = user.email || '';
       document.getElementById('authName').value = user.name || '';
-      document.getElementById('authDepartment').value = user.department || '営業ユニット';
+      setupAuthDepartmentOptions(user.department || DEPARTMENT_GROUP_ALL);
+      document.getElementById('authDepartment').value = user.department || DEPARTMENT_GROUP_ALL;
       document.getElementById('authRole').value = user.role || 'viewer';
       document.getElementById('authEnabled').checked = user.enabled !== false;
       document.getElementById('authNote').value = user.note || '';
@@ -2887,7 +3000,9 @@
     function resetAuthForm() {
       document.getElementById('authEmail').value = '';
       document.getElementById('authName').value = '';
-      document.getElementById('authDepartment').value = '営業ユニット';
+      const defaultDepartment = currentDepartmentGroups.find(group => group !== DEPARTMENT_GROUP_ALL) || DEPARTMENT_GROUP_ALL;
+      setupAuthDepartmentOptions(defaultDepartment);
+      document.getElementById('authDepartment').value = defaultDepartment;
       document.getElementById('authRole').value = 'manager';
       document.getElementById('authEnabled').checked = true;
       document.getElementById('authNote').value = '';
@@ -3143,13 +3258,28 @@
         `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
 
       document.getElementById('modalTextarea').value = row[field] || '';
+      setTextModalSaving(false, '');
       document.getElementById('textModal').style.display = 'flex';
 
       setTimeout(() => { document.getElementById('modalTextarea').focus(); }, 0);
     }
 
+    function setTextModalSaving(isSaving, statusText, isError) {
+      ['modalSaveButton', 'modalDeleteButton', 'modalCancelButton', 'modalTextarea'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = Boolean(isSaving);
+      });
+
+      const status = document.getElementById('modalStatus');
+      if (status) {
+        status.className = 'modalStatus' + (isError ? ' error' : (statusText ? ' ok' : ''));
+        status.textContent = statusText || '';
+      }
+    }
+
     function closeTextModal() {
       document.getElementById('textModal').style.display = 'none';
+      setTextModalSaving(false, '');
       editingRowIndex = null;
       editingField = null;
     }
@@ -3185,8 +3315,16 @@
 
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
-      closeTextModal();
-      persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback);
+      setTextModalSaving(true, '保存しています。');
+      persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback, {
+        onSuccess: () => {
+          setTextModalSaving(false, '保存しました。');
+          closeTextModal();
+        },
+        onFailure: error => {
+          setTextModalSaving(false, '保存に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        }
+      });
     }
 
     function updateAgreement36(row, value) {
@@ -3244,8 +3382,16 @@
 
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
-      closeTextModal();
-      persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback);
+      setTextModalSaving(true, '削除しています。');
+      persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback, {
+        onSuccess: () => {
+          setTextModalSaving(false, '削除しました。');
+          closeTextModal();
+        },
+        onFailure: error => {
+          setTextModalSaving(false, '削除に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
+        }
+      });
     }
 
     function refreshMissingItems(row) {
@@ -3281,6 +3427,28 @@
 
     function createDepartmentListClient(rows) {
       return [...new Set(rows.map(r => r.department).filter(Boolean))].sort();
+    }
+
+    function createDepartmentGroupListClient(rows) {
+      const groups = new Set([DEPARTMENT_GROUP_ALL]);
+      (Array.isArray(rows) ? rows : []).forEach(row => {
+        const group = String(row.departmentGroup || '').trim();
+        if (group && group !== DEPARTMENT_GROUP_UNCLASSIFIED) groups.add(group);
+      });
+      (clientConfig && Array.isArray(clientConfig.departmentGroups) ? clientConfig.departmentGroups : []).forEach(group => {
+        const value = String(group || '').trim();
+        if (value && value !== DEPARTMENT_GROUP_UNCLASSIFIED) groups.add(value);
+      });
+
+      return [DEPARTMENT_GROUP_ALL].concat([...groups].filter(group => group !== DEPARTMENT_GROUP_ALL).sort());
+    }
+
+    function createDepartmentGroupStatusClient(rows) {
+      const list = (Array.isArray(rows) ? rows : []).filter(row => row.departmentGroup === DEPARTMENT_GROUP_UNCLASSIFIED);
+      return {
+        unclassifiedCount: list.length,
+        unclassifiedDepartments: [...new Set(list.map(row => row.department).filter(Boolean))].sort()
+      };
     }
 
     function updateCacheStatus() {
