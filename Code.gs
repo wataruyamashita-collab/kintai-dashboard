@@ -356,7 +356,11 @@ function getCurrentUser_() {
 
   const authRules = loadAuthRules_();
   const normalizedEmail = String(email).trim().toLowerCase();
-  const rule = authRules.find(r => String(r.email).trim().toLowerCase() === normalizedEmail);
+  let rule = authRules.find(r => String(r.email).trim().toLowerCase() === normalizedEmail);
+
+  if (!rule && authRules.length === 0) {
+    rule = bootstrapInitialAdminRule_(normalizedEmail);
+  }
 
   if (!rule) {
     throw new Error(`閲覧権限が設定されていません：${email}`);
@@ -367,6 +371,66 @@ function getCurrentUser_() {
     department: rule.department,
     role: String(rule.role || 'viewer').toLowerCase()
   };
+}
+
+/**
+ * 権限が一切未設定の初回起動時だけ、現在のログインユーザーを管理者として登録する。
+ * 実メールアドレスをソースコードへ固定せず、以後は権限管理テーブルで管理するための救済処理。
+ */
+function bootstrapInitialAdminRule_(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || hasAnyAuthConfiguration_()) return null;
+
+  setupManagementBaseTables();
+
+  const ss = getOrCreateManualInputSpreadsheet_();
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+  const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
+  if (!sheet) return null;
+
+  const now = getNowText_();
+  const record = {
+    email: normalizedEmail,
+    name: '',
+    department: '全社',
+    role: 'admin',
+    enabled: 'TRUE',
+    note: '初回起動時に自動登録',
+    createdAt: now,
+    createdBy: 'system/bootstrap',
+    updatedAt: now,
+    updatedBy: 'system/bootstrap'
+  };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    if (sheet.getLastRow() > 1 || hasAnyAuthConfiguration_()) return null;
+    upsertObjectByKey_(sheet, 'email', normalizedEmail, record);
+    if (historySheet) appendAuthHistoryIfChanged_(historySheet, null, record, 'system/bootstrap');
+  } finally {
+    lock.releaseLock();
+  }
+
+  return {
+    email: normalizedEmail,
+    department: record.department,
+    role: record.role
+  };
+}
+
+function hasAnyAuthConfiguration_() {
+  const ss = getManualManagementSpreadsheetIfExists_();
+  if (ss) {
+    const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+    if (sheet && sheet.getLastRow() > 1) return true;
+  }
+
+  const data = loadJsonFile_(APP_CONFIG.AUTH_FILE_NAME);
+  if (Array.isArray(data) && data.length > 0) return true;
+
+  return DEFAULT_AUTH_RULES.length > 0;
 }
 
 function assertAdmin_(user) {
