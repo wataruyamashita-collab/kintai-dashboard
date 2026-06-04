@@ -1282,6 +1282,8 @@
       </div>
       <div class="modalFooter">
         <button type="button" class="deleteButton" id="modalDeleteButton" onclick="deleteTextModal()">削除</button>
+        <button type="button" id="modalCopyButton" onclick="copyTextModalContent()">コピー</button>
+        <button type="button" id="modalExportButton" onclick="exportTextModalContent()">出力</button>
         <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
         <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
       </div>
@@ -3298,7 +3300,7 @@
 
     function setTextModalSaving(isSaving, statusText, isError) {
       textModalSaving = Boolean(isSaving);
-      ['modalSaveButton', 'modalDeleteButton', 'modalCancelButton', 'modalTextarea'].forEach(id => {
+      ['modalSaveButton', 'modalDeleteButton', 'modalCopyButton', 'modalExportButton', 'modalCancelButton', 'modalTextarea'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = textModalSaving;
       });
@@ -3338,6 +3340,71 @@
         toast.className = 'saveToast';
         saveToastTimer = null;
       }, 2500);
+    }
+
+    function getTextModalOutput() {
+      const title = document.getElementById('modalTitle').textContent || '入力内容';
+      const meta = document.getElementById('modalMeta').textContent || '';
+      const value = document.getElementById('modalTextarea').value.trim();
+      const lines = [
+        `項目：${title}`,
+        meta,
+        '',
+        '内容：',
+        value || '（未入力）'
+      ];
+      return lines.filter((line, index) => index !== 1 || line).join('\n');
+    }
+
+    function createTextModalOutputFileName() {
+      const row = editingRowRef || (editingRowIndex !== null ? currentRows[editingRowIndex] : null) || {};
+      const fieldLabel = document.getElementById('modalTitle').textContent || '入力内容';
+      const employeeCode = row.employeeCode || row.employeeName || 'employee';
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
+      const baseName = `${employeeCode}_${fieldLabel}_${timestamp}`;
+      return baseName.replace(/[\\/:*?"<>|\s]+/g, '_') + '.txt';
+    }
+
+    function exportTextModalContent() {
+      const text = getTextModalOutput();
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = createTextModalOutputFileName();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setTextModalSaving(false, '入力内容をテキスト出力しました。');
+    }
+
+    function copyTextModalContent() {
+      const text = getTextModalOutput();
+
+      const clipboard = window.navigator && window.navigator.clipboard;
+
+      if (clipboard && clipboard.writeText) {
+        clipboard.writeText(text)
+          .then(() => setTextModalSaving(false, '入力内容をコピーしました。'))
+          .catch(() => copyTextModalContentFallback(text));
+        return;
+      }
+
+      copyTextModalContentFallback(text);
+    }
+
+    function copyTextModalContentFallback(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setTextModalSaving(false, copied ? '入力内容をコピーしました。' : 'コピーできませんでした。テキストを選択してコピーしてください。', !copied);
     }
 
     function applyManualInputLocal(row, fieldName, value) {
