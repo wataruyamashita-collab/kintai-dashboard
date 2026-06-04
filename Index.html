@@ -1167,6 +1167,7 @@
     let cachedFileName = '';
     let currentSnapshotPayload = null;
     let lastCalculationAudit = null;
+    let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
     let editingField = null;
 
@@ -1231,7 +1232,8 @@
     }
 
     function parseCompanyCalendarText() {
-      const text = normalizeCalendarText(document.getElementById('calendarTextInput').value || '');
+      const rawText = document.getElementById('calendarTextInput').value || '';
+      const text = normalizeCalendarText(rawText);
       if (!text) {
         showMessage('年間勤務カレンダーのテキストを貼り付けてください。', true);
         return;
@@ -1265,8 +1267,9 @@
         if (input) input.value = values[month - 1];
       }
 
+      lastCompanyCalendarImportText = rawText;
       updateCompanyCalendarTotalStatus();
-      showMessage('貼付テキストから月別労働日数を反映しました。合計日数を確認してから「会社カレンダー保存」を押してください。', false, true);
+      showMessage('貼付テキストから月別労働日数を反映しました。合計日数を確認してから「会社カレンダー保存」を押すと、取込内容も記録されます。', false, true);
     }
 
     function extractLaborDaysFromCalendarText(text) {
@@ -1379,8 +1382,9 @@
 
       google.script.run
         .withSuccessHandler(data => {
+          lastCompanyCalendarImportText = data.importedText || lastCompanyCalendarImportText;
           renderCompanyCalendarStatus(data);
-          showMessage('会社カレンダーを保存しました。次回集計からこの営業日数を優先して使用します。', false, true);
+          showMessage('会社カレンダーを保存しました。取込内容を記録したため、次回以降は登録済みカレンダーを自動で読み込みます。', false, true);
         })
         .withFailureHandler(showError)
         .saveCompanyCalendar({
@@ -1388,24 +1392,25 @@
           months,
           expectedTotalDays,
           sourceName: `${year}年 年間勤務カレンダー`,
+          importedText: lastCompanyCalendarImportText || document.getElementById('calendarTextInput').value || '',
           note: '管理者画面から登録'
         });
     }
 
-    function loadCompanyCalendarToForm() {
+    function loadCompanyCalendarToForm(silent) {
       const year = Number(document.getElementById('calendarYear').value || 0);
       if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-        showMessage('対象年を正しく入力してください。', true);
+        if (!silent) showMessage('対象年を正しく入力してください。', true);
         return;
       }
 
-      showMessage('登録済み会社カレンダーを確認しています。');
+      if (!silent) showMessage('登録済み会社カレンダーを確認しています。');
 
       google.script.run
         .withSuccessHandler(data => {
           if (!data || !data.months) {
             document.getElementById('companyCalendarStatus').textContent = `${year}年の会社カレンダーは未登録です。`;
-            showMessage(`${year}年の会社カレンダーは未登録です。`, false);
+            if (!silent) showMessage(`${year}年の会社カレンダーは未登録です。`, false);
             return;
           }
 
@@ -1418,9 +1423,13 @@
           const expectedInput = document.getElementById('expectedTotalDays');
           if (expectedInput) expectedInput.value = data.expectedTotalDays || data.actualTotalDays || '';
 
+          lastCompanyCalendarImportText = data.importedText || '';
+          const textInput = document.getElementById('calendarTextInput');
+          if (textInput && data.importedText) textInput.value = data.importedText;
+
           updateCompanyCalendarTotalStatus();
           renderCompanyCalendarStatus(data);
-          showMessage('登録済み会社カレンダーを読み込みました。', false, true);
+          if (!silent) showMessage('登録済み会社カレンダーを読み込みました。', false, true);
         })
         .withFailureHandler(showError)
         .getCompanyCalendar(year);
@@ -1430,7 +1439,8 @@
       const el = document.getElementById('companyCalendarStatus');
       if (!el || !data) return;
       const totalText = data.actualTotalDays ? ` ／ 年間労働日数：${data.actualTotalDays}日` : '';
-      el.textContent = `${data.year}年 会社カレンダー登録済み${totalText} ／ 保存日時：${data.savedAt || ''} ／ 保存者：${data.savedBy || ''}`;
+      const recordedText = (data.importedTextRecorded || data.importedText) ? ' ／ 取込内容：記録済み' : '';
+      el.textContent = `${data.year}年 会社カレンダー登録済み${totalText}${recordedText} ／ 保存日時：${data.savedAt || ''} ／ 保存者：${data.savedBy || ''}`;
     }
 
     function normalizeCalendarText(text) {
@@ -2446,6 +2456,7 @@
 
       if (data.user.role === 'admin') {
         loadAuthUsersForAdmin();
+        loadCompanyCalendarToForm(true);
       }
 
       if (!data.hasSnapshot) {

@@ -580,9 +580,11 @@ function saveCompanyCalendar(payload) {
     totalCheckStatus: expectedTotalDays === null ? 'not_checked' : 'matched',
     note: String(payload.note || ''),
     sourceName: String(payload.sourceName || ''),
+    importedText: String(payload.importedText || ''),
+    importedTextRecorded: Boolean(payload.importedText),
     savedAt: Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm:ss'),
     savedBy: user.email,
-    version: '1.1'
+    version: '1.2'
   };
 
   const lock = LockService.getScriptLock();
@@ -638,6 +640,7 @@ function getCompanyBusinessDayInfo_(year, month) {
     companyCalendar: {
       year: calendar.year,
       sourceName: calendar.sourceName || '',
+      importedTextRecorded: Boolean(calendar.importedTextRecorded || calendar.importedText),
       savedAt: calendar.savedAt || '',
       savedBy: calendar.savedBy || ''
     },
