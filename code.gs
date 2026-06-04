@@ -1,0 +1,3089 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --line: #dcdfe5;
+      --text: #222222;
+      --muted: #666666;
+      --danger: #f4cccc;
+      --orange: #fce5cd;
+      --yellow: #fff2cc;
+      --blue: #eef3f8;
+      --green: #d9ead3;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .userBox {
+      min-width: 340px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(110px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .summaryCard {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .summaryCard .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .summaryCard .value {
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .uploadBox {
+      display: none;
+    }
+
+    .uploadControls,
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    input[type="month"], input[type="date"], input[type="file"], input[type="text"], input[type="number"], select {
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      background: #fff;
+    }
+
+    button {
+      height: 38px;
+      border: 1px solid #aeb6c2;
+      background: #fff;
+      border-radius: 10px;
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button.primary {
+      background: #1f4e79;
+      color: #fff;
+      border-color: #1f4e79;
+    }
+
+    button.save {
+      background: #274e13;
+      color: #fff;
+      border-color: #274e13;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .message {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .error {
+      color: #a61c00;
+      font-weight: 700;
+    }
+
+    .ok {
+      color: #274e13;
+      font-weight: 700;
+    }
+
+    .definition {
+      margin-top: 8px;
+      padding: 10px;
+      background: var(--blue);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 12px;
+      color: #333;
+      line-height: 1.7;
+    }
+
+    .cacheStatus {
+      margin-top: 10px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .tableWrap {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: auto;
+      max-height: 620px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1420px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+      white-space: nowrap;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #edf2f7;
+      z-index: 2;
+    }
+
+    tr.high td { background: var(--danger); }
+    tr.mediumHigh td { background: var(--orange); }
+    tr.medium td { background: var(--yellow); }
+    tr.low td { background: #fff; }
+
+    .missing {
+      color: #a61c00;
+      font-weight: 700;
+    }
+
+    .safe {
+      color: #274e13;
+    }
+
+    .editableCell {
+      cursor: pointer;
+      color: #1f4e79;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
+    .editableCell.empty {
+      color: #666;
+      text-decoration: none;
+      font-weight: 400;
+    }
+
+    .modalOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .38);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modalBox {
+      width: min(720px, 96vw);
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      box-shadow: 0 16px 40px rgba(0,0,0,.22);
+      overflow: hidden;
+    }
+
+    .modalHeader {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #edf2f7;
+      font-weight: 700;
+    }
+
+    .modalBody {
+      padding: 18px;
+    }
+
+    .modalMeta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+
+    .modalBody textarea {
+      width: 100%;
+      min-height: 180px;
+      box-sizing: border-box;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: Arial, 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+
+    .modalFooter {
+      padding: 14px 18px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: #fafafa;
+    }
+
+    .modalFooter button {
+      min-width: 96px;
+    }
+
+    table.fixedLayout {
+      table-layout: fixed;
+      width: 1420px;
+      min-width: 1420px;
+    }
+
+    table.fixedLayout th,
+    table.fixedLayout td {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .editableCell {
+      max-width: 220px;
+    }
+
+    .editableCell.saved {
+      color: #1f4e79;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
+    .agreementSelect {
+      width: 100%;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 0 6px;
+      font-size: 13px;
+    }
+
+    .fixedLayout th {
+      white-space: normal;
+      line-height: 1.25;
+      vertical-align: middle;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .fixedLayout td {
+      font-size: 12px;
+    }
+
+    .compactHeader {
+      display: inline-block;
+      line-height: 1.25;
+    }
+
+    .editableCell.noteCell {
+      max-width: 110px;
+    }
+
+    button.deleteButton {
+      background: #a61c00;
+      color: #fff;
+      border-color: #a61c00;
+      margin-right: auto;
+    }
+
+    .auditOk {
+      color: #274e13;
+      font-weight: 700;
+    }
+
+    .statusWarn {
+      color: #a61c00;
+      font-weight: 700;
+    }
+
+    .statusOk {
+      color: #274e13;
+      font-weight: 700;
+    }
+
+    .progressBox {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .progressHeader {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 3px solid #d9dee7;
+      border-top-color: #1f4e79;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .progressTrack {
+      width: 100%;
+      height: 10px;
+      background: #edf2f7;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .progressBar {
+      height: 100%;
+      width: 0%;
+      background: #1f4e79;
+      transition: width .2s ease;
+    }
+
+    .progressDetail {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .progressBox.done .spinner {
+      display: none;
+    }
+
+    .progressBox.done .progressBar {
+      background: #274e13;
+    }
+
+    .progressBox.error .progressBar {
+      background: #a61c00;
+    }
+
+
+    /* ===== UI polish: 2026 redesign patch ===== */
+    * { box-sizing: border-box; }
+
+    :focus-visible {
+      outline: 3px solid rgba(31, 78, 121, .28);
+      outline-offset: 2px;
+    }
+
+    body {
+      padding: clamp(18px, 1.6vw, 24px);
+      line-height: 1.55;
+    }
+
+    body > .top,
+    body > .message,
+    body > .tabBar,
+    body > .uploadBox,
+    body > #main {
+      max-width: 1760px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .top {
+      align-items: stretch;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(22px, 2vw, 30px);
+      letter-spacing: .02em;
+    }
+
+    h3 {
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3::before {
+      content: '';
+      width: 6px;
+      height: 18px;
+      border-radius: 99px;
+      background: #1f4e79;
+      display: inline-block;
+    }
+
+    .panel,
+    .message,
+    .summaryCard,
+    .tableWrap {
+      border-color: #e1e6ee;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .panel {
+      padding: 18px 20px;
+    }
+
+    .userBox {
+      min-width: 300px;
+      max-width: 400px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+    }
+
+    .sub {
+      color: #5f6b7a;
+    }
+
+    .guideSteps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 12px 0 14px;
+    }
+
+    .guideStep {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border: 1px solid #e1e6ee;
+      border-radius: 12px;
+      background: #f8fafc;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .guideStep .num {
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 24px;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: #1f4e79;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .uploadControls,
+    .toolbar {
+      gap: 10px;
+      padding: 4px 0;
+    }
+
+    label {
+      color: #2e3540;
+      font-weight: 600;
+    }
+
+    input[type="month"],
+    input[type="date"],
+    input[type="file"],
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      border-color: #cfd7e3;
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    input[type="text"]#keyword {
+      min-width: 260px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #1f4e79;
+      box-shadow: 0 0 0 3px rgba(31, 78, 121, .12);
+    }
+
+    button {
+      border-color: #c7d0dc;
+      background: #ffffff;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(22, 34, 51, .10);
+    }
+
+    button.primary,
+    button.save {
+      padding: 0 18px;
+    }
+
+    .options {
+      background: #f8fafc;
+      border: 1px solid #e1e6ee;
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .definition {
+      background: #f4f8fc;
+      border-left: 4px solid #1f4e79;
+      padding: 12px 14px;
+    }
+
+    .summary {
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .summaryCard {
+      position: relative;
+      overflow: hidden;
+      padding: 10px 12px;
+      min-height: 84px;
+    }
+
+    .summaryCard::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 4px;
+      background: #8aa1b8;
+    }
+
+    .summaryCard:nth-child(2)::before { background: #a61c00; }
+    .summaryCard:nth-child(3)::before { background: #d46b08; }
+    .summaryCard:nth-child(4)::before { background: #b7791f; }
+    .summaryCard:nth-child(5)::before { background: #2f855a; }
+    .summaryCard:nth-child(6)::before { background: #805ad5; }
+
+    .summaryCard .label {
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .summaryCard .value {
+      font-size: 22px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      margin-bottom: 12px;
+    }
+
+    .tableWrap {
+      max-height: 68vh;
+      border-radius: 16px;
+    }
+
+    .fixedLayout th {
+      background: #e9eff6;
+      color: #26384d;
+      font-weight: 700;
+    }
+
+    .fixedLayout tbody tr:hover td {
+      filter: brightness(.985);
+    }
+
+    .fixedLayout td:nth-child(5),
+    .fixedLayout td:nth-child(6),
+    .fixedLayout td:nth-child(9),
+    .fixedLayout td:nth-child(10),
+    .fixedLayout td:nth-child(11) {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    tr.high td { background: #fff1f0; }
+    tr.mediumHigh td { background: #fff7ed; }
+    tr.medium td { background: #fffbea; }
+    tr.low td { background: #ffffff; }
+
+    tr.high td:first-child { box-shadow: inset 5px 0 0 #a61c00; }
+    tr.mediumHigh td:first-child { box-shadow: inset 5px 0 0 #d46b08; }
+    tr.medium td:first-child { box-shadow: inset 5px 0 0 #b7791f; }
+    tr.low td:first-child { box-shadow: inset 5px 0 0 #2f855a; }
+
+    .fixedLayout th:nth-child(1), .fixedLayout td:nth-child(1),
+    .fixedLayout th:nth-child(2), .fixedLayout td:nth-child(2),
+    .fixedLayout th:nth-child(3), .fixedLayout td:nth-child(3),
+    .fixedLayout th:nth-child(4), .fixedLayout td:nth-child(4) {
+      position: sticky;
+      z-index: 4;
+    }
+
+    .fixedLayout th:nth-child(1), .fixedLayout td:nth-child(1) { left: 0; }
+    .fixedLayout th:nth-child(2), .fixedLayout td:nth-child(2) { left: 40px; }
+    .fixedLayout th:nth-child(3), .fixedLayout td:nth-child(3) { left: 160px; }
+    .fixedLayout th:nth-child(4), .fixedLayout td:nth-child(4) { left: 255px; }
+
+    .fixedLayout th:nth-child(-n+4) {
+      z-index: 8;
+      background: #dfe8f2;
+    }
+
+    tr.high td:nth-child(-n+4) { background: #fff1f0; }
+    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; }
+    tr.medium td:nth-child(-n+4) { background: #fffbea; }
+    tr.low td:nth-child(-n+4) { background: #ffffff; }
+
+    .riskBadge,
+    .safeBadge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .riskBadge.high { color: #8a1c12; background: #ffe1df; }
+    .riskBadge.mediumHigh { color: #8a3f00; background: #ffe8cc; }
+    .riskBadge.medium { color: #745100; background: #fff1b8; }
+    .riskBadge.low { color: #2f855a; background: #e6f4ea; }
+    .safeBadge { color: #2f855a; background: #e6f4ea; }
+
+    .editableCell.empty {
+      color: #7a8696;
+      background-image: repeating-linear-gradient(135deg, rgba(31,78,121,.04), rgba(31,78,121,.04) 6px, transparent 6px, transparent 12px);
+    }
+
+    .emptyState {
+      text-align: center !important;
+      padding: 28px !important;
+      color: #5f6b7a;
+    }
+
+    @media (max-width: 900px) {
+      .top { flex-direction: column; }
+      .userBox { min-width: 0; max-width: none; }
+      .guideSteps { grid-template-columns: 1fr; }
+      input[type="text"]#keyword { min-width: 100%; }
+      .toolbar { position: static; }
+    }
+
+
+    /* ===== 画面タブ ===== */
+    .tabBar {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 8px;
+      background: #ffffff;
+      border: 1px solid #e1e6ee;
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .tabButton {
+      height: 36px;
+      border-radius: 999px;
+      padding: 0 16px;
+      border: 1px solid #c7d0dc;
+      background: #ffffff;
+      color: #26384d;
+      font-weight: 700;
+    }
+
+    .tabButton.active {
+      background: #1f4e79;
+      color: #ffffff;
+      border-color: #1f4e79;
+      box-shadow: 0 4px 10px rgba(31, 78, 121, .18);
+    }
+
+    .tabPanel {
+      display: none;
+    }
+
+
+    /* ===== 管理者用：権限管理パネル ===== */
+    .authControls input[type="text"] {
+      min-width: 220px;
+    }
+
+    .authControls .authNoteInput {
+      min-width: 260px;
+    }
+
+    .authTableWrap {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: auto;
+      background: #fff;
+      max-height: 320px;
+    }
+
+    .authTable {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .authTable th,
+    .authTable td {
+      padding: 8px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .authTable th {
+      position: sticky;
+      top: 0;
+      background: #e9eff6;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .authTable td:last-child {
+      text-align: center;
+    }
+
+    .authRoleBadge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      background: #eef3f8;
+      color: #26384d;
+    }
+
+    .authDisabled {
+      color: #a61c00;
+      font-weight: 700;
+    }
+
+    .authEnabled {
+      color: #274e13;
+      font-weight: 700;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>勤怠アラート確認画面</h1>
+      <div class="sub" id="metaText">読み込み中です。</div>
+    </div>
+    <div class="panel userBox" id="userBox">ユーザー情報を確認しています。</div>
+  </div>
+
+  <div id="message" class="message">保存済みデータを確認しています。</div>
+
+  <div id="tabBar" class="tabBar" aria-label="画面切替">
+    <button type="button" class="tabButton active" data-tab="alert" onclick="switchTab('alert')">勤怠アラート</button>
+    <button type="button" class="tabButton adminOnlyTab" data-tab="data" onclick="switchTab('data')">データ取込</button>
+    <button type="button" class="tabButton adminOnlyTab" data-tab="parameters" onclick="switchTab('parameters')">パラメータ設定</button>
+    <button type="button" class="tabButton adminOnlyTab" data-tab="auth" onclick="switchTab('auth')">権限管理</button>
+  </div>
+
+  <div id="uploadBox" class="uploadBox">
+    <div id="dataImportPanel" class="panel tabPanel adminTabPanel">
+      <h3>管理者用：勤怠データ取込・月別再集計</h3>
+      <div class="sub">CSVの取込、計算・再集計、保存を分けて操作します。共有する場合のみ、表示中の結果を保存してください。</div>
+      <div class="guideSteps" aria-label="操作手順">
+        <div class="guideStep"><span class="num">1</span><div><strong>CSV取込</strong><br>初回のみCSVを読み込み、対象月を自動集計します。</div></div>
+        <div class="guideStep"><span class="num">2</span><div><strong>計算・再集計</strong><br>月を変更した場合や再確認時は、取込済みデータから再計算します。</div></div>
+        <div class="guideStep"><span class="num">3</span><div><strong>保存</strong><br>共有する場合だけ、表示中の集計結果を保存します。</div></div>
+      </div>
+
+      <div class="uploadControls">
+        <label>対象月：<input type="month" id="targetMonth" onchange="setDefaultCutoffDate()"></label>
+        <input type="file" id="fileInput" accept=".csv,text/csv">
+        <button class="primary" id="importButton" onclick="importFileOnce()">CSV取込</button>
+        <button id="analyzeButton" onclick="analyzeCachedData()" disabled>計算・再集計</button>
+        <button class="save" id="saveButton" onclick="saveCurrentResult()" disabled>結果を保存</button>
+      </div>
+
+      <div class="progressBox" id="importProgressBox">
+        <div class="progressHeader">
+          <span class="spinner"></span>
+          <span id="importProgressTitle">取込準備中</span>
+        </div>
+        <div class="progressTrack">
+          <div class="progressBar" id="importProgressBar"></div>
+        </div>
+        <div class="progressDetail" id="importProgressDetail">CSV取込の状況を表示します。</div>
+      </div>
+    </div>
+
+    <div id="parameterPanel" class="panel tabPanel adminTabPanel">
+      <h3>管理者用：パラメータ設定</h3>
+      <div class="sub" style="margin-bottom:10px;">
+        集計時の表示条件や会社カレンダーなど、勤怠アラート計算に関係する設定を管理します。
+      </div>
+
+      <div class="options">
+        <label><input type="checkbox" id="showAllEmployees"> 詳細設定：全社員を表示する</label>
+        <label><input type="checkbox" id="usePastAverage"> 参考設定：本人の過去月平均で月末予測を補正する</label>
+        <span class="sub">※既存シートに合わせる場合は、補正なしで運用してください。過去月実績がない場合、固定値補正は使いません。</span>
+      </div>
+
+      <div class="panel" id="companyCalendarBox">
+        <h3>管理者用：会社カレンダー取込</h3>
+        <div class="sub" style="margin-bottom:10px;">
+          毎年作成している年間勤務カレンダーの「労働日数」を登録します。登録済みの月は、Google祝日カレンダーより会社カレンダーを優先して営業日数に使います。
+        </div>
+
+        <div class="uploadControls">
+          <label>対象年：<input type="number" id="calendarYear" min="2000" max="2100" step="1" placeholder="例：2026"></label>
+          <label>年間労働日数：<input type="number" id="expectedTotalDays" min="1" max="366" step="1" placeholder="例：244"></label>
+          <button onclick="loadCompanyCalendarToForm()">登録済みカレンダー読込</button>
+          <button class="primary" onclick="parseCompanyCalendarText()">貼付テキストから反映</button>
+          <button class="save" onclick="saveCompanyCalendarFromForm()">会社カレンダー保存</button>
+        </div>
+
+        <div class="definition" style="margin-top:10px;">
+          PDFを直接解析するのではなく、PDFの本文をコピーして下欄へ貼り付けるか、月別の労働日数を直接入力してください。保存前に、月別労働日数の合計と年間労働日数が一致するか検算します。
+        </div>
+
+        <textarea id="calendarTextInput" style="width:100%;min-height:90px;box-sizing:border-box;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;" placeholder="年間勤務カレンダーPDFのテキストを貼り付けてください。例：各月の「労 20 Orientations」「労 18」または「時 150.0」などから自動抽出します。"></textarea>
+
+        <div id="calendarMonthInputs" class="options" style="align-items:flex-end;"></div>
+        <div class="cacheStatus" id="companyCalendarTotalStatus">年間労働日数：未計算</div>
+        <div class="cacheStatus" id="companyCalendarStatus">会社カレンダーは未読込です。</div>
+      </div>
+    </div>
+
+    <div id="authPanel" class="tabPanel adminTabPanel">
+      <div class="panel" id="authManagementBox">
+        <h3>管理者用：閲覧・入力権限管理</h3>
+        <div class="sub" style="margin-bottom:10px;">
+          同じURLで、管理者・管理監督者・閲覧者の表示範囲と入力権限を管理します。管理監督者は、自部署の備考等のみ保存できます。
+        </div>
+
+        <div class="uploadControls authControls">
+          <label>メール：<input type="text" id="authEmail" placeholder="example@company.co.jp"></label>
+          <label>氏名：<input type="text" id="authName" placeholder="任意"></label>
+          <label>表示範囲：
+            <select id="authDepartment">
+              <option value="全社">全社</option>
+              <option value="営業ユニット">営業ユニット</option>
+              <option value="営業支援ユニット">営業支援ユニット</option>
+              <option value="管理課">管理課</option>
+            </select>
+          </label>
+          <label>権限：
+            <select id="authRole">
+              <option value="admin">admin</option>
+              <option value="manager">manager</option>
+              <option value="viewer">viewer</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="authEnabled" checked> 有効</label>
+          <label>メモ：<input type="text" id="authNote" class="authNoteInput" placeholder="任意"></label>
+          <button class="save" onclick="saveAuthUserFromForm()">権限を保存</button>
+          <button onclick="resetAuthForm()">入力をクリア</button>
+          <button onclick="loadAuthUsersForAdmin()">一覧を再読込</button>
+        </div>
+
+        <div class="definition" style="margin-top:10px;">
+          role の意味：admin＝全社閲覧・CSV取込・計算・権限管理、manager＝自部署閲覧・自部署の手入力保存、viewer＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
+        </div>
+
+        <div class="cacheStatus" id="authStatus">権限一覧は未読込です。</div>
+        <div class="authTableWrap">
+          <table class="authTable">
+            <thead>
+              <tr>
+                <th>メール</th>
+                <th>氏名</th>
+                <th>表示範囲</th>
+                <th>権限</th>
+                <th>状態</th>
+                <th>メモ</th>
+                <th>更新日時</th>
+                <th>更新者</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="authTbody">
+              <tr><td colspan="9" class="emptyState">権限一覧は未読込です。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="main" class="tabPanel" style="display:none;">
+    <div class="summary">
+      <div class="summaryCard"><div class="label">表示人数</div><div class="value" id="sumTotal">0</div></div>
+      <div class="summaryCard"><div class="label">高リスク</div><div class="value" id="sumHigh">0</div></div>
+      <div class="summaryCard"><div class="label">中高リスク</div><div class="value" id="sumMediumHigh">0</div></div>
+      <div class="summaryCard"><div class="label">中リスク</div><div class="value" id="sumMedium">0</div></div>
+      <div class="summaryCard"><div class="label">リスクなし</div><div class="value" id="sumLow">0</div></div>
+      <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
+    </div>
+
+    <div class="panel toolbar">
+      <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
+      <select id="departmentFilter" onchange="applyFilters()"><option value="">すべての部署</option></select>
+      <select id="riskFilter" onchange="applyFilters()">
+        <option value="">すべてのリスク</option>
+        <option value="high">高リスク</option>
+        <option value="mediumHigh">中高リスク</option>
+        <option value="medium">中リスク</option>
+        <option value="low">リスクなし</option>
+      </select>
+      <select id="missingFilter" onchange="applyFilters()">
+        <option value="">未入力すべて</option>
+        <option value="missing">未入力あり</option>
+      </select>
+    </div>
+
+    <div class="definition" id="definitionBox">
+      <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
+      <strong>45h超過回数</strong>：対象年1月以降、法定時間外残業が45時間以上となった月数です。<br>
+      <strong>月末予測残業時間</strong>：MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。
+    </div>
+
+    <div class="tableWrap">
+      <table class="fixedLayout">
+        <colgroup>
+          <col style="width:40px">
+          <col style="width:120px">
+          <col style="width:95px">
+          <col style="width:110px">
+          <col style="width:105px">
+          <col style="width:105px">
+          <col style="width:130px">
+          <col style="width:145px">
+          <col style="width:115px">
+          <col style="width:95px">
+          <col style="width:105px">
+          <col style="width:125px">
+          <col style="width:135px">
+          <col style="width:135px">
+          <col style="width:95px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th><span class="compactHeader">部署名</span></th>
+            <th><span class="compactHeader">社員<br>コード</span></th>
+            <th><span class="compactHeader">社員名</span></th>
+            <th><span class="compactHeader">概算<br>残業時間</span></th>
+            <th><span class="compactHeader">確定<br>残業時間</span></th>
+            <th><span class="compactHeader">超過<br>アラート内容</span></th>
+            <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
+            <th><span class="compactHeader">月末予測<br>残業時間</span></th>
+            <th><span class="compactHeader">45h超過<br>回数</span></th>
+            <th><span class="compactHeader">累計有休<br>取得日数</span></th>
+            <th><span class="compactHeader">36協定適用<br>事前申請</span></th>
+            <th><span class="compactHeader">特別条項の<br>発動事由</span></th>
+            <th><span class="compactHeader">健康福祉<br>措置</span></th>
+            <th><span class="compactHeader">備考</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="textModal" onclick="closeTextModalByOverlay(event)">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modalHeader" id="modalTitle">入力</div>
+      <div class="modalBody">
+        <div class="modalMeta" id="modalMeta"></div>
+        <textarea id="modalTextarea" placeholder="内容を入力してください。入力内容はセル内に全文表示せず、クリック時に確認できます。"></textarea>
+      </div>
+      <div class="modalFooter">
+        <button class="deleteButton" onclick="deleteTextModal()">削除</button>
+        <button onclick="closeTextModal()">キャンセル</button>
+        <button class="save" onclick="saveTextModal()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const REQUIRED_HEADERS = [
+      '部署名',
+      '社員コード',
+      '社員名',
+      '日付',
+      '所定労働時間',
+      '法定時間内残業',
+      '法定時間外残業',
+      '年次有休取得日数(時間単位休を除く)',
+      '所定休日労働時間',
+      '法定休日労働時間',
+      '実労働時間',
+      '出社日数'
+    ];
+
+    const PRESCRIBED_EXCESS_HEADER_CANDIDATES = [
+      '所定超過時間',
+      '概算残業時間',
+      '概算残業',
+      '所定外労働時間',
+      '所定外時間',
+      '超過時間',
+      '時間外労働時間',
+      '時間外時間'
+    ];
+
+    const SOURCE_COLUMN_U_INDEX = 20;
+    const SOURCE_COLUMN_J_INDEX = 9;
+    const SOURCE_COLUMN_K_INDEX = 10;
+    const SOURCE_COLUMN_N_INDEX = 13;
+    const SOURCE_COLUMN_P_INDEX = 15;
+    const SOURCE_COLUMN_S_INDEX = 18;
+    const SOURCE_COLUMN_T_INDEX = 19;
+
+    const FIELD = {
+      DEPARTMENT: 0,
+      EMPLOYEE_CODE: 1,
+      EMPLOYEE_NAME: 2,
+      DATE: 3,
+      SCHEDULED_HOURS: 4,
+      LEGAL_OT: 5,
+      STATUTORY_OT: 6,
+      PAID_LEAVE: 7,
+      PRESCRIBED_HOLIDAY_WORK: 8,
+      LEGAL_HOLIDAY_WORK: 9,
+      ACTUAL_WORK_HOURS: 10,
+      ATTENDANCE_DAYS: 11,
+      PRESCRIBED_EXCESS_HOURS: 12,
+      HAS_PRESCRIBED_EXCESS_HOURS: 13,
+      RAW_J_SCHEDULED_HOURS: 14,
+      RAW_K_BREAK_HOURS: 15,
+      RAW_N_PAID_LEAVE_DAYS: 16,
+      RAW_P_DEDUCT_HOURS: 17,
+      RAW_S_START_TIME: 18,
+      RAW_T_END_TIME: 19
+    };
+
+    let currentRows = [];
+    let currentUser = null;
+    let clientConfig = null;
+    let clientPermissions = null;
+    let activeTab = 'alert';
+    let cachedRows = [];
+    let cachedRowsByMonth = {};
+    let cachedFileName = '';
+    let currentSnapshotPayload = null;
+    let lastCalculationAudit = null;
+    let editingRowIndex = null;
+    let editingField = null;
+
+    window.addEventListener('load', () => {
+      setDefaultTargetMonth();
+      setDefaultCutoffDate();
+      initializeCompanyCalendarForm();
+
+      const fileInput = document.getElementById('fileInput');
+      fileInput.addEventListener('change', () => {
+        document.getElementById('importButton').disabled = false;
+        document.getElementById('analyzeButton').disabled = cachedRows.length === 0;
+        document.getElementById('saveButton').disabled = true;
+        if (cachedRows.length > 0) {
+          showMessage('新しいCSVファイルが選択されました。必要な場合のみ「CSV取込」を押してください。');
+        }
+      });
+
+      google.script.run
+        .withSuccessHandler(renderApp)
+        .withFailureHandler(showError)
+        .getInitialData();
+    });
+
+    function initializeCompanyCalendarForm() {
+      const yearInput = document.getElementById('calendarYear');
+      const container = document.getElementById('calendarMonthInputs');
+      if (!yearInput || !container) return;
+
+      const today = new Date();
+      yearInput.value = today.getFullYear();
+
+      const expectedInput = document.getElementById('expectedTotalDays');
+      if (expectedInput) {
+        expectedInput.addEventListener('input', updateCompanyCalendarTotalStatus);
+      }
+
+      container.innerHTML = '';
+      for (let month = 1; month <= 12; month++) {
+        const wrap = document.createElement('label');
+        wrap.style.display = 'inline-flex';
+        wrap.style.flexDirection = 'column';
+        wrap.style.gap = '4px';
+
+        const span = document.createElement('span');
+        span.textContent = `${month}月`;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '1';
+        input.max = '31';
+        input.step = '1';
+        input.id = `companyMonth_${String(month).padStart(2, '0')}`;
+        input.style.width = '72px';
+        input.placeholder = '日数';
+        input.addEventListener('input', updateCompanyCalendarTotalStatus);
+
+        wrap.appendChild(span);
+        wrap.appendChild(input);
+        container.appendChild(wrap);
+      }
+    }
+
+    function parseCompanyCalendarText() {
+      const text = normalizeCalendarText(document.getElementById('calendarTextInput').value || '');
+      if (!text) {
+        showMessage('年間勤務カレンダーのテキストを貼り付けてください。', true);
+        return;
+      }
+
+      const year = Number(document.getElementById('calendarYear').value || 0);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        showMessage('対象年を正しく入力してください。', true);
+        return;
+      }
+
+      const expectedTotal = extractExpectedTotalLaborDays(text);
+      if (expectedTotal) {
+        const expectedInput = document.getElementById('expectedTotalDays');
+        if (expectedInput) expectedInput.value = expectedTotal;
+      }
+
+      let values = extractLaborDaysFromCalendarText(text);
+
+      if (values.length < 12) {
+        values = extractLaborDaysFromMonthlyHours(text);
+      }
+
+      if (values.length < 12) {
+        showMessage('月別の労働日数を12か月分抽出できませんでした。各月の日数を直接入力してください。', true);
+        return;
+      }
+
+      for (let month = 1; month <= 12; month++) {
+        const input = document.getElementById(`companyMonth_${String(month).padStart(2, '0')}`);
+        if (input) input.value = values[month - 1];
+      }
+
+      updateCompanyCalendarTotalStatus();
+      showMessage('貼付テキストから月別労働日数を反映しました。合計日数を確認してから「会社カレンダー保存」を押してください。', false, true);
+    }
+
+    function extractLaborDaysFromCalendarText(text) {
+      const values = [];
+      const regex = /(?:^|\s)労\s*([0-9]{1,2})(?=\s|$)/g;
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        const value = Number(match[1]);
+        if (Number.isInteger(value) && value > 0 && value <= 31) {
+          values.push(value);
+        }
+      }
+
+      return values.slice(0, 12);
+    }
+
+    function extractLaborDaysFromMonthlyHours(text) {
+      const values = [];
+      const regex = /時\s*([0-9]{2,3}(?:\.[0-9]+)?)/g;
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        const hours = Number(match[1]);
+        if (Number.isFinite(hours) && hours > 0) {
+          const days = Math.round(hours / 7.5);
+          if (days > 0 && days <= 31) values.push(days);
+        }
+      }
+
+      return values.slice(0, 12);
+    }
+
+    function extractExpectedTotalLaborDays(text) {
+      const laborMatch = text.match(/労働日数\s*\(?日\)?\s*([0-9]{2,3})(?:\s+([0-9]{2,3}))?/);
+      if (laborMatch) {
+        const value = Number(laborMatch[2] || laborMatch[1]);
+        if (Number.isInteger(value) && value > 0 && value <= 366) return value;
+      }
+      return null;
+    }
+
+    function updateCompanyCalendarTotalStatus() {
+      const status = document.getElementById('companyCalendarTotalStatus');
+      if (!status) return;
+
+      const total = calculateCompanyCalendarTotal();
+      const expected = Number(document.getElementById('expectedTotalDays').value || 0);
+
+      if (!total) {
+        status.className = 'cacheStatus';
+        status.textContent = '年間労働日数：未計算';
+        return;
+      }
+
+      if (expected > 0) {
+        if (total === expected) {
+          status.className = 'cacheStatus statusOk';
+          status.textContent = `年間労働日数：${total}日 ／ 指定値：${expected}日 ／ 一致`;
+        } else {
+          status.className = 'cacheStatus statusWarn';
+          status.textContent = `年間労働日数：${total}日 ／ 指定値：${expected}日 ／ 不一致`;
+        }
+      } else {
+        status.className = 'cacheStatus';
+        status.textContent = `年間労働日数：${total}日 ／ 指定値なし`;
+      }
+    }
+
+    function calculateCompanyCalendarTotal() {
+      let total = 0;
+      for (let month = 1; month <= 12; month++) {
+        const input = document.getElementById(`companyMonth_${String(month).padStart(2, '0')}`);
+        const value = Number(input && input.value ? input.value : 0);
+        if (Number.isFinite(value) && value > 0) total += value;
+      }
+      return total;
+    }
+
+    function saveCompanyCalendarFromForm() {
+      const year = Number(document.getElementById('calendarYear').value || 0);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        showMessage('対象年を正しく入力してください。', true);
+        return;
+      }
+
+      const months = {};
+      const expectedTotalDaysInput = Number(document.getElementById('expectedTotalDays').value || 0);
+      const expectedTotalDays = Number.isInteger(expectedTotalDaysInput) && expectedTotalDaysInput > 0 ? expectedTotalDaysInput : null;
+
+      for (let month = 1; month <= 12; month++) {
+        const key = `${year}/${String(month).padStart(2, '0')}`;
+        const input = document.getElementById(`companyMonth_${String(month).padStart(2, '0')}`);
+        const value = Number(input && input.value ? input.value : 0);
+
+        if (!Number.isFinite(value) || value <= 0 || value > 31) {
+          showMessage(`${month}月の労働日数を正しく入力してください。`, true);
+          return;
+        }
+        months[key] = value;
+      }
+
+      const actualTotalDays = calculateCompanyCalendarTotal();
+      if (expectedTotalDays && actualTotalDays !== expectedTotalDays) {
+        showMessage(`月別労働日数の合計（${actualTotalDays}日）が年間労働日数（${expectedTotalDays}日）と一致しません。保存前に確認してください。`, true);
+        return;
+      }
+
+      showMessage('会社カレンダーを保存しています。');
+
+      google.script.run
+        .withSuccessHandler(data => {
+          renderCompanyCalendarStatus(data);
+          showMessage('会社カレンダーを保存しました。次回集計からこの営業日数を優先して使用します。', false, true);
+        })
+        .withFailureHandler(showError)
+        .saveCompanyCalendar({
+          year,
+          months,
+          expectedTotalDays,
+          sourceName: `${year}年 年間勤務カレンダー`,
+          note: '管理者画面から登録'
+        });
+    }
+
+    function loadCompanyCalendarToForm() {
+      const year = Number(document.getElementById('calendarYear').value || 0);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        showMessage('対象年を正しく入力してください。', true);
+        return;
+      }
+
+      showMessage('登録済み会社カレンダーを確認しています。');
+
+      google.script.run
+        .withSuccessHandler(data => {
+          if (!data || !data.months) {
+            document.getElementById('companyCalendarStatus').textContent = `${year}年の会社カレンダーは未登録です。`;
+            showMessage(`${year}年の会社カレンダーは未登録です。`, false);
+            return;
+          }
+
+          for (let month = 1; month <= 12; month++) {
+            const key = `${year}/${String(month).padStart(2, '0')}`;
+            const input = document.getElementById(`companyMonth_${String(month).padStart(2, '0')}`);
+            if (input) input.value = data.months[key] || '';
+          }
+
+          const expectedInput = document.getElementById('expectedTotalDays');
+          if (expectedInput) expectedInput.value = data.expectedTotalDays || data.actualTotalDays || '';
+
+          updateCompanyCalendarTotalStatus();
+          renderCompanyCalendarStatus(data);
+          showMessage('登録済み会社カレンダーを読み込みました。', false, true);
+        })
+        .withFailureHandler(showError)
+        .getCompanyCalendar(year);
+    }
+
+    function renderCompanyCalendarStatus(data) {
+      const el = document.getElementById('companyCalendarStatus');
+      if (!el || !data) return;
+      const totalText = data.actualTotalDays ? ` ／ 年間労働日数：${data.actualTotalDays}日` : '';
+      el.textContent = `${data.year}年 会社カレンダー登録済み${totalText} ／ 保存日時：${data.savedAt || ''} ／ 保存者：${data.savedBy || ''}`;
+    }
+
+    function normalizeCalendarText(text) {
+      return String(text || '')
+        .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/[１２３４５６７８９０]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/　/g, ' ')
+        .replace(/\r?\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function setDefaultTargetMonth() {
+      const today = new Date();
+      const ym = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+      document.getElementById('targetMonth').value = ym;
+    }
+
+    function setDefaultCutoffDate() {
+      if (cachedRows.length > 0) {
+        showMessage('対象月を変更しました。「計算・再集計」を押してください。集計基準日は取込データから自動判定します。');
+      }
+    }
+
+    function resetImportProgress() {
+      const box = document.getElementById('importProgressBox');
+      const bar = document.getElementById('importProgressBar');
+      const title = document.getElementById('importProgressTitle');
+      const detail = document.getElementById('importProgressDetail');
+
+      if (!box || !bar || !title || !detail) return;
+
+      box.style.display = 'block';
+      box.className = 'progressBox';
+      bar.style.width = '0%';
+      title.textContent = '取込準備中';
+      detail.textContent = 'CSV取込の状況を表示します。';
+    }
+
+    function setImportProgress(percent, title, detail, done, isError) {
+      const box = document.getElementById('importProgressBox');
+      const bar = document.getElementById('importProgressBar');
+      const titleEl = document.getElementById('importProgressTitle');
+      const detailEl = document.getElementById('importProgressDetail');
+
+      if (!box || !bar || !titleEl || !detailEl) return;
+
+      box.style.display = 'block';
+      box.className = 'progressBox' + (done ? ' done' : '') + (isError ? ' error' : '');
+
+      const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+      bar.style.width = `${safePercent}%`;
+      titleEl.textContent = title || '';
+      detailEl.textContent = detail || '';
+    }
+
+    function waitForUi() {
+      return new Promise(resolve => setTimeout(resolve, 10));
+    }
+
+    function formatFileSize(bytes) {
+      const value = Number(bytes) || 0;
+      if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)}MB`;
+      if (value >= 1024) return `${Math.round(value / 1024)}KB`;
+      return `${value}B`;
+    }
+
+    function validateCsvText(text) {
+      const value = String(text || '');
+      if (!value.trim()) {
+        throw new Error('CSVファイルの内容が空です。');
+      }
+      const firstLines = value.split(/\r?\n/).slice(0, 20).join('\n');
+      if (firstLines.indexOf(',') === -1 && firstLines.indexOf('\t') === -1) {
+        throw new Error('CSV形式として認識できません。カンマ区切りまたはタブ区切りのCSVを選択してください。');
+      }
+    }
+
+    /* =================================================================
+       🚀 高速化された CSV パース関数 (ボトルネック解消箇所)
+    ================================================================= */
+    function parseAndCompactCsvFast(csvText) {
+      const delimiter = detectCsvDelimiter(csvText);
+      
+      // 文字単位ループを廃止し、ブラウザのネイティブ処理で一括行分割
+      const lines = csvText.split(/\r?\n/);
+      
+      let headers = null;
+      let headerIndex = null;
+      let prescribedExcessSource = null;
+      let rawSourceIndex = null;
+      let sourceRows = 0;
+      const resultRows = [];
+      const monthIndex = {};
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line || !line.trim()) continue;
+
+        // デリミタで分割し、前後のダブルクォーテーションを高速除去
+        const row = line.split(delimiter).map(cell => {
+          let c = cell.trim();
+          if (c.startsWith('"') && c.endsWith('"')) {
+            c = c.slice(1, -1);
+          }
+          return cleanCellText(c);
+        });
+
+        if (!row.some(cell => cell !== '')) continue;
+
+        if (!headers) {
+          const normalized = row.map(normalizeHeader);
+          const matchCount = REQUIRED_HEADERS.filter(h => normalized.includes(normalizeHeader(h))).length;
+
+          if (matchCount >= 8) {
+            headers = row;
+            headerIndex = createHeaderIndex(headers);
+            prescribedExcessSource = findPrescribedExcessSource(headers);
+            rawSourceIndex = createRawSourceIndex(headers);
+          }
+          continue;
+        }
+
+        sourceRows += 1;
+
+        const compact = REQUIRED_HEADERS.map(header => row[headerIndex[header]] || '');
+
+        const sourceIndex = prescribedExcessSource.index;
+        const sourceValue = sourceIndex >= 0 ? (row[sourceIndex] || '') : '';
+        const hasSourceValue = sourceIndex >= 0 && normalizeText(sourceValue) !== '';
+
+        compact.push(sourceValue);
+        compact.push(hasSourceValue ? '1' : '');
+
+        compact.push(getCsvCell(row, rawSourceIndex.scheduled));
+        compact.push(getCsvCell(row, rawSourceIndex.breakHours));
+        compact.push(getCsvCell(row, rawSourceIndex.paidLeaveDays));
+        compact.push(getCsvCell(row, rawSourceIndex.deductHours));
+        compact.push(getCsvCell(row, rawSourceIndex.startTime));
+        compact.push(getCsvCell(row, rawSourceIndex.endTime));
+
+        const normalizedDate = normalizeDateText(compact[FIELD.DATE]);
+        if (!normalizedDate) continue;
+
+        compact[FIELD.DATE] = normalizedDate;
+        resultRows.push(compact);
+
+        const monthKey = normalizedDate.slice(0, 7);
+        if (!monthIndex[monthKey]) monthIndex[monthKey] = [];
+        monthIndex[monthKey].push(compact);
+      }
+
+      if (!headers) {
+        throw new Error('CSV内に必要な見出し行が見つかりません。');
+      }
+      if (resultRows.length === 0) {
+        throw new Error('CSV内に取込可能なデータがありません。');
+      }
+
+      return {
+        headers,
+        rows: resultRows,
+        monthIndex,
+        sourceRows,
+        delimiter
+      };
+    }
+
+    function getCsvCell(row, index) {
+      return index >= 0 && index < row.length ? (row[index] || '') : '';
+    }
+
+    function detectCsvDelimiter(text) {
+      const sample = String(text || '').split(/\r?\n/).slice(0, 10).join('\n');
+      const commaCount = (sample.match(/,/g) || []).length;
+      const tabCount = (sample.match(/\t/g) || []).length;
+      return tabCount > commaCount ? '\t' : ',';
+    }
+
+    async function importFileOnce() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) return showMessage('CSVファイルを選択してください。', true);
+
+      const fileName = String(file.name || '').toLowerCase();
+      if (!fileName.endsWith('.csv')) {
+        showMessage('CSVファイルを選択してください。HTML形式のxlsは対象外です。', true);
+        return;
+      }
+
+      setImportDisabled(true);
+      document.getElementById('analyzeButton').disabled = true;
+      document.getElementById('saveButton').disabled = true;
+
+      cachedRows = [];
+      cachedRowsByMonth = {};
+      cachedFileName = '';
+
+      resetImportProgress();
+      setImportProgress(5, 'CSV取込を開始しました', `対象ファイル：${file.name} ／ サイズ：${formatFileSize(file.size)}`);
+      showMessage('CSVファイルを取り込んでいます。HTML解析は行いません。');
+
+      const reader = new FileReader();
+
+      reader.onload = async event => {
+        try {
+          setImportProgress(25, 'CSV読込完了', 'CSV形式の内容を確認しています。');
+          await waitForUi();
+
+          const csvText = String(event.target.result || '').replace(/^\uFEFF/, '');
+
+          setImportProgress(35, 'CSV形式を確認中', '区切り文字と見出し行を確認しています。');
+          await waitForUi();
+          validateCsvText(csvText);
+
+          setImportProgress(55, 'CSV解析中', '必要列だけを抽出しています。');
+          await waitForUi();
+
+          const parsed = parseAndCompactCsvFast(csvText);
+
+          cachedRows = parsed.rows;
+          cachedRowsByMonth = parsed.monthIndex || {};
+          cachedFileName = file.name;
+
+          if (cachedRows.length === 0) {
+            throw new Error('取込可能なデータがありません。');
+          }
+
+          document.getElementById('analyzeButton').disabled = false;
+          document.getElementById('saveButton').disabled = true;
+          document.getElementById('importButton').disabled = true;
+          updateCacheStatus();
+
+          setImportProgress(100, 'CSV取込完了', `${cachedRows.length}行を保持しました。続けて対象月を自動集計します。`, true);
+          showMessage(`CSVを取り込みました。${cachedRows.length}行を保持しています。続けて対象月を自動集計します。`, false, true);
+
+          setTimeout(() => {
+            analyzeCachedData();
+          }, 50);
+
+        } catch (error) {
+          cachedRows = [];
+          cachedRowsByMonth = {};
+          cachedFileName = '';
+          updateCacheStatus();
+          setImportProgress(100, 'CSV取込エラー', (error && error.message) ? error.message : String(error), false, true);
+          showError(error);
+        } finally {
+          setImportDisabled(false);
+        }
+      };
+
+      reader.onprogress = event => {
+        if (event.lengthComputable) {
+          const percent = Math.max(5, Math.min(24, Math.round((event.loaded / event.total) * 20)));
+          setImportProgress(percent, 'CSV読込中', `${formatFileSize(event.loaded)} / ${formatFileSize(event.total)} を読み込みました。`);
+        }
+      };
+
+      reader.onerror = () => {
+        setImportDisabled(false);
+        setImportProgress(100, 'CSV取込エラー', 'CSVファイルの読み込みに失敗しました。', false, true);
+        showError(new Error('CSVファイルの読み込みに失敗しました。'));
+      };
+
+      reader.readAsText(file, 'shift-jis');
+    }
+
+    function getRowsForTargetMonth(targetMonth) {
+      if (!Object.keys(cachedRowsByMonth || {}).length) return cachedRows;
+      const target = parseYearMonth(targetMonth);
+      const result = [];
+
+      for (let month = 1; month <= target.month; month++) {
+        const key = `${target.year}/${String(month).padStart(2, '0')}`;
+        if (cachedRowsByMonth[key]) result.push(...cachedRowsByMonth[key]);
+      }
+      return result;
+    }
+
+    function determineAutoCutoffDate(rows, targetMonth) {
+      if (!rows || rows.length === 0) return '';
+      const target = parseYearMonth(targetMonth);
+      let maxDateStr = '';
+
+      for (let i = 0; i < rows.length; i++) {
+        const dateStr = rows[i][FIELD.DATE];
+        if (!dateStr) continue;
+        const p = parseDateKey(dateStr);
+        if (p && p.year === target.year && p.month === target.month) {
+          if (dateStr > maxDateStr) maxDateStr = dateStr;
+        }
+      }
+      return maxDateStr;
+    }
+
+    function analyzeCachedData() {
+      if (!cachedRows.length) {
+        return showMessage('先にCSVファイルを取り込んでください。', true);
+      }
+
+      const targetMonth = document.getElementById('targetMonth').value;
+      const showAllEmployees = document.getElementById('showAllEmployees').checked;
+      const usePastAverage = document.getElementById('usePastAverage').checked;
+
+      if (!targetMonth) return showMessage('対象月を選択してください。', true);
+
+      const normalizedTargetMonth = targetMonth.replace('-', '/');
+      const rowsForAnalysis = getRowsForTargetMonth(normalizedTargetMonth);
+      const normalizedCutoffDate = determineAutoCutoffDate(rowsForAnalysis, normalizedTargetMonth);
+
+      if (!normalizedCutoffDate) {
+        return showMessage('取込データから集計基準日を自動判定できませんでした。対象月と取込ファイルを確認してください。', true);
+      }
+
+      showMessage(`自動集計基準日：${normalizedCutoffDate}。営業日数（土日祝日除外）を取得しています。取得済み月はキャッシュを使用します。`);
+
+      google.script.run
+        .withSuccessHandler(businessDayInfo => {
+          try {
+            const businessDays = Number(businessDayInfo.businessDays || 0);
+            if (!Number.isFinite(businessDays) || businessDays <= 0) {
+              throw new Error('営業日数を取得できませんでした。');
+            }
+
+            showMessage('取込済みデータから集計しています。Drive保存は行いません。');
+
+            const rows = analyzeRowsClient(
+              rowsForAnalysis,
+              normalizedTargetMonth,
+              normalizedCutoffDate,
+              {
+                showAllEmployees,
+                usePastAverage,
+                businessDays
+              }
+            );
+
+            lastCalculationAudit = runCalculationAudit(rows, {
+              showAllEmployees,
+              usePastAverage,
+              targetMonth: normalizedTargetMonth,
+              cutoffDate: normalizedCutoffDate,
+              businessDays,
+              businessDaySource: businessDayInfo.source
+            });
+
+            showMessage('保存済みの手入力内容を復元しています。');
+
+            google.script.run
+              .withSuccessHandler(mergedRows => {
+                const displayRows = Array.isArray(mergedRows) ? mergedRows : rows;
+                finishAnalyzeCachedDataRender(displayRows, {
+                  normalizedTargetMonth,
+                  normalizedCutoffDate,
+                  showAllEmployees,
+                  usePastAverage,
+                  businessDays,
+                  businessDayInfo
+                });
+              })
+              .withFailureHandler(error => {
+                showMessage('手入力内容の復元に失敗しました。計算結果のみ表示します。Code.gs 側の applyManualInputsToRows を確認してください。', true);
+                finishAnalyzeCachedDataRender(rows, {
+                  normalizedTargetMonth,
+                  normalizedCutoffDate,
+                  showAllEmployees,
+                  usePastAverage,
+                  businessDays,
+                  businessDayInfo
+                });
+              })
+              .applyManualInputsToRows({
+                targetMonth: normalizedTargetMonth,
+                rows
+              });
+          } catch (error) {
+            showError(error);
+          }
+        })
+        .withFailureHandler(error => {
+          showError(error);
+        })
+        .getBusinessDayInfo(normalizedTargetMonth);
+    }
+
+    function finishAnalyzeCachedDataRender(rows, context) {
+      const summary = createSummaryClient(rows);
+      const departments = createDepartmentListClient(rows);
+
+      currentRows = rows;
+      currentSnapshotPayload = {
+        targetMonth: context.normalizedTargetMonth,
+        cutoffDate: context.normalizedCutoffDate,
+        originalFileName: cachedFileName,
+        sourceRows: cachedRows.length,
+        rows,
+        displayMode: context.showAllEmployees ? 'allEmployees' : 'alertsOnly',
+        usePastAverage: context.usePastAverage,
+        businessDays: context.businessDays,
+        businessDaySource: context.businessDayInfo.source,
+        holidays: context.businessDayInfo.holidays || [],
+        calculationAudit: lastCalculationAudit
+      };
+
+      renderAnalysisResult({
+        hasSnapshot: true,
+        snapshotMeta: {
+          targetMonth: currentSnapshotPayload.targetMonth,
+          cutoffDate: currentSnapshotPayload.cutoffDate,
+          uploadedAt: '未保存',
+          sourceRows: cachedRows.length,
+          over45Definition: '45h超過回数は、対象年1月以降、法定時間外残業が45時間以上となった月数です。'
+        },
+        rows,
+        summary,
+        departments
+      });
+
+      document.getElementById('saveButton').disabled = false;
+
+      const sourceText = context.businessDayInfo.source === 'company_calendar'
+        ? '会社カレンダー'
+        : (context.businessDayInfo.source === 'google_japan_holiday_calendar_cache'
+          ? '土日祝日除外'
+          : '土日除外フォールバック');
+
+      showMessage(
+        `集計表示を更新しました。検算OK：${lastCalculationAudit.checkedRows}行を確認しました。` +
+        `当月営業日数：${context.businessDays}日（${sourceText}）。` +
+        `概算＝確定の行数：${lastCalculationAudit.estimatedEqualsConfirmedCount}行。` +
+        `保存済みの手入力内容を復元しました。共有する場合のみ「結果を保存」を押してください。`,
+        false,
+        true
+      );
+    }
+
+    function saveCurrentResult() {
+      if (!currentSnapshotPayload || !currentSnapshotPayload.rows) {
+        return showMessage('保存する集計結果がありません。先に集計表示してください。', true);
+      }
+
+      document.getElementById('saveButton').disabled = true;
+      showMessage('表示中の集計結果だけを保存しています。CSV再取込は行いません。');
+
+      google.script.run
+        .withSuccessHandler(data => {
+          renderApp(data);
+          showMessage('表示中の集計結果だけを保存しました。CSV再取込は行っていません。', false, true);
+          document.getElementById('saveButton').disabled = false;
+        })
+        .withFailureHandler(error => {
+          document.getElementById('saveButton').disabled = false;
+          showError(error);
+        })
+        .saveClientSnapshot(currentSnapshotPayload);
+    }
+
+    function calculatePrescribedExcessByExistingFormula(row, scheduledHours, paidLeave, legalHolidayWork) {
+      const startValue = normalizeText(row[FIELD.RAW_S_START_TIME]);
+      const endValue = normalizeText(row[FIELD.RAW_T_END_TIME]);
+
+      if (!startValue || !endValue) return null;
+
+      const startHours = toClockHours(startValue);
+      const endHoursRaw = toClockHours(endValue);
+
+      if (!Number.isFinite(startHours) || !Number.isFinite(endHoursRaw)) return null;
+
+      let endHours = endHoursRaw;
+      if (endHours < startHours) endHours += 24;
+
+      const breakHours = toHours(row[FIELD.RAW_K_BREAK_HOURS]);
+      const paidLeaveDays = toNumber(row[FIELD.RAW_N_PAID_LEAVE_DAYS]);
+      const deductHours = toHours(row[FIELD.RAW_P_DEDUCT_HOURS]);
+      const scheduled = toHours(row[FIELD.RAW_J_SCHEDULED_HOURS]) || scheduledHours;
+
+      let base;
+      if (paidLeaveDays === 1) {
+        base = endHours - startHours - breakHours;
+      } else if (paidLeaveDays === 0.5) {
+        base = endHours - startHours - breakHours - 3.75;
+      } else {
+        base = endHours - startHours - breakHours - scheduled;
+      }
+
+      const result = round2(base - deductHours);
+      return result < 0 ? 0 : result;
+    }
+
+    function toClockHours(value) {
+      if (value === null || value === undefined || value === '') return Number.NaN;
+      if (typeof value === 'number') return value > 0 && value < 1 ? value * 24 : value;
+
+      const text = String(value).trim();
+      if (!text) return Number.NaN;
+
+      const timeMatch = text.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (timeMatch) {
+        const h = Number(timeMatch[1]);
+        const m = Number(timeMatch[2]);
+        const s = Number(timeMatch[3] || 0);
+        return h + m / 60 + s / 3600;
+      }
+
+      const num = Number(text.replace(/,/g, ''));
+      if (Number.isFinite(num)) return num > 0 && num < 1 ? num * 24 : num;
+      return Number.NaN;
+    }
+
+    function analyzeRowsClient(rows, targetMonth, cutoffDate, options) {
+      const target = parseYearMonth(targetMonth);
+      const cutoff = parseDateKey(cutoffDate);
+      const employees = {};
+      const monthlyStatutoryOtMap = {};
+      const employeePastMonthlyJudgeOt = {};
+
+      rows.forEach(row => {
+        const date = parseDateKey(row[FIELD.DATE]);
+        if (!date) return;
+        if (date.year !== target.year) return;
+        if (date.month < 1 || date.month > target.month) return;
+
+        const employeeCode = normalizeText(row[FIELD.EMPLOYEE_CODE]);
+        const employeeName = normalizeText(row[FIELD.EMPLOYEE_NAME]);
+        if (!employeeCode && !employeeName) return;
+
+        const employeeKey = employeeCode || employeeName;
+        const departmentFromRow = normalizeDepartmentName(row[FIELD.DEPARTMENT]);
+        const resolved = resolveEmployeeDepartment(employeeCode, departmentFromRow);
+
+        if (!employees[employeeKey]) {
+          employees[employeeKey] = createEmployeeAggregate(employeeKey, employeeCode, employeeName, resolved.department, resolved.departmentGroup);
+        }
+
+        const employee = employees[employeeKey];
+
+        const scheduledHours = toHours(row[FIELD.SCHEDULED_HOURS]);
+        const legalOt = toHours(row[FIELD.LEGAL_OT]);
+        const statutoryOt = toHours(row[FIELD.STATUTORY_OT]);
+        const confirmedOt = legalOt + statutoryOt;
+        const paidLeave = toNumber(row[FIELD.PAID_LEAVE]);
+        const prescribedHolidayWork = toHours(row[FIELD.PRESCRIBED_HOLIDAY_WORK]);
+        const legalHolidayWork = toHours(row[FIELD.LEGAL_HOLIDAY_WORK]);
+        const actualWorkHours = toHours(row[FIELD.ACTUAL_WORK_HOURS]);
+        const attendanceDays = toNumber(row[FIELD.ATTENDANCE_DAYS]);
+
+        const hasPrescribedExcessHours = String(row[FIELD.HAS_PRESCRIBED_EXCESS_HOURS] || '') === '1';
+        const prescribedExcessHours = toHours(row[FIELD.PRESCRIBED_EXCESS_HOURS]);
+        const calculatedByUFormula = calculatePrescribedExcessByExistingFormula(row, scheduledHours, paidLeave, legalHolidayWork);
+        const fallbackEstimatedOt = Math.max(0, actualWorkHours - scheduledHours);
+
+        let dailyEstimatedOt;
+        if (hasPrescribedExcessHours) {
+          dailyEstimatedOt = prescribedExcessHours;
+        } else if (calculatedByUFormula !== null) {
+          dailyEstimatedOt = calculatedByUFormula;
+        } else {
+          dailyEstimatedOt = fallbackEstimatedOt;
+        }
+
+        const dailyJudgeOt = dailyEstimatedOt;
+
+        if (date.year === target.year && date.month === target.month && scheduledHours > 0) {
+          employee.targetWorkingDates[date.key] = true;
+        }
+
+        if (!isSameOrBefore(date, cutoff)) return;
+
+        if (date.year === target.year && date.month === target.month) {
+          employee.department = resolved.department;
+          employee.departmentGroup = resolved.departmentGroup;
+        }
+
+        employee.paidLeaveCumulative += paidLeave;
+
+        const ymKey = `${date.year}/${String(date.month).padStart(2, '0')}`;
+        const statutoryMonthKey = `${employeeKey}__${ymKey}`;
+        monthlyStatutoryOtMap[statutoryMonthKey] = (monthlyStatutoryOtMap[statutoryMonthKey] || 0) + statutoryOt;
+
+        if (date.month < target.month) {
+          if (!employeePastMonthlyJudgeOt[employeeKey]) employeePastMonthlyJudgeOt[employeeKey] = {};
+          employeePastMonthlyJudgeOt[employeeKey][ymKey] = (employeePastMonthlyJudgeOt[employeeKey][ymKey] || 0) + dailyJudgeOt;
+          return;
+        }
+
+        employee.hasTargetMonthData = true;
+        employee.fixedOt += statutoryOt;
+        employee.statutoryOt += statutoryOt;
+        employee.legalOt += legalOt;
+        employee.confirmedOt += confirmedOt;
+        employee.estimatedOt += dailyEstimatedOt;
+        employee.actualWorkHours += actualWorkHours;
+        employee.scheduledHours += scheduledHours;
+        employee.prescribedHolidayWork += prescribedHolidayWork;
+        employee.legalHolidayWork += legalHolidayWork;
+        employee.attendanceDaysTotal += attendanceDays;
+
+        if (scheduledHours > 0 || attendanceDays > 0 || actualWorkHours > 0) {
+          employee.elapsedWorkingDates[date.key] = true;
+        }
+      });
+
+      Object.keys(monthlyStatutoryOtMap).forEach(key => {
+        const monthlyOt = monthlyStatutoryOtMap[key];
+        if (monthlyOt >= 45) {
+          const employeeKey = key.split('__')[0];
+          if (employees[employeeKey]) employees[employeeKey].over45Count += 1;
+        }
+      });
+
+      const result = [];
+
+      Object.keys(employees).forEach(employeeKey => {
+        const employee = employees[employeeKey];
+        if (!employee.hasTargetMonthData) return;
+
+        const attendanceDaysTotal = round2(employee.attendanceDaysTotal);
+        const elapsedDays = attendanceDaysTotal > 0
+          ? attendanceDaysTotal
+          : (Object.keys(employee.elapsedWorkingDates).length || 1);
+
+        const targetWorkingDays = Number(options.businessDays || 0) > 0
+          ? Number(options.businessDays)
+          : (Object.keys(employee.targetWorkingDates).length || getWeekdayCountInMonth(target.year, target.month));
+
+        const currentJudgeOt = Math.max(employee.estimatedOt, employee.confirmedOt);
+        employee.alertBaseOt = currentJudgeOt;
+        const rawForecast = currentJudgeOt / elapsedDays * targetWorkingDays;
+
+        let forecast = rawForecast;
+
+        if (options.usePastAverage) {
+          const pastRecords = employeePastMonthlyJudgeOt[employeeKey] || {};
+          const pastValues = Object.values(pastRecords).filter(v => Number(v) > 0);
+
+          if (pastValues.length > 0 && elapsedDays < targetWorkingDays) {
+            const pastAverage = pastValues.reduce((sum, val) => sum + val, 0) / pastValues.length;
+            const progressRatio = Math.min(1, elapsedDays / targetWorkingDays);
+            forecast = (progressRatio * rawForecast) + ((1 - progressRatio) * pastAverage);
+          }
+        }
+
+        employee.monthEndForecast = forecast;
+        employee.actualAlert = employee.alertBaseOt >= 45 ? '45h到達アラート' : '';
+        employee.forecastAlert = createForecastAlert(employee.monthEndForecast);
+        employee.riskLevel = determineRiskLevel(employee);
+        employee.missingItems = detectMissingItems(employee);
+
+        if (!options.showAllEmployees && !employee.actualAlert && !employee.forecastAlert) return;
+
+        result.push(formatEmployeeResult(employee, elapsedDays, targetWorkingDays));
+      });
+
+      result.sort((a, b) => {
+        const riskOrder = { high: 1, mediumHigh: 2, medium: 3, low: 4 };
+        return (riskOrder[a.riskLevel] || 9) - (riskOrder[b.riskLevel] || 9)
+          || Number(b.monthEndForecastValue || 0) - Number(a.monthEndForecastValue || 0);
+      });
+
+      result.forEach((row, index) => row.rowNo = index + 1);
+      return result;
+    }
+
+    function runCalculationAudit(rows, context) {
+      const errors = [];
+      const tolerance = 0.02;
+      let estimatedEqualsConfirmedCount = 0;
+
+      if (!Array.isArray(rows)) {
+        throw new Error('検算エラー：集計結果が配列ではありません。');
+      }
+
+      rows.forEach((row, index) => {
+        const label = `${row.employeeName || '氏名不明'}（${row.employeeCode || 'コードなし'}）`;
+
+        checkFiniteNumber(errors, row.estimatedOt, `${label} 概算残業時間`);
+        checkFiniteNumber(errors, row.fixedOt, `${label} 確定残業時間`);
+        checkFiniteNumber(errors, row.monthEndForecastValue, `${label} 月末予測残業時間`);
+        checkFiniteNumber(errors, row.over45Count, `${label} 45h超過回数`);
+        checkFiniteNumber(errors, row.paidLeaveTotal, `${label} 累計有休取得日数`);
+        checkFiniteNumber(errors, row.elapsedDays, `${label} 経過日数`);
+        checkFiniteNumber(errors, row.targetWorkingDays, `${label} 所定日数`);
+
+        if (Number(row.estimatedOt) < 0) errors.push(`${label} 概算残業時間がマイナスです。`);
+        if (Number(row.fixedOt) < 0) errors.push(`${label} 確定残業時間がマイナスです。`);
+        if (Math.abs(Number(row.estimatedOt || 0) - Number(row.fixedOt || 0)) <= tolerance) {
+          estimatedEqualsConfirmedCount += 1;
+        }
+        if (Number(row.monthEndForecastValue) < 0) errors.push(`${label} 月末予測残業時間がマイナスです。`);
+        if (Number(row.elapsedDays) <= 0) errors.push(`${label} 経過日数が0以下です。`);
+        if (Number(row.targetWorkingDays) <= 0) errors.push(`${label} 所定日数が0以下です。`);
+
+        const hhmmValue = parseHHMMToHours(row.monthEndForecast);
+        if (Math.abs(hhmmValue - Number(row.monthEndForecastValue || 0)) > tolerance) {
+          errors.push(`${label} 月末予測の表示値と数値が一致しません。表示=${row.monthEndForecast} 数値=${row.monthEndForecastValue}`);
+        }
+      });
+
+      if (errors.length > 0) {
+        throw new Error('検算エラー：' + errors.slice(0, 8).join(' / ') + (errors.length > 8 ? ` ほか${errors.length - 8}件` : ''));
+      }
+
+      return {
+        ok: true,
+        checkedRows: rows.length,
+        checkedAt: formatDateTimeLocal(new Date()),
+        targetMonth: context.targetMonth,
+        cutoffDate: context.cutoffDate,
+        usePastAverage: Boolean(context.usePastAverage),
+        showAllEmployees: Boolean(context.showAllEmployees),
+        businessDays: context.businessDays || null,
+        businessDaySource: context.businessDaySource || null,
+        estimatedEqualsConfirmedCount
+      };
+    }
+
+    function checkFiniteNumber(errors, value, label) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) {
+        errors.push(`${label} が数値ではありません。`);
+      }
+    }
+
+    function parseHHMMToHours(value) {
+      const text = String(value || '').trim();
+      const match = text.match(/^(-?\d+):(\d{1,2})$/);
+      if (!match) return Number.NaN;
+      const sign = match[1].startsWith('-') ? -1 : 1;
+      const hours = Math.abs(Number(match[1]));
+      const minutes = Number(match[2]);
+      return sign * (hours + minutes / 60);
+    }
+
+    function formatDateTimeLocal(date) {
+      return date.getFullYear() + '/' +
+        String(date.getMonth() + 1).padStart(2, '0') + '/' +
+        String(date.getDate()).padStart(2, '0') + ' ' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0') + ':' +
+        String(date.getSeconds()).padStart(2, '0');
+    }
+
+    function resolveEmployeeDepartment(employeeCode, departmentFromRow) {
+      const employeeMaster = clientConfig && clientConfig.employeeMaster ? clientConfig.employeeMaster : {};
+      const code = normalizeText(employeeCode);
+
+      if (code && employeeMaster[code]) {
+        return {
+          department: employeeMaster[code].department || departmentFromRow,
+          departmentGroup: employeeMaster[code].departmentGroup || resolveDepartmentGroupByKeyword(departmentFromRow)
+        };
+      }
+      return {
+        department: departmentFromRow,
+        departmentGroup: resolveDepartmentGroupByKeyword(departmentFromRow)
+      };
+    }
+
+    function resolveDepartmentGroupByKeyword(department) {
+      const rules = clientConfig && clientConfig.departmentGroupRules ? clientConfig.departmentGroupRules : [];
+      const dept = normalizeText(department);
+
+      for (const rule of rules) {
+        if ((rule.keywords || []).some(keyword => dept.includes(keyword))) {
+          return rule.group;
+        }
+      }
+      return '未分類';
+    }
+
+    function createEmployeeAggregate(key, employeeCode, employeeName, department, departmentGroup) {
+      return {
+        key,
+        employeeCode,
+        employeeName,
+        department,
+        departmentGroup,
+        hasTargetMonthData: false,
+        fixedOt: 0,
+        confirmedOt: 0,
+        legalOt: 0,
+        statutoryOt: 0,
+        estimatedOt: 0,
+        actualWorkHours: 0,
+        scheduledHours: 0,
+        prescribedHolidayWork: 0,
+        legalHolidayWork: 0,
+        paidLeaveCumulative: 0,
+        attendanceDaysTotal: 0,
+        over45Count: 0,
+        elapsedWorkingDates: {},
+        targetWorkingDates: {},
+        monthEndForecast: 0,
+        alertBaseOt: 0,
+        agreement36: '',
+        specialReason: '',
+        healthMeasure: '',
+        note: ''
+      };
+    }
+
+    function formatEmployeeResult(employee, elapsedDays, targetWorkingDays) {
+      return {
+        rowNo: 0,
+        departmentGroup: employee.departmentGroup,
+        department: employee.department,
+        employeeCode: employee.employeeCode,
+        employeeName: employee.employeeName,
+        estimatedOt: round2(employee.estimatedOt),
+        fixedOt: round2(employee.confirmedOt),
+        statutoryOt: round2(employee.statutoryOt),
+        actualAlert: employee.actualAlert,
+        forecastAlert: employee.forecastAlert,
+        monthEndForecast: formatHoursAsHHMM(employee.monthEndForecast),
+        monthEndForecastValue: round2(employee.monthEndForecast),
+        alertBaseOt: round2(employee.alertBaseOt),
+        over45Count: employee.over45Count,
+        paidLeaveTotal: round1(employee.paidLeaveCumulative),
+        attendanceDaysTotal: round2(employee.attendanceDaysTotal),
+        agreement36: employee.agreement36,
+        specialReason: employee.specialReason,
+        healthMeasure: employee.healthMeasure,
+        note: employee.note,
+        riskLevel: employee.riskLevel,
+        missingItems: employee.missingItems,
+        elapsedDays,
+        targetWorkingDays
+      };
+    }
+
+    function createForecastAlert(forecast) {
+      if (forecast >= 80) return '80h超過見込みアラート';
+      if (forecast >= 60) return '60h超過見込みアラート';
+      if (forecast >= 45) return '45h超過見込みアラート';
+      return '';
+    }
+
+    function determineRiskLevel(employee) {
+      const alertBaseOt = Number(employee.alertBaseOt || 0);
+      if (employee.monthEndForecast >= 80 || employee.over45Count >= 5) return 'high';
+      if (employee.monthEndForecast >= 60 || employee.over45Count >= 4) return 'mediumHigh';
+      if (employee.monthEndForecast >= 45 || alertBaseOt >= 45) return 'medium';
+      return 'low';
+    }
+
+    function detectMissingItems(employee) {
+      const missing = [];
+      if (employee.actualAlert || employee.forecastAlert) {
+        if (!employee.agreement36) missing.push('36協定');
+      }
+      if (employee.monthEndForecast >= 60) {
+        if (!employee.specialReason) missing.push('発動事由');
+        if (!employee.healthMeasure) missing.push('健康福祉措置');
+      }
+      return missing;
+    }
+
+
+    function switchTab(tabName) {
+      activeTab = tabName || 'alert';
+      applyTabVisibility();
+    }
+
+    function applyTabVisibility() {
+      const panelMap = {
+        alert: 'main',
+        data: 'dataImportPanel',
+        parameters: 'parameterPanel',
+        auth: 'authPanel'
+      };
+
+      Object.keys(panelMap).forEach(key => {
+        const panel = document.getElementById(panelMap[key]);
+        if (panel) {
+          panel.style.display = key === activeTab ? 'block' : 'none';
+        }
+      });
+
+      document.querySelectorAll('.tabButton').forEach(button => {
+        button.classList.toggle('active', button.getAttribute('data-tab') === activeTab);
+      });
+    }
+
+    function setupTabsForCurrentUser(hasSnapshot) {
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      const tabBar = document.getElementById('tabBar');
+      const uploadBox = document.getElementById('uploadBox');
+
+      if (tabBar) {
+        tabBar.style.display = (isAdmin || hasSnapshot) ? 'flex' : 'none';
+      }
+
+      document.querySelectorAll('.adminOnlyTab').forEach(button => {
+        button.style.display = isAdmin ? 'inline-flex' : 'none';
+      });
+
+      if (uploadBox) {
+        uploadBox.style.display = isAdmin ? 'block' : 'none';
+      }
+
+      if (!isAdmin && activeTab !== 'alert') {
+        activeTab = 'alert';
+      }
+
+      if (!hasSnapshot && isAdmin && activeTab === 'alert') {
+        activeTab = 'data';
+      }
+
+      if (!hasSnapshot && !isAdmin) {
+        activeTab = 'alert';
+      }
+
+      applyTabVisibility();
+    }
+
+    function renderApp(data) {
+      currentUser = data.user;
+      clientConfig = data.clientConfig;
+      clientPermissions = data.permissions || createClientPermissionsFallback(data.user);
+      currentRows = data.rows || [];
+
+      if (data.hasSnapshot && data.snapshotMeta) {
+        currentSnapshotPayload = {
+          targetMonth: data.snapshotMeta.targetMonth,
+          cutoffDate: data.snapshotMeta.cutoffDate,
+          originalFileName: data.snapshotMeta.originalFileName || '',
+          sourceRows: data.snapshotMeta.sourceRows || 0,
+          rows: currentRows,
+          displayMode: data.snapshotMeta.displayMode || 'alertsOnly',
+          usePastAverage: Boolean(data.snapshotMeta.usePastAverage),
+          businessDays: data.snapshotMeta.businessDays || null,
+          businessDaySource: data.snapshotMeta.businessDaySource || null,
+          holidays: data.snapshotMeta.holidays || []
+        };
+      }
+
+      document.getElementById('userBox').innerHTML =
+        '<div><strong>ログインユーザー</strong>：' + escapeHtml(data.user.email) + '</div>' +
+        '<div><strong>閲覧範囲</strong>：' + escapeHtml(data.user.department) + '</div>' +
+        '<div><strong>権限</strong>：' + escapeHtml(data.user.role) + '</div>';
+
+      setupTabsForCurrentUser(data.hasSnapshot);
+
+      if (data.user.role === 'admin') {
+        loadAuthUsersForAdmin();
+      }
+
+      if (!data.hasSnapshot) {
+        document.getElementById('main').style.display = 'none';
+        showMessage('保存済みデータがありません。管理者が勤怠データをアップロードしてください。');
+        document.getElementById('metaText').textContent = '保存済みデータなし';
+        return;
+      }
+
+      renderAnalysisResult(data);
+      document.getElementById('message').style.display = 'none';
+    }
+
+    function renderAnalysisResult(data) {
+      currentRows = data.rows || [];
+      const meta = data.snapshotMeta;
+      document.getElementById('metaText').textContent =
+        '対象月：' + meta.targetMonth +
+        ' ／ 自動集計基準日：' + meta.cutoffDate +
+        ' ／ 保存日時：' + meta.uploadedAt +
+        ' ／ 元データ行数：' + meta.sourceRows;
+
+      activeTab = 'alert';
+      applyTabVisibility();
+
+      updateSummary(data.summary || {});
+      setupDepartmentFilter(data.departments || []);
+      renderRows(currentRows);
+    }
+
+    function createClientPermissionsFallback(user) {
+      return {
+        canAdmin: user && user.role === 'admin',
+        canEditManualInputs: user && (user.role === 'admin' || user.role === 'manager'),
+        canManageAuth: user && user.role === 'admin'
+      };
+    }
+
+    function canEditManualInputClient() {
+      if (clientPermissions && clientPermissions.canEditManualInputs === true) return true;
+      return currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager');
+    }
+
+    function getActiveTargetMonthForManualInput() {
+      if (currentSnapshotPayload && currentSnapshotPayload.targetMonth) {
+        return currentSnapshotPayload.targetMonth;
+      }
+
+      const targetMonthInput = document.getElementById('targetMonth');
+      if (targetMonthInput && targetMonthInput.value) {
+        return targetMonthInput.value.replace('-', '/');
+      }
+
+      return '';
+    }
+
+    function syncManualInputToPayload(row, fieldName, value) {
+      if (!currentSnapshotPayload || !Array.isArray(currentSnapshotPayload.rows)) return;
+
+      const payloadRow = currentSnapshotPayload.rows.find(item =>
+        item.employeeCode === row.employeeCode && item.employeeName === row.employeeName
+      );
+
+      if (payloadRow) {
+        payloadRow[fieldName] = value;
+        payloadRow.missingItems = row.missingItems;
+      }
+    }
+
+    function persistManualInput(row, fieldName, value, successMessage) {
+      if (!canEditManualInputClient()) {
+        showMessage('このユーザーは入力内容を保存できません。', true);
+        return;
+      }
+
+      const targetMonth = getActiveTargetMonthForManualInput();
+
+      if (!targetMonth) {
+        showMessage('対象月を特定できないため保存できません。', true);
+        return;
+      }
+
+      showMessage('入力内容を保存しています。');
+
+      google.script.run
+        .withSuccessHandler(result => {
+          showMessage(successMessage || '入力内容を保存しました。', false, true);
+        })
+        .withFailureHandler(error => {
+          showError(error);
+        })
+        .saveManualInput({
+          targetMonth,
+          row: {
+            employeeCode: row.employeeCode || '',
+            employeeName: row.employeeName || '',
+            department: row.department || '',
+            departmentGroup: row.departmentGroup || ''
+          },
+          fieldName,
+          value
+        });
+    }
+
+    function loadAuthUsersForAdmin() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+
+      const status = document.getElementById('authStatus');
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = '権限一覧を読み込んでいます。';
+      }
+
+      google.script.run
+        .withSuccessHandler(renderAuthUsers)
+        .withFailureHandler(error => {
+          const el = document.getElementById('authStatus');
+          if (el) {
+            el.className = 'cacheStatus statusWarn';
+            el.textContent = '権限一覧の読込に失敗しました：' + ((error && error.message) ? error.message : String(error));
+          }
+        })
+        .listAuthUsers();
+    }
+
+    function renderAuthUsers(users) {
+      const tbody = document.getElementById('authTbody');
+      const status = document.getElementById('authStatus');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      const list = Array.isArray(users) ? users : [];
+
+      if (!list.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 9;
+        td.className = 'emptyState';
+        td.textContent = '権限登録はありません。';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        if (status) status.textContent = '権限登録はありません。';
+        return;
+      }
+
+      list.forEach(user => {
+        const tr = document.createElement('tr');
+
+        const cells = [
+          user.email || '',
+          user.name || '',
+          user.department || '',
+          user.role || '',
+          user.enabled ? '有効' : '無効',
+          user.note || '',
+          user.updatedAt || '',
+          user.updatedBy || ''
+        ];
+
+        cells.forEach((cell, index) => {
+          const td = document.createElement('td');
+          if (index === 3) {
+            const span = document.createElement('span');
+            span.className = 'authRoleBadge';
+            span.textContent = cell;
+            td.appendChild(span);
+          } else if (index === 4) {
+            td.className = user.enabled ? 'authEnabled' : 'authDisabled';
+            td.textContent = cell;
+          } else {
+            td.textContent = cell;
+          }
+          tr.appendChild(td);
+        });
+
+        const actionTd = document.createElement('td');
+        const editButton = document.createElement('button');
+        editButton.textContent = '編集';
+        editButton.onclick = () => setAuthForm(user);
+        actionTd.appendChild(editButton);
+
+        if (user.enabled) {
+          const disableButton = document.createElement('button');
+          disableButton.textContent = '無効化';
+          disableButton.className = 'deleteButton';
+          disableButton.style.marginLeft = '6px';
+          disableButton.style.marginRight = '0';
+          disableButton.onclick = () => disableAuthUserFromButton(user.email);
+          actionTd.appendChild(disableButton);
+        }
+
+        tr.appendChild(actionTd);
+        tbody.appendChild(tr);
+      });
+
+      if (status) {
+        status.className = 'cacheStatus statusOk';
+        status.textContent = `権限一覧を読み込みました。登録件数：${list.length}件`;
+      }
+    }
+
+    function setAuthForm(user) {
+      document.getElementById('authEmail').value = user.email || '';
+      document.getElementById('authName').value = user.name || '';
+      document.getElementById('authDepartment').value = user.department || '営業ユニット';
+      document.getElementById('authRole').value = user.role || 'viewer';
+      document.getElementById('authEnabled').checked = user.enabled !== false;
+      document.getElementById('authNote').value = user.note || '';
+    }
+
+    function resetAuthForm() {
+      document.getElementById('authEmail').value = '';
+      document.getElementById('authName').value = '';
+      document.getElementById('authDepartment').value = '営業ユニット';
+      document.getElementById('authRole').value = 'manager';
+      document.getElementById('authEnabled').checked = true;
+      document.getElementById('authNote').value = '';
+    }
+
+    function saveAuthUserFromForm() {
+      const payload = {
+        email: document.getElementById('authEmail').value,
+        name: document.getElementById('authName').value,
+        department: document.getElementById('authDepartment').value,
+        role: document.getElementById('authRole').value,
+        enabled: document.getElementById('authEnabled').checked,
+        note: document.getElementById('authNote').value
+      };
+
+      const status = document.getElementById('authStatus');
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = '権限情報を保存しています。';
+      }
+
+      google.script.run
+        .withSuccessHandler(result => {
+          renderAuthUsers(result && result.users ? result.users : []);
+          resetAuthForm();
+          if (status) {
+            status.className = 'cacheStatus statusOk';
+            status.textContent = '権限情報を保存しました。';
+          }
+        })
+        .withFailureHandler(error => {
+          if (status) {
+            status.className = 'cacheStatus statusWarn';
+            status.textContent = '権限情報の保存に失敗しました：' + ((error && error.message) ? error.message : String(error));
+          }
+        })
+        .saveAuthUser(payload);
+    }
+
+    function disableAuthUserFromButton(email) {
+      if (!email) return;
+      if (!confirm(`${email} を無効化しますか？`)) return;
+
+      const status = document.getElementById('authStatus');
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = '権限を無効化しています。';
+      }
+
+      google.script.run
+        .withSuccessHandler(result => {
+          renderAuthUsers(result && result.users ? result.users : []);
+          if (status) {
+            status.className = 'cacheStatus statusOk';
+            status.textContent = '権限を無効化しました。';
+          }
+        })
+        .withFailureHandler(error => {
+          if (status) {
+            status.className = 'cacheStatus statusWarn';
+            status.textContent = '権限の無効化に失敗しました：' + ((error && error.message) ? error.message : String(error));
+          }
+        })
+        .disableAuthUser(email);
+    }
+
+    function updateSummary(summary) {
+      document.getElementById('sumTotal').textContent = summary.total || 0;
+      document.getElementById('sumHigh').textContent = summary.high || 0;
+      document.getElementById('sumMediumHigh').textContent = summary.mediumHigh || 0;
+      document.getElementById('sumMedium').textContent = summary.medium || 0;
+      document.getElementById('sumLow').textContent = summary.low || 0;
+      document.getElementById('sumMissing').textContent = summary.missing || 0;
+    }
+
+    function setupDepartmentFilter(departments) {
+      const select = document.getElementById('departmentFilter');
+      select.innerHTML = '<option value="">すべての部署</option>';
+
+      departments.forEach(dept => {
+        const option = document.createElement('option');
+        option.value = dept;
+        option.textContent = dept;
+        select.appendChild(option);
+      });
+    }
+
+    function applyFilters() {
+      const keyword = document.getElementById('keyword').value.trim().toLowerCase();
+      const department = document.getElementById('departmentFilter').value;
+      const risk = document.getElementById('riskFilter').value;
+      const missing = document.getElementById('missingFilter').value;
+
+      const rows = currentRows.filter(row => {
+        const text = [row.departmentGroup, row.department, row.employeeCode, row.employeeName].join(' ').toLowerCase();
+        if (keyword && !text.includes(keyword)) return false;
+        if (department && row.department !== department) return false;
+        if (risk && row.riskLevel !== risk) return false;
+        if (missing === 'missing' && (!row.missingItems || row.missingItems.length === 0)) return false;
+        return true;
+      });
+      renderRows(rows);
+    }
+
+    function renderRows(rows) {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+
+      if (!rows.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 15;
+        td.className = 'emptyState';
+        td.textContent = '表示対象データはありません。';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      const editable = canEditManualInputClient();
+
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = row.riskLevel || '';
+
+        const cells = [
+          row.rowNo || '',
+          row.department,
+          row.employeeCode,
+          row.employeeName,
+          row.estimatedOt,
+          row.fixedOt,
+          row.actualAlert,
+          row.forecastAlert,
+          row.monthEndForecast,
+          row.over45Count,
+          row.paidLeaveTotal,
+          row.agreement36,
+          row.specialReason,
+          row.healthMeasure,
+          row.note || ''
+        ];
+
+        cells.forEach((cell, index) => {
+          const td = document.createElement('td');
+
+          if (index === 6 || index === 7) {
+            const span = document.createElement('span');
+            if (cell) {
+              span.className = 'riskBadge ' + (row.riskLevel || 'medium');
+              span.textContent = cell;
+            } else {
+              span.className = 'safeBadge';
+              span.textContent = '該当なし';
+            }
+            td.appendChild(span);
+            tr.appendChild(td);
+            return;
+          }
+
+          if (index === 11) {
+            const select = document.createElement('select');
+            select.className = 'agreementSelect';
+            select.disabled = !editable;
+
+            [
+              { value: '', label: '選択' },
+              { value: '適用', label: '適用' },
+              { value: '不適用', label: '不適用' }
+            ].forEach(optionData => {
+              const option = document.createElement('option');
+              option.value = optionData.value;
+              option.textContent = optionData.label;
+              if ((cell || '') === optionData.value) option.selected = true;
+              select.appendChild(option);
+            });
+
+            if (editable) {
+              select.onchange = () => updateAgreement36(row, select.value);
+            } else {
+              select.title = '閲覧のみです';
+            }
+            td.appendChild(select);
+          }
+          else if (index === 12 || index === 13 || index === 14) {
+            const fieldMap = { 12: 'specialReason', 13: 'healthMeasure', 14: 'note' };
+            const field = fieldMap[index];
+            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 14 ? ' noteCell' : '');
+            td.textContent = cell ? '入力済み' : (editable ? 'クリック' : '未入力');
+
+            if (editable) {
+              td.title = cell ? 'クリックして内容を確認・編集' : 'クリックして入力';
+              td.onclick = () => openTextModal(row, field);
+            } else {
+              td.title = cell ? '入力済み。閲覧のみです。' : '未入力。閲覧のみです。';
+            }
+          } else {
+            td.textContent = cell == null ? '' : cell;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openTextModal(row, field) {
+      if (!canEditManualInputClient()) {
+        showMessage('このユーザーは入力内容を保存できません。', true);
+        return;
+      }
+
+      editingRowIndex = currentRows.findIndex(item => item.employeeCode === row.employeeCode && item.employeeName === row.employeeName);
+      editingField = field;
+
+      if (editingRowIndex < 0) {
+        showMessage('編集対象の行を特定できませんでした。', true);
+        return;
+      }
+
+      const titleMap = { specialReason: '特別条項の発動事由', healthMeasure: '健康福祉措置', note: '備考' };
+
+      document.getElementById('modalTitle').textContent = titleMap[field] || '入力';
+      document.getElementById('modalMeta').textContent =
+        `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
+
+      document.getElementById('modalTextarea').value = row[field] || '';
+      document.getElementById('textModal').style.display = 'flex';
+
+      setTimeout(() => { document.getElementById('modalTextarea').focus(); }, 0);
+    }
+
+    function closeTextModal() {
+      document.getElementById('textModal').style.display = 'none';
+      editingRowIndex = null;
+      editingField = null;
+    }
+
+    function closeTextModalByOverlay(event) {
+      if (event.target && event.target.id === 'textModal') closeTextModal();
+    }
+
+    function saveTextModal() {
+      if (editingRowIndex === null || editingField === null) {
+        closeTextModal();
+        return;
+      }
+
+      if (!canEditManualInputClient()) {
+        closeTextModal();
+        showMessage('このユーザーは入力内容を保存できません。', true);
+        return;
+      }
+
+      const value = document.getElementById('modalTextarea').value.trim();
+      const row = currentRows[editingRowIndex];
+
+      row[editingField] = value;
+      refreshMissingItems(row);
+      syncManualInputToPayload(row, editingField, value);
+
+      updateSummary(createSummaryClient(currentRows));
+      renderRows(currentRows);
+
+      closeTextModal();
+      persistManualInput(row, editingField, value, '入力内容を保存しました。');
+    }
+
+    function updateAgreement36(row, value) {
+      if (!canEditManualInputClient()) {
+        showMessage('このユーザーは36協定適用事前申請を保存できません。', true);
+        renderRows(currentRows);
+        return;
+      }
+
+      const targetIndex = currentRows.findIndex(item => item.employeeCode === row.employeeCode && item.employeeName === row.employeeName);
+
+      if (targetIndex < 0) {
+        showMessage('更新対象の行を特定できませんでした。', true);
+        return;
+      }
+
+      currentRows[targetIndex].agreement36 = value;
+      refreshMissingItems(currentRows[targetIndex]);
+      syncManualInputToPayload(currentRows[targetIndex], 'agreement36', value);
+
+      updateSummary(createSummaryClient(currentRows));
+      renderRows(currentRows);
+
+      persistManualInput(currentRows[targetIndex], 'agreement36', value, '36協定適用事前申請を保存しました。');
+    }
+
+    function deleteTextModal() {
+      if (editingRowIndex === null || editingField === null) {
+        closeTextModal();
+        return;
+      }
+
+      if (!canEditManualInputClient()) {
+        closeTextModal();
+        showMessage('このユーザーは入力内容を削除できません。', true);
+        return;
+      }
+
+      const row = currentRows[editingRowIndex];
+
+      row[editingField] = '';
+      refreshMissingItems(row);
+      syncManualInputToPayload(row, editingField, '');
+
+      updateSummary(createSummaryClient(currentRows));
+      renderRows(currentRows);
+
+      closeTextModal();
+      persistManualInput(row, editingField, '', '入力内容を削除しました。');
+    }
+
+    function refreshMissingItems(row) {
+      row.missingItems = expectedMissingItems(row);
+    }
+
+    function createSummaryClient(rows) {
+      return {
+        total: rows.length,
+        high: rows.filter(r => r.riskLevel === 'high').length,
+        mediumHigh: rows.filter(r => r.riskLevel === 'mediumHigh').length,
+        medium: rows.filter(r => r.riskLevel === 'medium').length,
+        low: rows.filter(r => r.riskLevel === 'low').length,
+        missing: rows.filter(r => r.missingItems && r.missingItems.length > 0).length
+      };
+    }
+
+    function createDepartmentListClient(rows) {
+      return [...new Set(rows.map(r => r.department).filter(Boolean))].sort();
+    }
+
+    function updateCacheStatus() {
+      const el = document.getElementById('cacheStatus');
+      if (!el) return;
+      if (!cachedRows.length) {
+        el.textContent = '取込済みファイルはありません。';
+        return;
+      }
+      el.textContent = `取込済みCSV：${cachedFileName} ／ 保持行数：${cachedRows.length}行。月を変更してもCSV再取込・自動保存は行いません。`;
+    }
+
+    function setImportDisabled(disabled) {
+      document.getElementById('importButton').disabled = disabled;
+    }
+
+    function showMessage(text, isError, isOk) {
+      const el = document.getElementById('message');
+      el.style.display = 'block';
+      el.className = 'message' + (isError ? ' error' : '') + (isOk ? ' ok' : '');
+      el.textContent = text;
+    }
+
+    function showError(error) {
+      showMessage((error && error.message) ? error.message : String(error), true);
+    }
+
+    function normalizeHeader(value) {
+      return String(value || '').replace(/\s/g, '').trim();
+    }
+
+    function cleanCellText(value) {
+      return String(value || '').replace(/\u00a0/g, ' ').replace(/\r?\n/g, '').trim();
+    }
+
+    function normalizeDepartmentName(value) {
+      return normalizeText(value)
+        .replace(/^【TJ】/, '').replace(/^\[TJ\]/, '')
+        .replace(/ｸﾗｳﾄﾞ/g, 'クラウド').replace(/ｶｽﾀﾏｰｻｸｾｽ/g, 'カスタマーサクセス').trim();
+    }
+
+    function normalizeText(value) {
+      if (value === null || value === undefined) return '';
+      return String(value).trim();
+    }
+
+    function createHeaderIndex(headers) {
+      const normalizedHeaders = headers.map(normalizeHeader);
+      const result = {};
+      const missing = [];
+
+      REQUIRED_HEADERS.forEach(required => {
+        const index = normalizedHeaders.indexOf(normalizeHeader(required));
+        if (index === -1) missing.push(required);
+        result[required] = index;
+      });
+
+      if (missing.length > 0) {
+        throw new Error('必要な列が見つかりません：' + missing.join('、'));
+      }
+      return result;
+    }
+
+    function createRawSourceIndex(headers) {
+      const normalizedHeaders = headers.map(normalizeHeader);
+      const findIndex = (candidates, fallbackIndex) => {
+        for (const candidate of candidates) {
+          const index = normalizedHeaders.indexOf(normalizeHeader(candidate));
+          if (index >= 0) return index;
+        }
+        return headers.length > fallbackIndex ? fallbackIndex : -1;
+      };
+
+      return {
+        scheduled: findIndex(['所定労働時間'], SOURCE_COLUMN_J_INDEX),
+        breakHours: findIndex(['休憩時間'], SOURCE_COLUMN_K_INDEX),
+        paidLeaveDays: findIndex(['年次有休取得日数(時間単位休を除く)', '年次有休取得日数'], SOURCE_COLUMN_N_INDEX),
+        deductHours: findIndex(['法定休日労働時間'], SOURCE_COLUMN_P_INDEX),
+        startTime: findIndex(['出社時刻', '出社時刻（ボタン）'], SOURCE_COLUMN_S_INDEX),
+        endTime: findIndex(['退社時刻', '退社時刻（ボタン）'], SOURCE_COLUMN_T_INDEX)
+      };
+    }
+
+    function findPrescribedExcessSource(headers) {
+      const normalizedHeaders = headers.map(normalizeHeader);
+      for (const candidate of PRESCRIBED_EXCESS_HEADER_CANDIDATES) {
+        const index = normalizedHeaders.indexOf(normalizeHeader(candidate));
+        if (index >= 0) return { index, source: candidate };
+      }
+      if (headers.length > SOURCE_COLUMN_U_INDEX) {
+        return { index: SOURCE_COLUMN_U_INDEX, source: 'U列位置' };
+      }
+      return { index: -1, source: '' };
+    }
+
+    function parseYearMonth(value) {
+      const text = normalizeText(value).replace('-', '/');
+      const parts = text.split('/').map(Number);
+      return { year: parts[0], month: parts[1] };
+    }
+
+    function normalizeDateText(value) {
+      const text = String(value || '').trim().replace(/-/g, '/');
+      const match = text.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      if (!match) return '';
+      return `${match[1]}/${String(Number(match[2])).padStart(2, '0')}/${String(Number(match[3])).padStart(2, '0')}`;
+    }
+
+    function parseDateKey(value) {
+      const key = normalizeDateText(value);
+      if (!key) return null;
+      const parts = key.split('/').map(Number);
+      return { year: parts[0], month: parts[1], day: parts[2], key };
+    }
+
+    function isSameOrBefore(date, cutoff) {
+      if (!date || !cutoff) return false;
+      return date.key <= cutoff.key;
+    }
+
+    function toHours(value) {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'number') return value;
+
+      const text = String(value).trim();
+      if (!text) return 0;
+
+      if (/^-?\d+:\d{1,2}(:\d{1,2})?$/.test(text)) {
+        const sign = text.startsWith('-') ? -1 : 1;
+        const clean = text.replace('-', '');
+        const parts = clean.split(':').map(Number);
+        const hours = parts[0] || 0;
+        const minutes = parts[1] || 0;
+        const seconds = parts[2] || 0;
+        return sign * (hours + minutes / 60 + seconds / 3600);
+      }
+
+      const num = Number(text.replace(/,/g, ''));
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function toNumber(value) {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'number') return value;
+      const num = Number(String(value).replace(/,/g, '').trim());
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function round2(num) { return Math.round((Number(num) || 0) * 100) / 100; }
+    function round1(num) { return Math.round((Number(num) || 0) * 10) / 10; }
+
+    function formatHoursAsHHMM(hours) {
+      const totalMinutes = Math.round((Number(hours) || 0) * 60);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      return `${h}:${String(m).padStart(2, '0')}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
