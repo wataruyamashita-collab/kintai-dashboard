@@ -1361,6 +1361,7 @@
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
+    let editingRowRef = null;
     let editingField = null;
     let textModalSaving = false;
     let saveToastTimer = null;
@@ -2835,8 +2836,11 @@
 
       google.script.run
         .withSuccessHandler(result => {
-          showMessage(successMessage || '入力内容を保存しました。', false, true);
-          if (options.onSuccess) options.onSuccess(result);
+          try {
+            if (options.onSuccess) options.onSuccess(result);
+          } finally {
+            showMessage(successMessage || '入力内容を保存しました。', false, true);
+          }
         })
         .withFailureHandler(error => {
           if (rollback) rollback();
@@ -3267,9 +3271,10 @@
       }
 
       editingRowIndex = findManualInputRowIndex(currentRows, row);
+      editingRowRef = editingRowIndex >= 0 ? currentRows[editingRowIndex] : null;
       editingField = field;
 
-      if (editingRowIndex < 0) {
+      if (editingRowIndex < 0 || !editingRowRef) {
         showMessage('編集対象の行を特定できませんでした。', true);
         return;
       }
@@ -3305,6 +3310,7 @@
       document.getElementById('textModal').style.display = 'none';
       setTextModalSaving(false, '');
       editingRowIndex = null;
+      editingRowRef = null;
       editingField = null;
     }
 
@@ -3344,7 +3350,14 @@
 
       const fieldName = editingField;
       const value = document.getElementById('modalTextarea').value.trim();
-      const row = currentRows[editingRowIndex];
+      const row = editingRowRef || currentRows[editingRowIndex];
+
+      if (!row) {
+        closeTextModal();
+        showMessage('編集対象の行を特定できませんでした。画面を再読み込みしてから再度お試しください。', true);
+        return;
+      }
+
       const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
@@ -3411,7 +3424,14 @@
       }
 
       const fieldName = editingField;
-      const row = currentRows[editingRowIndex];
+      const row = editingRowRef || currentRows[editingRowIndex];
+
+      if (!row) {
+        closeTextModal();
+        showMessage('削除対象の行を特定できませんでした。画面を再読み込みしてから再度お試しください。', true);
+        return;
+      }
+
       const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
 
