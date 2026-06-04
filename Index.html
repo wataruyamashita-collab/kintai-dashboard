@@ -3360,21 +3360,21 @@
 
       const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
-
-      row[fieldName] = value;
-      refreshMissingItems(row);
-      syncManualInputToPayload(row, fieldName, value);
-
-      updateSummary(createSummaryClient(currentRows));
-      applyFilters();
-
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       setTextModalSaving(true, '保存しています。');
       persistManualInput(row, fieldName, value, '入力内容を保存しました。', rollback, {
         onSuccess: () => {
-          closeTextModal();
-          showSaveToast('保存しました');
+          try {
+            row[fieldName] = value;
+            refreshMissingItems(row);
+            syncManualInputToPayload(row, fieldName, value);
+            updateSummary(createSummaryClient(currentRows));
+            applyFilters();
+          } finally {
+            closeTextModal();
+            showSaveToast('保存しました');
+          }
         },
         onFailure: error => {
           setTextModalSaving(false, '保存に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
@@ -3434,21 +3434,21 @@
 
       const previousValue = row[fieldName] || '';
       const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
-
-      row[fieldName] = '';
-      refreshMissingItems(row);
-      syncManualInputToPayload(row, fieldName, '');
-
-      updateSummary(createSummaryClient(currentRows));
-      applyFilters();
-
       const rollback = createManualInputRollback(row, fieldName, previousValue, previousMissingItems);
 
       setTextModalSaving(true, '削除しています。');
       persistManualInput(row, fieldName, '', '入力内容を削除しました。', rollback, {
         onSuccess: () => {
-          closeTextModal();
-          showSaveToast('削除しました');
+          try {
+            row[fieldName] = '';
+            refreshMissingItems(row);
+            syncManualInputToPayload(row, fieldName, '');
+            updateSummary(createSummaryClient(currentRows));
+            applyFilters();
+          } finally {
+            closeTextModal();
+            showSaveToast('削除しました');
+          }
         },
         onFailure: error => {
           setTextModalSaving(false, '削除に失敗しました：' + ((error && error.message) ? error.message : String(error)), true);
@@ -3457,7 +3457,7 @@
     }
 
     function refreshMissingItems(row) {
-      row.missingItems = expectedMissingItems(row);
+      row.missingItems = detectMissingItems(row);
     }
 
     function createSummaryClient(rows) {
