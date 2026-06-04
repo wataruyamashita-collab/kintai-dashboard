@@ -1201,6 +1201,9 @@
     </div>
 
     <div class="panel toolbar" aria-label="表示フィルター">
+      <label>対象月
+        <select id="displayMonthFilter" onchange="loadSnapshotForSelectedMonth()"><option value="">選択中の月</option></select>
+      </label>
       <label>キーワード
         <input type="text" id="keyword" placeholder="社員名・部署・社員コードで検索" oninput="applyFilters()">
       </label>
@@ -1368,6 +1371,7 @@
     let cachedFileName = '';
     let currentSnapshotPayload = null;
     let currentDepartmentGroups = [DEPARTMENT_GROUP_ALL];
+    let availableSnapshotMonths = [];
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -2689,6 +2693,7 @@
       setupAuthDepartmentOptions();
       renderDepartmentGroupWarning(data.departmentGroupStatus || (clientConfig && clientConfig.departmentGroupStatus));
       clientPermissions = data.permissions || createClientPermissionsFallback(data.user);
+      availableSnapshotMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
       currentRows = data.rows || [];
 
       if (data.hasSnapshot && data.snapshotMeta) {
@@ -2719,6 +2724,7 @@
       }
 
       if (!data.hasSnapshot) {
+        setupDisplayMonthFilter(availableSnapshotMonths, '');
         document.getElementById('main').style.display = 'none';
         showMessage('保存済みデータがありません。管理者が勤怠データをアップロードしてください。');
         document.getElementById('metaText').textContent = '保存済みデータなし';
@@ -2734,7 +2740,9 @@
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
       setupAuthDepartmentOptions();
       renderDepartmentGroupWarning(data.departmentGroupStatus || createDepartmentGroupStatusClient(currentRows));
+      availableSnapshotMonths = Array.isArray(data.availableMonths) ? data.availableMonths : availableSnapshotMonths;
       const meta = data.snapshotMeta;
+      setupDisplayMonthFilter(availableSnapshotMonths, meta.targetMonth);
       document.getElementById('metaText').textContent =
         '対象月：' + meta.targetMonth +
         ' ／ 自動集計基準日：' + meta.cutoffDate +
@@ -2747,6 +2755,76 @@
       updateSummary(data.summary || {});
       setupDepartmentFilter(data.departments || []);
       applyFilters();
+    }
+
+    function setupDisplayMonthFilter(months, selectedMonth) {
+      const select = document.getElementById('displayMonthFilter');
+      if (!select) return;
+
+      const normalizedSelectedMonth = normalizeMonthValueForSelect(selectedMonth);
+      select.innerHTML = '';
+
+      const normalizedMonths = Array.isArray(months) ? months.slice() : [];
+      if (normalizedSelectedMonth && !normalizedMonths.some(item => normalizeMonthValueForSelect(item.value) === normalizedSelectedMonth)) {
+        normalizedMonths.unshift({ value: normalizedSelectedMonth, label: formatMonthSelectLabel(normalizedSelectedMonth) });
+      }
+
+      if (normalizedMonths.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = '選択中の月';
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+      }
+
+      normalizedMonths.forEach(item => {
+        const value = normalizeMonthValueForSelect(item.value);
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = item.label || formatMonthSelectLabel(value);
+        if (value === normalizedSelectedMonth) option.selected = true;
+        select.appendChild(option);
+      });
+
+      select.disabled = normalizedMonths.length <= 1;
+    }
+
+    function normalizeMonthValueForSelect(value) {
+      const text = String(value || '').trim();
+      const match = text.match(/^(\d{4})[\/-](\d{1,2})$/);
+      if (!match) return '';
+      return `${match[1]}/${String(Number(match[2])).padStart(2, '0')}`;
+    }
+
+    function formatMonthSelectLabel(value) {
+      const normalized = normalizeMonthValueForSelect(value);
+      if (!normalized) return String(value || '');
+      const parts = normalized.split('/');
+      return `${parts[0]}年${Number(parts[1])}月`;
+    }
+
+    function loadSnapshotForSelectedMonth() {
+      const select = document.getElementById('displayMonthFilter');
+      if (!select || !select.value) return;
+
+      const selectedMonth = normalizeMonthValueForSelect(select.value);
+      const currentMonth = currentSnapshotPayload ? normalizeMonthValueForSelect(currentSnapshotPayload.targetMonth) : '';
+      if (!selectedMonth || selectedMonth === currentMonth) return;
+
+      showMessage(`${formatMonthSelectLabel(selectedMonth)}のデータを読み込んでいます。`);
+      select.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(data => {
+          renderApp(data);
+          showMessage(`${formatMonthSelectLabel(selectedMonth)}のデータを表示しました。`, false, true);
+        })
+        .withFailureHandler(error => {
+          setupDisplayMonthFilter(availableSnapshotMonths, currentMonth);
+          showError(error);
+        })
+        .getSnapshotByMonth(selectedMonth);
     }
 
     function createClientPermissionsFallback(user) {
