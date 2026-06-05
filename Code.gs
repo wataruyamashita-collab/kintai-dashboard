@@ -1518,7 +1518,7 @@ function bulkSaveAuthUsers(payload) {
   const seenEmails = {};
 
   const normalizedUsers = users.map((item, index) => {
-    const lineNumber = index + 2;
+    const lineNumber = Number(item.sourceRowNumber || 0) > 0 ? Number(item.sourceRowNumber) : index + 2;
     const email = String(item.email || '').trim().toLowerCase();
     const name = String(item.name || '').trim();
     const department = String(item.department || '').trim();
@@ -1526,8 +1526,8 @@ function bulkSaveAuthUsers(payload) {
     const enabled = item.enabled === false ? 'FALSE' : 'TRUE';
     const note = String(item.note || '').trim();
 
-    if (!email || email.indexOf('@') === -1) {
-      throw new Error(`${lineNumber}行目：メールアドレスを正しく入力してください。`);
+    if (!email || email.indexOf('@') <= 0 || email.indexOf('@') >= email.length - 1) {
+      throw new Error(`${lineNumber}行目のメールアドレスが未入力、または正しくありません。メール欄を確認してください。`);
     }
     if (seenEmails[email]) {
       throw new Error(`${lineNumber}行目：同じメールアドレスが一括登録データ内で重複しています：${email}`);

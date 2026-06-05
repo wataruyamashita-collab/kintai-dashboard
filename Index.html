@@ -3710,39 +3710,57 @@
       return !['false', '0', 'no', 'n', '無効', '停止', 'off'].includes(normalized);
     }
 
-    function buildAuthImportPayloads(rows) {
-      const nonEmptyRows = (Array.isArray(rows) ? rows : [])
-        .map(row => row.map(cleanCellText))
-        .filter(row => row.some(cell => cell !== ''));
+    function isValidAuthImportEmail(value) {
+      const email = String(value || '').trim();
+      return Boolean(email && email.indexOf('@') > 0 && email.indexOf('@') < email.length - 1);
+    }
 
-      if (!nonEmptyRows.length) {
+    function buildAuthImportPayloads(rows) {
+      const rowRecords = (Array.isArray(rows) ? rows : [])
+        .map((row, index) => ({
+          rowNumber: index + 1,
+          cells: row.map(cleanCellText)
+        }))
+        .filter(record => record.cells.some(cell => cell !== ''));
+
+      if (!rowRecords.length) {
         throw new Error('一括登録する権限データがありません。');
       }
 
-      const headerRowIndex = nonEmptyRows.findIndex(row => {
-        const normalized = row.map(normalizeHeader);
+      const headerRecordIndex = rowRecords.findIndex(record => {
+        const normalized = record.cells.map(normalizeHeader);
         return ['メール', 'メールアドレス', 'email'].some(key => normalized.includes(normalizeHeader(key)));
       });
 
-      if (headerRowIndex < 0) {
+      if (headerRecordIndex < 0) {
         throw new Error('見出し行に「メール」または「email」が必要です。');
       }
 
-      const headers = nonEmptyRows[headerRowIndex].map(normalizeHeader);
+      const headers = rowRecords[headerRecordIndex].cells.map(normalizeHeader);
       const headerMap = {};
       headers.forEach((header, index) => {
         if (header && headerMap[header] === undefined) headerMap[header] = index;
       });
 
       const defaultDepartment = getDefaultAuthImportDepartment();
-      const payloads = nonEmptyRows.slice(headerRowIndex + 1).map(row => ({
-        email: findAuthImportValue(row, headerMap, ['メール', 'メールアドレス', 'email', 'Email', 'EMAIL'], ''),
-        name: findAuthImportValue(row, headerMap, ['氏名', '名前', 'name', 'Name', 'NAME'], ''),
-        department: findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment),
-        role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], 'manager')),
-        enabled: normalizeAuthImportEnabled(findAuthImportValue(row, headerMap, ['有効', '状態', 'enabled', 'Enabled', 'ENABLED'], 'TRUE')),
-        note: findAuthImportValue(row, headerMap, ['メモ', '備考', 'note', 'Note', 'NOTE'], '')
-      })).filter(user => user.email);
+      const payloads = rowRecords.slice(headerRecordIndex + 1).map(record => {
+        const row = record.cells;
+        const email = findAuthImportValue(row, headerMap, ['メール', 'メールアドレス', 'email', 'Email', 'EMAIL'], '');
+
+        if (!isValidAuthImportEmail(email)) {
+          throw new Error(`${record.rowNumber}行目のメールアドレスが未入力、または正しくありません。メール欄を確認してください。`);
+        }
+
+        return {
+          sourceRowNumber: record.rowNumber,
+          email,
+          name: findAuthImportValue(row, headerMap, ['氏名', '名前', 'name', 'Name', 'NAME'], ''),
+          department: findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment),
+          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], 'manager')),
+          enabled: normalizeAuthImportEnabled(findAuthImportValue(row, headerMap, ['有効', '状態', 'enabled', 'Enabled', 'ENABLED'], 'TRUE')),
+          note: findAuthImportValue(row, headerMap, ['メモ', '備考', 'note', 'Note', 'NOTE'], '')
+        };
+      });
 
       if (!payloads.length) {
         throw new Error('メールアドレスが入力された行がありません。');
