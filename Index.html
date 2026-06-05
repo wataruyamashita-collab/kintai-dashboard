@@ -1555,47 +1555,34 @@
       testDisplayRole = select.value || 'executive';
       select.addEventListener('change', () => {
         testDisplayRole = select.value || 'executive';
-        if (testDisplayRole === 'admin') {
-          activeTab = 'auth';
-        } else {
+        if (!isAdminDisplayRole()) {
           activeTab = 'alert';
         }
         applyTabVisibility();
       });
-      applyRoleSwitchVisibility();
+      applyTabVisibility();
+    }
+
+    function isAdminDisplayRole() {
+      return testDisplayRole === 'admin';
+    }
+
+    function getRoleSwitchLabel() {
+      if (testDisplayRole === 'admin') return 'admin';
+      if (testDisplayRole === 'manager') return '所属長';
+      return '役員';
     }
 
     function applyRoleSwitchVisibility() {
-      const isAdminView = testDisplayRole === 'admin';
-      const hasSnapshot = Boolean(lastRenderedHasSnapshot || currentRows.length);
-      const uploadBox = document.getElementById('uploadBox');
-      const main = document.getElementById('main');
-      const dataImportPanel = document.getElementById('dataImportPanel');
-      const parameterPanel = document.getElementById('parameterPanel');
-      const authPanel = document.getElementById('authPanel');
       const status = document.getElementById('roleSwitchStatus');
+      if (!status) return;
 
-      if (isAdminView) {
-        if (uploadBox) uploadBox.style.display = 'block';
-        if (main) main.style.display = 'none';
-        if (dataImportPanel) dataImportPanel.style.display = 'none';
-        if (parameterPanel) parameterPanel.style.display = 'none';
-        if (authPanel) authPanel.style.display = 'block';
-        if (status) status.textContent = 'admin：部署グループ設定フォームを表示';
-      } else {
-        if (authPanel) authPanel.style.display = 'none';
-        if (dataImportPanel) dataImportPanel.style.display = 'none';
-        if (parameterPanel) parameterPanel.style.display = 'none';
-        if (uploadBox) uploadBox.style.display = 'none';
-        if (main) main.style.display = hasSnapshot ? 'block' : 'none';
-        if (status) {
-          status.textContent = (testDisplayRole === 'manager' ? '所属長' : '役員') + '：メイン画面を表示';
-        }
+      if (isAdminDisplayRole()) {
+        status.textContent = 'admin：すべてのタブを表示';
+        return;
       }
 
-      document.querySelectorAll('.tabButton').forEach(button => {
-        button.classList.toggle('active', button.getAttribute('data-tab') === (isAdminView ? 'auth' : 'alert'));
-      });
+      status.textContent = getRoleSwitchLabel() + '：勤怠アラートのみ表示';
     }
 
     function initializeCompanyCalendarForm() {
@@ -2832,6 +2819,15 @@
     }
 
     function applyTabVisibility() {
+      const isAdminView = isAdminDisplayRole();
+      const hasAlertData = Boolean(lastRenderedHasSnapshot || currentRows.length);
+      if (!isAdminView && activeTab !== 'alert') {
+        activeTab = 'alert';
+      }
+      if (isAdminView && !hasAlertData && activeTab === 'alert') {
+        activeTab = 'data';
+      }
+
       const panelMap = {
         alert: 'main',
         data: 'dataImportPanel',
@@ -2842,8 +2838,20 @@
       Object.keys(panelMap).forEach(key => {
         const panel = document.getElementById(panelMap[key]);
         if (panel) {
-          panel.style.display = key === activeTab ? 'block' : 'none';
+          const shouldShowPanel = key === activeTab && (key !== 'alert' || hasAlertData);
+          panel.style.display = shouldShowPanel ? 'block' : 'none';
         }
+      });
+
+      const uploadBox = document.getElementById('uploadBox');
+      if (uploadBox) {
+        uploadBox.style.display = isAdminView && activeTab !== 'alert' ? 'block' : 'none';
+      }
+
+      document.querySelectorAll('.adminOnlyTab').forEach(button => {
+        button.style.display = isAdminView ? 'inline-flex' : 'none';
+        button.disabled = !isAdminView;
+        button.setAttribute('aria-hidden', isAdminView ? 'false' : 'true');
       });
 
       document.querySelectorAll('.tabButton').forEach(button => {
@@ -2854,20 +2862,11 @@
     }
 
     function setupTabsForCurrentUser(hasSnapshot) {
-      const isAdmin = currentUser && currentUser.role === 'admin';
+      const isAdmin = isAdminDisplayRole();
       const tabBar = document.getElementById('tabBar');
-      const uploadBox = document.getElementById('uploadBox');
 
       if (tabBar) {
-        tabBar.style.display = (isAdmin || hasSnapshot) ? 'flex' : 'none';
-      }
-
-      document.querySelectorAll('.adminOnlyTab').forEach(button => {
-        button.style.display = isAdmin ? 'inline-flex' : 'none';
-      });
-
-      if (uploadBox) {
-        uploadBox.style.display = isAdmin ? 'block' : 'none';
+        tabBar.style.display = 'flex';
       }
 
       if (!isAdmin && activeTab !== 'alert') {
