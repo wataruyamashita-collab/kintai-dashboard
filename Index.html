@@ -1277,6 +1277,14 @@
       font-weight: 700;
     }
 
+    .departmentFilterLocked {
+      border-color: #f9ab00 !important;
+      background: #fff7e0 !important;
+      color: #5f3f00;
+      font-weight: 700;
+      cursor: not-allowed;
+    }
+
   </style>
 </head>
 <body>
@@ -1670,6 +1678,8 @@
     let testDisplayRole = 'executive';
     let executiveDetailExpanded = false;
     let previousTestDisplayRole = 'executive';
+    const TEST_MANAGER_LOCK_DEPARTMENT = '営業第1課';
+    let lockedManagerDepartment = '';
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -1716,6 +1726,10 @@
           activeTab = 'alert';
         }
         applyTabVisibility();
+        syncDepartmentFilterForDisplayRole();
+        if (lastRenderedHasSnapshot || currentRows.length) {
+          applyFilters();
+        }
       });
       applyTabVisibility();
     }
@@ -1746,11 +1760,20 @@
         return;
       }
 
+      if (isManagerDisplayRole()) {
+        status.textContent = '所属長：勤怠アラートのみ表示（管轄部署に固定）';
+        return;
+      }
+
       status.textContent = getRoleSwitchLabel() + '：勤怠アラートのみ表示';
     }
 
     function isExecutiveDisplayRole() {
       return testDisplayRole === 'executive';
+    }
+
+    function isManagerDisplayRole() {
+      return testDisplayRole === 'manager';
     }
 
     function toggleExecutiveDetailArea() {
@@ -3657,6 +3680,9 @@
 
     function setupDepartmentFilter(departments) {
       const select = document.getElementById('departmentFilter');
+      if (!select) return;
+
+      const previousValue = select.value;
       select.innerHTML = '<option value="">すべての部署</option>';
 
       departments.forEach(dept => {
@@ -3665,11 +3691,72 @@
         option.textContent = dept;
         select.appendChild(option);
       });
+
+      if (previousValue && Array.from(select.options).some(option => option.value === previousValue)) {
+        select.value = previousValue;
+      }
+      syncDepartmentFilterForDisplayRole(departments);
+    }
+
+    function resolveManagerLockDepartment(departments) {
+      const sourceDepartments = Array.isArray(departments) && departments.length
+        ? departments
+        : createDepartmentListClient(currentRows);
+      if (sourceDepartments.includes(TEST_MANAGER_LOCK_DEPARTMENT)) return TEST_MANAGER_LOCK_DEPARTMENT;
+      return sourceDepartments[0] || '';
+    }
+
+    function syncDepartmentFilterForDisplayRole(departments) {
+      const select = document.getElementById('departmentFilter');
+      if (!select) return '';
+
+      if (!isManagerDisplayRole()) {
+        const previouslyLockedDepartment = lockedManagerDepartment;
+        lockedManagerDepartment = '';
+        select.disabled = false;
+        select.classList.remove('departmentFilterLocked');
+        select.title = '';
+        if (previouslyLockedDepartment && select.value === previouslyLockedDepartment) {
+          select.value = '';
+        }
+        if (!Array.from(select.options).some(option => option.value === select.value)) {
+          select.value = '';
+        }
+        return '';
+      }
+
+      const lockDepartment = resolveManagerLockDepartment(departments);
+      lockedManagerDepartment = lockDepartment;
+
+      if (lockDepartment && !Array.from(select.options).some(option => option.value === lockDepartment)) {
+        const option = document.createElement('option');
+        option.value = lockDepartment;
+        option.textContent = lockDepartment;
+        select.appendChild(option);
+      }
+
+      select.value = lockDepartment || '';
+      select.disabled = true;
+      select.classList.add('departmentFilterLocked');
+      select.title = lockDepartment
+        ? `所属長表示では管轄部署「${lockDepartment}」に固定されます。`
+        : '所属長表示ですが、固定できる部署データがありません。';
+      return lockDepartment;
+    }
+
+    function getEffectiveDepartmentFilter() {
+      if (isManagerDisplayRole()) {
+        return lockedManagerDepartment || syncDepartmentFilterForDisplayRole();
+      }
+      const select = document.getElementById('departmentFilter');
+      return select ? select.value : '';
     }
 
     function applyFilters() {
+      syncDepartmentFilterForDisplayRole();
+
       const keyword = document.getElementById('keyword').value.trim().toLowerCase();
-      const department = document.getElementById('departmentFilter').value;
+      const department = getEffectiveDepartmentFilter();
       const risk = document.getElementById('riskFilter').value;
       const missing = document.getElementById('missingFilter').value;
 
@@ -3694,9 +3781,12 @@
 
     function clearFilters() {
       document.getElementById('keyword').value = '';
-      document.getElementById('departmentFilter').value = '';
+      if (!isManagerDisplayRole()) {
+        document.getElementById('departmentFilter').value = '';
+      }
       document.getElementById('riskFilter').value = '';
       document.getElementById('missingFilter').value = '';
+      syncDepartmentFilterForDisplayRole();
       applyFilters();
     }
 
