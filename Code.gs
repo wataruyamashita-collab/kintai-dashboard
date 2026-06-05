@@ -1502,6 +1502,96 @@ function saveAuthUser(payload) {
 
 
 /**
+ * 管理者用：権限ユーザーを一括追加・更新する。
+ * CSV/Excel貼付で解析済みの配列を受け取り、既存メールは更新する。
+ */
+function bulkSaveAuthUsers(payload) {
+  const user = getCurrentUser_();
+  assertAdmin_(user);
+
+  const users = payload && Array.isArray(payload.users) ? payload.users : [];
+  if (users.length === 0) throw new Error('一括登録する権限データがありません。');
+  if (users.length > 500) throw new Error('一括登録は500件以内にしてください。');
+
+  const availableDepartments = createDepartmentGroupOptions_();
+  const currentUserEmail = String(user.email || '').trim().toLowerCase();
+  const seenEmails = {};
+
+  const normalizedUsers = users.map((item, index) => {
+    const lineNumber = index + 2;
+    const email = String(item.email || '').trim().toLowerCase();
+    const name = String(item.name || '').trim();
+    const department = String(item.department || '').trim();
+    const role = String(item.role || 'manager').trim().toLowerCase();
+    const enabled = item.enabled === false ? 'FALSE' : 'TRUE';
+    const note = String(item.note || '').trim();
+
+    if (!email || email.indexOf('@') === -1) {
+      throw new Error(`${lineNumber}行目：メールアドレスを正しく入力してください。`);
+    }
+    if (seenEmails[email]) {
+      throw new Error(`${lineNumber}行目：同じメールアドレスが一括登録データ内で重複しています：${email}`);
+    }
+    seenEmails[email] = true;
+
+    if (!MANAGEMENT_BASE.ROLES.includes(role)) {
+      throw new Error(`${lineNumber}行目：権限は admin / manager / viewer のいずれかを指定してください。`);
+    }
+    if (!availableDepartments.includes(department)) {
+      throw new Error(`${lineNumber}行目：表示範囲「${department}」は現在の部署グループ一覧にありません。`);
+    }
+    if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
+      throw new Error(`${lineNumber}行目：admin 権限は表示範囲を「全社」にしてください。`);
+    }
+    if (email === currentUserEmail && enabled === 'FALSE') {
+      throw new Error(`${lineNumber}行目：自分自身の権限は無効化できません。`);
+    }
+
+    return {
+      email,
+      name,
+      department,
+      role,
+      enabled,
+      note
+    };
+  });
+
+  const ss = getOrCreateManualInputSpreadsheet_();
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+  const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
+  const now = getNowText_();
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    normalizedUsers.forEach(item => {
+      const existingRowNumber = findRowByKey_(sheet, 'email', item.email);
+      const before = existingRowNumber > 0 ? getObjectAtRow_(sheet, existingRowNumber) : null;
+      const record = Object.assign({}, item, {
+        createdAt: before ? before.createdAt : now,
+        createdBy: before ? before.createdBy : user.email,
+        updatedAt: now,
+        updatedBy: user.email
+      });
+
+      upsertObjectByKey_(sheet, 'email', item.email, record);
+      appendAuthHistoryIfChanged_(historySheet, before, record, user.email);
+    });
+  } finally {
+    lock.releaseLock();
+  }
+
+  return {
+    ok: true,
+    importedCount: normalizedUsers.length,
+    users: listAuthUsersInternal_()
+  };
+}
+
+
+/**
  * 管理者用：ユーザー権限を無効化する。
  * 削除ではなく enabled = FALSE にする。
  */
