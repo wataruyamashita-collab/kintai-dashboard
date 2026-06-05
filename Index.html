@@ -498,6 +498,7 @@
       background: #a61c00;
     }
 
+
     /* ===== UI polish: 2026 redesign patch ===== */
     * { box-sizing: border-box; }
 
@@ -513,7 +514,6 @@
 
     body > .top,
     body > .message,
-    body > .rolePreviewPanel,
     body > .departmentGroupWarning,
     body > .tabBar,
     body > .uploadBox,
@@ -808,6 +808,9 @@
       .toolbar { position: static; }
     }
 
+
+
+
     /* ===== UI polish: insight strip and filter controls ===== */
     .insightStrip {
       display: flex;
@@ -983,6 +986,7 @@
       .toolbar .clearButton { width: 100%; }
     }
 
+
     /* ===== 画面タブ ===== */
     .tabBar {
       display: none;
@@ -1020,6 +1024,7 @@
     .tabPanel {
       display: none;
     }
+
 
     /* ===== 管理者用：権限管理パネル ===== */
     .authControls input[type="text"] {
@@ -1089,381 +1094,6 @@
       font-weight: 700;
     }
 
-    .rolePreviewPanel {
-      background: #ffffff;
-      border: 2px dashed #8aa1b8;
-      border-radius: 16px;
-      padding: 16px 18px;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
-    }
-
-    .rolePreviewHeader {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .rolePreviewTitle {
-      margin: 0;
-      font-size: 17px;
-      font-weight: 700;
-    }
-
-    .rolePreviewButtons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .rolePreviewButton.active {
-      background: #1f4e79;
-      border-color: #1f4e79;
-      color: #ffffff;
-    }
-
-    .rolePreviewScreen {
-      min-height: 88px;
-      display: grid;
-      align-content: center;
-      gap: 6px;
-      padding: 18px;
-      border: 1px solid #e1e6ee;
-      border-radius: 14px;
-      background: #f8fafc;
-    }
-
-    .rolePreviewMainText {
-      font-size: clamp(20px, 2.2vw, 30px);
-      font-weight: 700;
-      line-height: 1.35;
-    }
-
-    .rolePreviewSubText {
-      color: #5f6b7a;
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .rolePreviewScreen.denied {
-      border-color: #f6b26b;
-      background: #fff7ed;
-    }
-
-
-    /* ===== Step 3: Google-inspired clean role dashboards ===== */
-    .roleDashboard {
-      display: none;
-      margin-bottom: 18px;
-    }
-
-    .roleDashboard.show {
-      display: block;
-    }
-
-    .cleanHero {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(28px, 4vw, 52px);
-      border: 1px solid #d7e3f4;
-      border-radius: 28px;
-      background:
-        radial-gradient(circle at 88% 18%, rgba(66, 133, 244, .12), transparent 32%),
-        linear-gradient(135deg, #ffffff 0%, #f7fbff 58%, #eef6ff 100%);
-      box-shadow: 0 18px 46px rgba(60, 64, 67, .10);
-      color: #174ea6;
-    }
-
-    .cleanHero.green {
-      border-color: #cde8d2;
-      background:
-        radial-gradient(circle at 88% 18%, rgba(52, 168, 83, .12), transparent 32%),
-        linear-gradient(135deg, #ffffff 0%, #f8fffb 58%, #eef8f0 100%);
-      color: #137333;
-    }
-
-    .cleanHero .eyebrow {
-      margin-bottom: 8px;
-      color: #5f6368;
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-
-    .cleanHeroTitle {
-      margin: 0 0 14px;
-      color: #202124;
-      font-size: clamp(18px, 2vw, 26px);
-      font-weight: 700;
-    }
-
-    .megaMetric {
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-      margin: 0;
-      font-variant-numeric: tabular-nums;
-      line-height: .9;
-    }
-
-    .megaMetric .number {
-      font-size: clamp(76px, 12vw, 164px);
-      font-weight: 800;
-      letter-spacing: -.07em;
-    }
-
-    .megaMetric .unit {
-      padding-bottom: clamp(10px, 1.6vw, 22px);
-      font-size: clamp(24px, 3vw, 42px);
-      font-weight: 800;
-      letter-spacing: -.02em;
-    }
-
-    .trendText {
-      display: inline-flex;
-      align-items: center;
-      margin-top: 18px;
-      padding: 8px 14px;
-      border: 1px solid currentColor;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .72);
-      color: inherit;
-      font-size: 14px;
-      font-weight: 700;
-    }
-
-    .cleanGrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .cleanCard,
-    .cleanDetails {
-      border: 1px solid #e0e7f1;
-      border-radius: 22px;
-      background: #ffffff;
-      box-shadow: 0 10px 28px rgba(60, 64, 67, .08);
-    }
-
-    .cleanCard {
-      padding: 18px 20px;
-    }
-
-    .cleanDetails {
-      margin-top: 16px;
-      overflow: hidden;
-    }
-
-    .cleanDetails summary {
-      cursor: pointer;
-      padding: 18px 20px;
-      color: #174ea6;
-      font-weight: 800;
-      list-style-position: inside;
-    }
-
-    .cleanList {
-      display: grid;
-      gap: 8px;
-      padding: 0 20px 20px;
-    }
-
-    .cleanRow {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      align-items: center;
-      padding: 13px 0;
-      border-top: 1px solid #eef2f7;
-    }
-
-    .cleanRowName {
-      overflow: hidden;
-      color: #202124;
-      font-weight: 700;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .cleanRowSub {
-      margin-top: 2px;
-      color: #5f6368;
-      font-size: 12px;
-    }
-
-    .cleanRowValue {
-      color: #174ea6;
-      font-size: 24px;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .adminMenu {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .adminMenu button,
-    .csvDownloadButton {
-      border-color: #d2e3fc;
-      background: #e8f0fe;
-      color: #174ea6;
-      border-radius: 999px;
-    }
-
-    .csvDownloadButton {
-      justify-self: start;
-      margin-top: 6px;
-    }
-
-    .agreementSummaryGrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .agreementSummaryCard {
-      padding: 16px;
-      border: 1px solid #e0e7f1;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow: 0 8px 22px rgba(60, 64, 67, .06);
-    }
-
-    .agreementSummaryCard .label {
-      color: #5f6368;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .04em;
-    }
-
-    .agreementSummaryCard .value {
-      margin-top: 6px;
-      color: #202124;
-      font-size: 30px;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .managerListTable,
-    .departmentGroupTable {
-      width: 100%;
-      min-width: 980px;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    .managerListWrap,
-    .departmentGroupTableWrap {
-      overflow: auto;
-      border: 1px solid #e0e7f1;
-      border-radius: 16px;
-      background: #fff;
-    }
-
-    .managerListTable th,
-    .managerListTable td,
-    .departmentGroupTable th,
-    .departmentGroupTable td {
-      padding: 10px;
-      border-right: 1px solid #eef2f7;
-      border-bottom: 1px solid #eef2f7;
-      vertical-align: top;
-      white-space: normal;
-    }
-
-    .managerListTable th,
-    .departmentGroupTable th {
-      position: sticky;
-      top: 0;
-      background: #e9eff6;
-      color: #26384d;
-      text-align: center;
-      z-index: 1;
-    }
-
-    .agreementAlert {
-      display: grid;
-      gap: 6px;
-    }
-
-    .missingChip {
-      display: inline-flex;
-      width: fit-content;
-      align-items: center;
-      min-height: 24px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: #fff1f0;
-      color: #8a1c12;
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .managerMemoBox {
-      display: grid;
-      grid-template-columns: minmax(240px, 1fr) auto;
-      gap: 8px;
-      align-items: start;
-    }
-
-    .managerMemoBox textarea {
-      min-height: 72px;
-      border: 1px solid #cfd7e3;
-      border-radius: 10px;
-      padding: 8px;
-      font: inherit;
-      resize: vertical;
-    }
-
-    .departmentGroupForm {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-      align-items: end;
-      margin-top: 12px;
-    }
-
-    .departmentGroupForm label {
-      display: grid;
-      gap: 4px;
-      color: #5f6368;
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .departmentGroupForm input {
-      height: 36px;
-      border: 1px solid #cfd7e3;
-      border-radius: 8px;
-      padding: 0 10px;
-    }
-
-    .legacyCleanHidden {
-      display: none !important;
-    }
-
-    .rolePreviewPanel {
-      margin-top: 18px;
-      opacity: .92;
-    }
-
-    @media (max-width: 720px) {
-      .cleanHero { padding: 24px; border-radius: 22px; }
-      .megaMetric .number { font-size: 76px; }
-      .megaMetric .unit { font-size: 24px; }
-      .cleanRow { grid-template-columns: 1fr; gap: 4px; }
-    }
-
   </style>
 </head>
 <body>
@@ -1476,7 +1106,6 @@
   </div>
 
   <div id="message" class="message">保存済みデータを確認しています。</div>
-
   <div id="departmentGroupWarning" class="departmentGroupWarning" role="alert"></div>
 
   <div id="tabBar" class="tabBar" aria-label="画面切替">
@@ -1556,9 +1185,9 @@
 
     <div id="authPanel" class="tabPanel adminTabPanel">
       <div class="panel" id="authManagementBox">
-        <h3>管理者用：マスター名簿（閲覧・入力権限管理）</h3>
+        <h3>管理者用：閲覧・入力権限管理</h3>
         <div class="sub" style="margin-bottom:10px;">
-          同じURLで、役員・所属長・管理(admin)の権限を判別するためのマスター名簿を管理します。権限が空欄または未登録のユーザーは、デフォルト拒否として全画面を非表示にします。
+          同じURLで、管理者・管理監督者・閲覧者の表示範囲と入力権限を管理します。管理監督者は、自部署の備考等のみ保存できます。
         </div>
 
         <div class="uploadControls authControls">
@@ -1571,9 +1200,9 @@
           </label>
           <label>権限：
             <select id="authRole">
-              <option value="executive">役員</option>
-              <option value="manager">所属長</option>
-              <option value="admin">管理(admin)</option>
+              <option value="admin">admin</option>
+              <option value="manager">manager</option>
+              <option value="viewer">viewer</option>
             </select>
           </label>
           <label><input type="checkbox" id="authEnabled" checked> 有効</label>
@@ -1584,7 +1213,7 @@
         </div>
 
         <div class="definition" style="margin-top:10px;">
-          権限は「役員」「所属長」「管理(admin)」の3種類だけです。役員＝全社閲覧、所属長＝自部署閲覧・自部署の手入力保存、管理(admin)＝全社閲覧・CSV取込・計算・権限管理。権限が空欄または未登録の場合は「アクセス権限がありません」として拒否します。
+          role の意味：admin＝全社閲覧・CSV取込・計算・権限管理、manager＝自部署閲覧・自部署の手入力保存、viewer＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
         </div>
 
         <div class="cacheStatus" id="authStatus">権限一覧は未読込です。</div>
@@ -1613,8 +1242,6 @@
   </div>
 
   <div id="main" class="tabPanel" style="display:none;">
-    <section id="roleDashboard" class="roleDashboard" aria-live="polite"></section>
-
     <div class="summary">
       <div class="summaryCard"><div class="label">表示人数</div><div class="value" id="sumTotal">0</div></div>
       <div class="summaryCard"><div class="label">高リスク</div><div class="value" id="sumHigh">0</div></div>
@@ -1716,25 +1343,6 @@
     </div>
   </div>
 
-  <section class="rolePreviewPanel" aria-labelledby="rolePreviewTitle">
-    <div class="rolePreviewHeader">
-      <div>
-        <h2 class="rolePreviewTitle" id="rolePreviewTitle">ステップ2：権限別表示プレビュー</h2>
-        <div class="sub">同じURLのまま、テスト用ボタンでログインユーザーの権限を仮切替し、文字レベルの出し分けを確認します。</div>
-      </div>
-      <div class="rolePreviewButtons" aria-label="テスト用ログインユーザー切替">
-        <button type="button" class="rolePreviewButton" data-preview-role="executive" onclick="switchRolePreview('executive')">役員</button>
-        <button type="button" class="rolePreviewButton" data-preview-role="manager" onclick="switchRolePreview('manager')">所属長</button>
-        <button type="button" class="rolePreviewButton" data-preview-role="admin" onclick="switchRolePreview('admin')">admin</button>
-        <button type="button" class="rolePreviewButton" data-preview-role="none" onclick="switchRolePreview('none')">権限なし</button>
-      </div>
-    </div>
-    <div class="rolePreviewScreen" id="rolePreviewScreen" aria-live="polite">
-      <div class="rolePreviewMainText" id="rolePreviewMainText">権限別プレビューを準備しています。</div>
-      <div class="rolePreviewSubText" id="rolePreviewSubText">上のボタンで、役員 / 所属長 / admin / 権限なしを切り替えられます。</div>
-    </div>
-  </section>
-
   <div class="modalOverlay" id="textModal" onclick="closeTextModalByOverlay(event)">
     <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modalHeader" id="modalTitle">入力</div>
@@ -1794,34 +1402,6 @@
     const DEPARTMENT_GROUP_ALL = '全社';
     const DEPARTMENT_GROUP_UNCLASSIFIED = '未分類';
 
-    const ROLE_PREVIEW_DEFINITIONS = {
-      executive: {
-        label: '役員',
-        screenName: '全体画面（役員）',
-        mainText: 'あなたは今【全体画面（役員）】を見ています',
-        subText: '役員権限の想定表示です。全社を閲覧できる画面として切り替わります。'
-      },
-      manager: {
-        label: '所属長',
-        screenName: '所属長画面',
-        mainText: 'あなたは今【所属長画面】を見ています',
-        subText: '所属長権限の想定表示です。自部署を確認・入力できる画面として切り替わります。'
-      },
-      admin: {
-        label: 'admin',
-        screenName: '管理画面（admin）',
-        mainText: 'あなたは今【管理画面（admin）】を見ています',
-        subText: 'admin権限の想定表示です。全社閲覧・CSV取込・権限管理ができる画面として切り替わります。'
-      },
-      none: {
-        label: '権限なし',
-        screenName: 'アクセス拒否',
-        mainText: 'アクセス権限がありません',
-        subText: '未登録または権限が空欄のユーザーを想定した表示です。業務画面は表示しない前提です。',
-        denied: true
-      }
-    };
-
     const FIELD = {
       DEPARTMENT: 0,
       EMPLOYEE_CODE: 1,
@@ -1863,10 +1443,8 @@
     let editingField = null;
     let textModalSaving = false;
     let saveToastTimer = null;
-    let selectedPreviewRole = 'executive';
 
     window.addEventListener('load', () => {
-      initializeRolePreview();
       setDefaultTargetMonth();
       setDefaultCutoffDate();
       initializeCompanyCalendarForm();
@@ -1886,37 +1464,6 @@
         .withFailureHandler(showError)
         .getInitialData();
     });
-
-    function initializeRolePreview() {
-      switchRolePreview('executive');
-    }
-
-    function switchRolePreview(role) {
-      const previewRole = ROLE_PREVIEW_DEFINITIONS[role] ? role : 'none';
-      selectedPreviewRole = previewRole;
-      const definition = ROLE_PREVIEW_DEFINITIONS[previewRole];
-      const screen = document.getElementById('rolePreviewScreen');
-      const mainText = document.getElementById('rolePreviewMainText');
-      const subText = document.getElementById('rolePreviewSubText');
-
-      if (screen) {
-        screen.classList.toggle('denied', Boolean(definition.denied));
-        screen.setAttribute('data-current-role', previewRole);
-      }
-
-      if (mainText) mainText.textContent = definition.mainText;
-      if (subText) {
-        subText.textContent = 'テスト用ログインユーザー：' + definition.label + ' ／ 画面種別：' + definition.screenName + '。' + definition.subText;
-      }
-
-      document.querySelectorAll('.rolePreviewButton').forEach(button => {
-        const isActive = button.getAttribute('data-preview-role') === previewRole;
-        button.classList.toggle('active', isActive);
-        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-      });
-
-      renderRoleDashboard();
-    }
 
     function initializeCompanyCalendarForm() {
       const yearInput = document.getElementById('calendarYear');
@@ -3145,6 +2692,7 @@
       return missing;
     }
 
+
     function switchTab(tabName) {
       activeTab = tabName || 'alert';
       applyTabVisibility();
@@ -3230,7 +2778,7 @@
       document.getElementById('userBox').innerHTML =
         '<div><strong>ログインユーザー</strong>：' + escapeHtml(data.user.email) + '</div>' +
         '<div><strong>閲覧範囲</strong>：' + escapeHtml(data.user.department) + '</div>' +
-        '<div><strong>権限</strong>：' + escapeHtml(data.user.roleLabel || data.user.role) + '</div>';
+        '<div><strong>権限</strong>：' + escapeHtml(data.user.role) + '</div>';
 
       setupTabsForCurrentUser(data.hasSnapshot);
 
@@ -3271,416 +2819,6 @@
       updateSummary(data.summary || {});
       setupDepartmentFilter(data.departments || []);
       applyFilters();
-    }
-
-
-    function getActiveDesignRole() {
-      if (selectedPreviewRole && ROLE_PREVIEW_DEFINITIONS[selectedPreviewRole]) return selectedPreviewRole;
-      return currentUser && currentUser.role ? currentUser.role : 'none';
-    }
-
-    function getForecastHours(row) {
-      const numeric = Number(row && row.monthEndForecastValue);
-      if (Number.isFinite(numeric)) return numeric;
-      const text = String(row && row.monthEndForecast || '').replace(':', '.');
-      const parsed = Number(text);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    function averageForecast(rows) {
-      const list = Array.isArray(rows) ? rows : [];
-      if (!list.length) return 0;
-      return round1(list.reduce((sum, row) => sum + getForecastHours(row), 0) / list.length);
-    }
-
-    function formatOneDecimal(value) {
-      const number = Number(value || 0);
-      return Number.isFinite(number) ? number.toFixed(1) : '0.0';
-    }
-
-    function getTrendText() {
-      return '先月比：-1.2時間（先月より縮小しています）';
-    }
-
-    function groupByDepartment(rows) {
-      const map = new Map();
-      (Array.isArray(rows) ? rows : []).forEach(row => {
-        const department = row.department || '部署未設定';
-        if (!map.has(department)) map.set(department, { department, count: 0, total: 0 });
-        const item = map.get(department);
-        item.count += 1;
-        item.total += getForecastHours(row);
-      });
-      return Array.from(map.values()).map(item => ({
-        department: item.department,
-        count: item.count,
-        average: round1(item.count ? item.total / item.count : 0)
-      })).sort((a, b) => b.average - a.average || a.department.localeCompare(b.department, 'ja'));
-    }
-
-    function renderRoleDashboard(visibleRows) {
-      const dashboard = document.getElementById('roleDashboard');
-      if (!dashboard) return;
-
-      const role = getActiveDesignRole();
-      const rows = Array.isArray(visibleRows) ? visibleRows : currentRows;
-      const hasRows = Array.isArray(rows) && rows.length > 0;
-      const legacySelectors = ['.summary', '.insightStrip', '.toolbar', '#definitionBox', '.tableHint', '.tableWrap'];
-
-      legacySelectors.forEach(selector => {
-        document.querySelectorAll('#main > ' + selector).forEach(el => el.classList.add('legacyCleanHidden'));
-      });
-
-      if (!hasRows || role === 'none') {
-        dashboard.className = 'roleDashboard show';
-        dashboard.innerHTML = '<div class="cleanHero"><div class="eyebrow">No access</div><h2 class="cleanHeroTitle">アクセス権限がありません</h2><div class="sub">テスト用ログインユーザー切替ボタンから、役員・所属長・admin の画面を確認できます。</div></div>';
-        return;
-      }
-
-      dashboard.className = 'roleDashboard show';
-      if (role === 'manager') {
-        dashboard.innerHTML = createManagerDashboardHtml(rows);
-        return;
-      }
-      if (role === 'admin') {
-        dashboard.innerHTML = createAdminDashboardHtml(rows);
-        return;
-      }
-      dashboard.innerHTML = createExecutiveDashboardHtml(rows);
-    }
-
-    function createExecutiveDashboardHtml(rows) {
-      const avg = averageForecast(rows);
-      const departments = groupByDepartment(rows);
-      const agreement = createAgreementSummary(rows);
-      const detailRows = departments.map(item =>
-        '<div class="cleanRow"><div><div class="cleanRowName">' + escapeHtml(item.department) + '</div><div class="cleanRowSub">対象 ' + item.count + '名</div></div><div class="cleanRowValue">' + formatOneDecimal(item.average) + '時間</div></div>'
-      ).join('');
-      return '' +
-        '<div class="cleanHero">' +
-          '<div class="eyebrow">Company forecast</div>' +
-          '<h2 class="cleanHeroTitle">今月の全社平均残業時間（着地予測）</h2>' +
-          '<p class="megaMetric"><span class="number">' + formatOneDecimal(avg) + '</span><span class="unit">時間</span></p>' +
-          '<div class="trendText">' + getTrendText() + '</div>' +
-        '</div>' +
-        '<div class="agreementSummaryGrid" aria-label="36協定の警告ステータスサマリー">' +
-          createAgreementSummaryCard('36協定 警告対象', agreement.alertTargets + '名', '実績または見込みアラートがある人数') +
-          createAgreementSummaryCard('36協定 未設定', agreement.missingAgreement + '名', '警告対象だが適用有無が未入力') +
-          createAgreementSummaryCard('高リスク', agreement.highRisk + '名', '80h見込みまたは45h超過5回以上') +
-          createAgreementSummaryCard('特別条項 未入力', agreement.missingSpecial + '名', '60h以上見込みで発動事由等が未入力') +
-        '</div>' +
-        '<details class="cleanDetails">' +
-          '<summary>部署ごとの詳細データを表示</summary>' +
-          '<div class="cleanList">' + (detailRows || '<div class="emptyState">部署データはありません。</div>') + '</div>' +
-        '</details>';
-    }
-
-    function createAgreementSummary(rows) {
-      return (Array.isArray(rows) ? rows : []).reduce((acc, row) => {
-        const missingItems = Array.isArray(row.missingItems) ? row.missingItems : [];
-        const isAlertTarget = Boolean(row.actualAlert || row.forecastAlert);
-        if (isAlertTarget) acc.alertTargets += 1;
-        if (isAlertTarget && !row.agreement36) acc.missingAgreement += 1;
-        if (row.riskLevel === 'high') acc.highRisk += 1;
-        if (missingItems.includes('発動事由') || missingItems.includes('健康福祉措置')) acc.missingSpecial += 1;
-        return acc;
-      }, { alertTargets: 0, missingAgreement: 0, highRisk: 0, missingSpecial: 0 });
-    }
-
-    function createAgreementSummaryCard(label, value, subText) {
-      return '<div class="agreementSummaryCard"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value) + '</div><div class="sub">' + escapeHtml(subText) + '</div></div>';
-    }
-
-    function createManagerDashboardHtml(rows) {
-      const departmentName = currentUser && currentUser.department ? currentUser.department : (rows[0] && rows[0].departmentGroup) || '管轄部署';
-      const avg = averageForecast(rows);
-      const editable = canEditManualInputClient();
-      const bodyRows = rows.slice().sort((a, b) => getForecastHours(b) - getForecastHours(a)).map((row, index) => {
-        const rowKey = getDashboardRowKey(row);
-        const missingItems = Array.isArray(row.missingItems) ? row.missingItems : [];
-        const missingHtml = missingItems.length
-          ? missingItems.map(item => '<span class="missingChip">未入力：' + escapeHtml(item) + '</span>').join('')
-          : '<span class="safeBadge">必要入力なし</span>';
-        const alertHtml = '<div class="agreementAlert">' +
-          (row.actualAlert || row.forecastAlert ? '<span class="riskBadge ' + escapeHtml(row.riskLevel || 'medium') + '">' + escapeHtml(row.actualAlert || row.forecastAlert) + '</span>' : '<span class="safeBadge">該当なし</span>') +
-          missingHtml +
-        '</div>';
-        return '<tr class="' + escapeHtml(row.riskLevel || 'low') + '">' +
-          '<td>' + (index + 1) + '</td>' +
-          '<td><strong>' + escapeHtml(row.employeeName || '氏名未設定') + '</strong><div class="sub">' + escapeHtml(row.employeeCode || '') + '</div></td>' +
-          '<td>' + escapeHtml(row.department || departmentName) + '</td>' +
-          '<td style="text-align:right;font-weight:800;">' + formatOneDecimal(getForecastHours(row)) + '時間</td>' +
-          '<td>' + alertHtml + '</td>' +
-          '<td>' + createDashboardAgreementSelect(row, rowKey, editable) + '</td>' +
-          '<td>' + createDashboardMemoInput(row, rowKey, editable) + '</td>' +
-        '</tr>';
-      }).join('');
-      return '' +
-        '<div class="cleanHero green">' +
-          '<div class="eyebrow">Team forecast</div>' +
-          '<h2 class="cleanHeroTitle">' + escapeHtml(departmentName) + 'の平均残業時間</h2>' +
-          '<p class="megaMetric"><span class="number">' + formatOneDecimal(avg) + '</span><span class="unit">時間</span></p>' +
-          '<div class="trendText">' + getTrendText() + '</div>' +
-        '</div>' +
-        '<div class="cleanCard" style="margin-top:16px;">' +
-          '<h3>部下一覧：36協定アラート・面談メモ</h3>' +
-          '<div class="sub" style="margin-bottom:10px;">36協定適用有無は既存の保存ロジック、面談メモ/対策は既存の備考保存ロジックを利用して永続保存します。</div>' +
-          '<div class="managerListWrap"><table class="managerListTable"><thead><tr><th>#</th><th>社員</th><th>部署</th><th>月末予測</th><th>36協定アラート</th><th>36協定適用有無</th><th>面談メモ・対策</th></tr></thead><tbody>' +
-            (bodyRows || '<tr><td colspan="7" class="emptyState">部下データはありません。</td></tr>') +
-          '</tbody></table></div>' +
-        '</div>';
-    }
-
-    function createDashboardAgreementSelect(row, rowKey, editable) {
-      const options = [
-        { value: '', label: '選択' },
-        { value: '適用', label: '適用' },
-        { value: '不適用', label: '不適用' }
-      ];
-      const selectHtml = options.map(option =>
-        '<option value="' + escapeHtml(option.value) + '"' + ((row.agreement36 || '') === option.value ? ' selected' : '') + '>' + escapeHtml(option.label) + '</option>'
-      ).join('');
-      return '<select class="agreementSelect" ' + (editable ? '' : 'disabled title="閲覧のみです"') + ' onchange="updateDashboardAgreement36(\'' + rowKey + '\', this.value)">' + selectHtml + '</select>';
-    }
-
-    function createDashboardMemoInput(row, rowKey, editable) {
-      return '<div class="managerMemoBox">' +
-        '<textarea id="managerMemo_' + rowKey + '" ' + (editable ? '' : 'disabled') + ' placeholder="面談メモや対策を入力">' + escapeHtml(row.note || '') + '</textarea>' +
-        '<button type="button" class="save" ' + (editable ? '' : 'disabled') + ' onclick="saveDashboardMemo(\'' + rowKey + '\')">保存</button>' +
-      '</div>';
-    }
-
-    function createAdminDashboardHtml(rows) {
-      const departments = groupByDepartment(rows);
-      const departmentRows = departments.map(item =>
-        '<div class="cleanRow"><div><div class="cleanRowName">' + escapeHtml(item.department) + '</div><div class="cleanRowSub">対象 ' + item.count + '名 ／ ' + getTrendText() + '</div></div><div class="cleanRowValue">' + formatOneDecimal(item.average) + '時間</div></div>'
-      ).join('');
-      return '' +
-        '<div class="cleanCard">' +
-          '<div class="adminMenu" aria-label="管理者メニュー">' +
-            '<button type="button" onclick="switchTab(\'parameters\')">会社カレンダー設定</button>' +
-            '<button type="button" onclick="switchTab(\'auth\')">ユーザー権限設定</button>' +
-            '<button type="button" onclick="switchTab(\'data\')">データ取込</button>' +
-          '</div>' +
-          '<h3>部署別の平均残業時間</h3>' +
-          '<div class="cleanList">' + (departmentRows || '<div class="emptyState">部署データはありません。</div>') + '</div>' +
-          '<button type="button" class="csvDownloadButton" onclick="downloadCurrentRowsCsv()">全社データのCSVダウンロード</button>' +
-        '</div>' +
-        createDepartmentGroupAdminBox(rows);
-    }
-
-    function createDepartmentGroupAdminBox(rows) {
-      const departments = [...new Set((Array.isArray(rows) ? rows : []).map(row => row.department).filter(Boolean))].sort();
-      const departmentOptions = departments.map(dept => '<option value="' + escapeHtml(dept) + '"></option>').join('');
-      const groupOptions = (currentDepartmentGroups || []).filter(group => group !== DEPARTMENT_GROUP_ALL).map(group => '<option value="' + escapeHtml(group) + '"></option>').join('');
-      const mappingRows = createDepartmentGroupMappingRows();
-      return '' +
-        '<div class="cleanCard" style="margin-top:16px;">' +
-          '<h3>部署グループの設定・入力フォーム</h3>' +
-          '<div class="sub">未分類部署や部署名変更を、社員コード単位または部署名単位で既存の部署グループ判定へ追加します。保存後は再取込時の部署グループ判定にも使われます。</div>' +
-          '<div class="departmentGroupForm">' +
-            '<label>部署名<input type="text" id="departmentGroupDepartmentInput" list="departmentGroupDepartmentList" placeholder="例：クラウド推進課"></label>' +
-            '<label>部署グループ<input type="text" id="departmentGroupNameInput" list="departmentGroupNameList" placeholder="例：営業支援ユニット"></label>' +
-            '<label>社員コード（任意）<input type="text" id="departmentGroupEmployeeCodeInput" placeholder="社員別に上書きする場合"></label>' +
-            '<label>社員名（任意）<input type="text" id="departmentGroupEmployeeNameInput" placeholder="任意"></label>' +
-            '<button type="button" class="save" onclick="saveDepartmentGroupSettingFromDashboard()">部署グループ設定を保存</button>' +
-            '<button type="button" onclick="loadDepartmentGroupSettingsForDashboard()">設定一覧を再読込</button>' +
-          '</div>' +
-          '<datalist id="departmentGroupDepartmentList">' + departmentOptions + '</datalist>' +
-          '<datalist id="departmentGroupNameList">' + groupOptions + '</datalist>' +
-          '<div class="cacheStatus" id="departmentGroupSettingStatus">部署グループ設定を入力してください。</div>' +
-          '<div class="departmentGroupTableWrap" style="margin-top:12px;"><table class="departmentGroupTable"><thead><tr><th>部署名</th><th>部署グループ</th><th>社員コード</th><th>社員名</th><th>更新日時</th><th>更新者</th></tr></thead><tbody id="departmentGroupSettingTbody">' + mappingRows + '</tbody></table></div>' +
-        '</div>';
-    }
-
-    function createDepartmentGroupMappingRows() {
-      const mappings = getDepartmentGroupMappingsFromClientConfig();
-      if (!mappings.length) return '<tr><td colspan="6" class="emptyState">保存済みの部署グループ個別設定はありません。</td></tr>';
-      return mappings.map(item => '<tr>' +
-        '<td>' + escapeHtml(item.department || '') + '</td>' +
-        '<td><strong>' + escapeHtml(item.departmentGroup || '') + '</strong></td>' +
-        '<td>' + escapeHtml(item.employeeCode || '') + '</td>' +
-        '<td>' + escapeHtml(item.employeeName || '') + '</td>' +
-        '<td>' + escapeHtml(item.updatedAt || '') + '</td>' +
-        '<td>' + escapeHtml(item.updatedBy || '') + '</td>' +
-      '</tr>').join('');
-    }
-
-    function getDashboardRowKey(row) {
-      return encodeURIComponent(normalizeText(row && row.employeeCode) || normalizeText(row && row.employeeName) || 'row');
-    }
-
-    function findDashboardRowByKey(rowKey) {
-      const decoded = decodeURIComponent(String(rowKey || ''));
-      return (currentRows || []).find(row => normalizeText(row.employeeCode) === decoded)
-        || (currentRows || []).find(row => normalizeText(row.employeeName) === decoded)
-        || null;
-    }
-
-    function updateDashboardAgreement36(rowKey, value) {
-      const row = findDashboardRowByKey(rowKey);
-      if (!row) {
-        showMessage('更新対象の行を特定できませんでした。', true);
-        return;
-      }
-      updateAgreement36(row, value);
-    }
-
-    function saveDashboardMemo(rowKey) {
-      const row = findDashboardRowByKey(rowKey);
-      const input = document.getElementById('managerMemo_' + rowKey);
-      if (!row || !input) {
-        showMessage('保存対象のメモ欄を特定できませんでした。', true);
-        return;
-      }
-
-      if (!canEditManualInputClient()) {
-        showMessage('このユーザーは面談メモを保存できません。', true);
-        return;
-      }
-
-      const previousValue = row.note || '';
-      const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
-      const value = input.value.trim();
-      const rollback = createManualInputRollback(row, 'note', previousValue, previousMissingItems);
-
-      showSaveToast('保存中です…');
-      applyManualInputLocal(row, 'note', value);
-      persistManualInput(row, 'note', value, '面談メモ・対策を保存しました。', rollback, {
-        onSuccess: () => showSaveToast('保存しました'),
-        onFailure: () => showSaveToast('保存に失敗しました', true)
-      });
-    }
-
-    function getDepartmentGroupMappingsFromClientConfig() {
-      const employeeMaster = clientConfig && clientConfig.employeeMaster ? clientConfig.employeeMaster : {};
-      return Object.keys(employeeMaster || {}).map(key => {
-        const item = employeeMaster[key] || {};
-        return {
-          key,
-          employeeCode: item.employeeCode || (key.indexOf('dept:') === 0 ? '' : key),
-          employeeName: item.employeeName || '',
-          department: item.department || '',
-          departmentGroup: item.departmentGroup || '',
-          updatedAt: item.updatedAt || '',
-          updatedBy: item.updatedBy || ''
-        };
-      }).filter(item => item.department || item.departmentGroup)
-        .sort((a, b) => String(a.department || '').localeCompare(String(b.department || ''), 'ja') || String(a.employeeCode || '').localeCompare(String(b.employeeCode || ''), 'ja'));
-    }
-
-    function saveDepartmentGroupSettingFromDashboard() {
-      if (!currentUser || currentUser.role !== 'admin') {
-        showMessage('部署グループ設定は管理者のみ保存できます。', true);
-        return;
-      }
-
-      const payload = {
-        department: document.getElementById('departmentGroupDepartmentInput').value.trim(),
-        departmentGroup: document.getElementById('departmentGroupNameInput').value.trim(),
-        employeeCode: document.getElementById('departmentGroupEmployeeCodeInput').value.trim(),
-        employeeName: document.getElementById('departmentGroupEmployeeNameInput').value.trim()
-      };
-
-      const status = document.getElementById('departmentGroupSettingStatus');
-      if (!payload.department || !payload.departmentGroup) {
-        if (status) {
-          status.className = 'cacheStatus statusWarn';
-          status.textContent = '部署名と部署グループを入力してください。';
-        }
-        return;
-      }
-
-      if (status) {
-        status.className = 'cacheStatus';
-        status.textContent = '部署グループ設定を保存しています。';
-      }
-
-      google.script.run
-        .withSuccessHandler(result => {
-          clientConfig = Object.assign({}, clientConfig || {}, {
-            departmentGroups: result.departmentGroups || currentDepartmentGroups,
-            departmentGroupMaster: result.departmentGroupMaster || (clientConfig && clientConfig.departmentGroupMaster) || {},
-            employeeMaster: result.employeeMaster || (clientConfig && clientConfig.employeeMaster) || {}
-          });
-          currentDepartmentGroups = resolveDepartmentGroupOptions({ departmentGroups: result.departmentGroups, rows: currentRows });
-          setupAuthDepartmentOptions();
-          const tbody = document.getElementById('departmentGroupSettingTbody');
-          if (tbody) tbody.innerHTML = createDepartmentGroupMappingRows();
-          if (status) {
-            status.className = 'cacheStatus statusOk';
-            status.textContent = '部署グループ設定を保存しました。次回の再集計・再表示で判定に反映されます。';
-          }
-          showMessage('部署グループ設定を保存しました。', false, true);
-        })
-        .withFailureHandler(error => {
-          if (status) {
-            status.className = 'cacheStatus statusWarn';
-            status.textContent = '部署グループ設定の保存に失敗しました：' + ((error && error.message) ? error.message : String(error));
-          }
-          showError(error);
-        })
-        .saveDepartmentGroupSetting(payload);
-    }
-
-    function loadDepartmentGroupSettingsForDashboard() {
-      if (!currentUser || currentUser.role !== 'admin') return;
-      const status = document.getElementById('departmentGroupSettingStatus');
-      if (status) {
-        status.className = 'cacheStatus';
-        status.textContent = '部署グループ設定一覧を読み込んでいます。';
-      }
-
-      google.script.run
-        .withSuccessHandler(mappings => {
-          const employeeMaster = {};
-          (Array.isArray(mappings) ? mappings : []).forEach(item => {
-            const key = item.key || item.employeeCode || ('dept:' + item.department);
-            employeeMaster[key] = item;
-          });
-          clientConfig = Object.assign({}, clientConfig || {}, { employeeMaster });
-          const tbody = document.getElementById('departmentGroupSettingTbody');
-          if (tbody) tbody.innerHTML = createDepartmentGroupMappingRows();
-          if (status) {
-            status.className = 'cacheStatus statusOk';
-            status.textContent = '部署グループ設定一覧を読み込みました。';
-          }
-        })
-        .withFailureHandler(error => {
-          if (status) {
-            status.className = 'cacheStatus statusWarn';
-            status.textContent = '部署グループ設定一覧の読込に失敗しました：' + ((error && error.message) ? error.message : String(error));
-          }
-        })
-        .listDepartmentGroupSettings();
-    }
-
-    function downloadCurrentRowsCsv() {
-      const headers = ['部署名', '社員コード', '社員名', '概算残業時間', '確定残業時間', '月末予測残業時間', '45h超過回数'];
-      const rows = (currentRows || []).map(row => [
-        row.department || '',
-        row.employeeCode || '',
-        row.employeeName || '',
-        row.estimatedOt || '',
-        row.fixedOt || '',
-        formatOneDecimal(getForecastHours(row)),
-        row.over45Count || 0
-      ]);
-      const csv = [headers].concat(rows).map(values => values.map(escapeCsvValue).join(',')).join('\n');
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const month = currentSnapshotPayload && currentSnapshotPayload.targetMonth ? currentSnapshotPayload.targetMonth.replace('/', '-') : 'current';
-      link.href = URL.createObjectURL(blob);
-      link.download = 'kintai-dashboard-' + month + '.csv';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-    }
-
-    function escapeCsvValue(value) {
-      const text = String(value == null ? '' : value);
-      return '"' + text.replace(/"/g, '""') + '"';
     }
 
     function setupDisplayMonthFilter(months, selectedMonth) {
@@ -3785,10 +2923,8 @@
     function createClientPermissionsFallback(user) {
       return {
         canAdmin: user && user.role === 'admin',
-        canExecutive: user && user.role === 'executive',
         canEditManualInputs: user && (user.role === 'admin' || user.role === 'manager'),
-        canManageAuth: user && user.role === 'admin',
-        screenType: user ? (user.screenType || user.role || '') : ''
+        canManageAuth: user && user.role === 'admin'
       };
     }
 
@@ -4010,7 +3146,7 @@
           user.email || '',
           user.name || '',
           user.department || '',
-          user.roleLabel || user.role || '',
+          user.role || '',
           user.enabled ? '有効' : '無効',
           user.note || '',
           user.updatedAt || '',
@@ -4064,7 +3200,7 @@
       document.getElementById('authName').value = user.name || '';
       setupAuthDepartmentOptions(user.department || DEPARTMENT_GROUP_ALL);
       document.getElementById('authDepartment').value = user.department || DEPARTMENT_GROUP_ALL;
-      document.getElementById('authRole').value = user.role || '';
+      document.getElementById('authRole').value = user.role || 'viewer';
       document.getElementById('authEnabled').checked = user.enabled !== false;
       document.getElementById('authNote').value = user.note || '';
     }
@@ -4178,7 +3314,6 @@
       });
       updateFilterStatus(rows.length);
       renderRows(rows);
-      renderRoleDashboard(rows);
     }
 
     function setRiskFilter(risk) {
