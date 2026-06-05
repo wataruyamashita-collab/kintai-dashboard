@@ -1676,6 +1676,7 @@
     let availableSnapshotMonths = [];
     let lastRenderedHasSnapshot = false;
     let testDisplayRole = 'executive';
+    let initialDisplayRoleApplied = false;
     let executiveDetailExpanded = false;
     let previousTestDisplayRole = 'executive';
     const TEST_MANAGER_LOCK_DEPARTMENT = '営業第1課';
@@ -1766,7 +1767,13 @@
         return false;
       }
 
-      setRoleSwitchValue(initialRole);
+      if (!initialDisplayRoleApplied) {
+        setRoleSwitchValue(initialRole);
+        initialDisplayRoleApplied = true;
+      } else {
+        setRoleSwitchValue(testDisplayRole, { preserveDetailState: true });
+      }
+
       if (!isAdminDisplayRole()) activeTab = 'alert';
       applyTabVisibility();
       syncDepartmentFilterForDisplayRole();
