@@ -1463,9 +1463,9 @@
             </select>
           </label>
           <label>権限CSV：<input type="file" id="authBulkFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"></label>
-          <button class="primary" onclick="importAuthUsersFromFile()">CSVを一括登録</button>
-          <button onclick="importAuthUsersFromPaste()">貼付表を一括登録</button>
-          <button onclick="downloadAuthImportTemplate()">テンプレートCSV出力</button>
+          <button type="button" class="primary" onclick="importAuthUsersFromFile()">CSVを一括登録</button>
+          <button type="button" onclick="importAuthUsersFromPaste()">貼付表を一括登録</button>
+          <button type="button" onclick="downloadAuthImportTemplate()">テンプレートCSV出力</button>
         </div>
         <textarea id="authBulkText" style="width:100%;min-height:76px;box-sizing:border-box;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;" placeholder="Excelの表をコピーして貼り付けできます。例：メール<TAB>氏名<TAB>表示範囲<TAB>権限<TAB>有効<TAB>メモ"></textarea>
         <div class="cacheStatus" id="authBulkStatus">権限一括登録は未実行です。</div>
@@ -3800,6 +3800,7 @@
       });
 
       const defaultDepartment = getDefaultAuthImportDepartment();
+      const defaultRole = getDefaultAuthImportRole();
       const payloads = rowRecords.slice(headerRecordIndex + 1).map(record => {
         const row = record.cells;
         const email = findAuthImportValue(row, headerMap, ['メール', 'メールアドレス', 'email', 'Email', 'EMAIL'], '');
@@ -3813,7 +3814,7 @@
           email,
           name: findAuthImportValue(row, headerMap, ['氏名', '名前', 'name', 'Name', 'NAME'], ''),
           department: findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment),
-          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], getDefaultAuthImportRole())),
+          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], defaultRole)),
           enabled: normalizeAuthImportEnabled(findAuthImportValue(row, headerMap, ['有効', '状態', 'enabled', 'Enabled', 'ENABLED'], 'TRUE')),
           note: findAuthImportValue(row, headerMap, ['メモ', '備考', 'note', 'Note', 'NOTE'], '')
         };
