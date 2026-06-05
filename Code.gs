@@ -504,14 +504,29 @@ function getCurrentUser_() {
   }
 
   if (!rule) {
-    throw new Error(`閲覧権限が設定されていません：${email}`);
+    throw new Error(`アクセス権限がありません：${email}`);
+  }
+
+  const role = normalizeAuthRole_(rule.role);
+  const department = String(rule.department || '').trim();
+
+  if (!role || !department) {
+    throw new Error(`アクセス権限がありません：${email}`);
   }
 
   return {
     email,
-    department: rule.department,
-    role: String(rule.role || 'viewer').toLowerCase()
+    department,
+    role
   };
+}
+
+function normalizeAuthRole_(role) {
+  const normalized = String(role || '').trim().toLowerCase();
+  if (normalized === 'admin') return 'admin';
+  if (normalized === 'manager') return 'manager';
+  if (normalized === 'viewer' || normalized === 'executive') return 'viewer';
+  return '';
 }
 
 /**
@@ -1356,12 +1371,12 @@ function loadAuthRulesFromTable_() {
 
   return rows
     .filter(row => String(row.enabled || '').toUpperCase() !== 'FALSE')
-    .filter(row => row.email && row.department && row.role)
     .map(row => ({
       email: String(row.email || '').trim().toLowerCase(),
       department: String(row.department || '').trim(),
-      role: String(row.role || 'viewer').trim().toLowerCase()
-    }));
+      role: normalizeAuthRole_(row.role)
+    }))
+    .filter(row => row.email && row.department && row.role);
 }
 
 

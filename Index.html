@@ -1714,7 +1714,7 @@
       const select = document.getElementById('testRoleSwitch');
       if (!select) return;
 
-      testDisplayRole = select.value || 'executive';
+      setRoleSwitchValue(select.value || 'executive', { preserveDetailState: true });
       select.addEventListener('change', () => {
         const nextRole = select.value || 'executive';
         if (nextRole !== previousTestDisplayRole) {
@@ -1732,6 +1732,45 @@
         }
       });
       applyTabVisibility();
+    }
+
+    function normalizeDisplayRole(role) {
+      const normalized = String(role || '').trim().toLowerCase();
+      if (normalized === 'admin') return 'admin';
+      if (normalized === 'manager') return 'manager';
+      if (normalized === 'viewer' || normalized === 'executive') return 'executive';
+      return '';
+    }
+
+    function setRoleSwitchValue(role, options) {
+      const nextRole = normalizeDisplayRole(role);
+      if (!nextRole) return false;
+
+      const preserveDetailState = Boolean(options && options.preserveDetailState);
+      const select = document.getElementById('testRoleSwitch');
+      if (select) select.value = nextRole;
+
+      if (!preserveDetailState && nextRole !== previousTestDisplayRole) {
+        executiveDetailExpanded = nextRole !== 'executive';
+      }
+
+      testDisplayRole = nextRole;
+      previousTestDisplayRole = nextRole;
+      return true;
+    }
+
+    function applyInitialDisplayRoleFromUser(user) {
+      const initialRole = normalizeDisplayRole(user && user.role);
+      if (!initialRole) {
+        showAccessDenied('アクセス権限がありません');
+        return false;
+      }
+
+      setRoleSwitchValue(initialRole);
+      if (!isAdminDisplayRole()) activeTab = 'alert';
+      applyTabVisibility();
+      syncDepartmentFilterForDisplayRole();
+      return true;
     }
 
     function isAdminDisplayRole() {
@@ -3140,6 +3179,7 @@
     function renderApp(data) {
       lastRenderedHasSnapshot = Boolean(data && data.hasSnapshot);
       currentUser = data.user;
+      if (!applyInitialDisplayRoleFromUser(currentUser)) return;
       clientConfig = data.clientConfig;
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
       setupAuthDepartmentOptions();
@@ -4237,8 +4277,34 @@
       el.textContent = text;
     }
 
+    function isAccessDeniedErrorMessage(message) {
+      return /アクセス権限がありません|閲覧権限が設定されていません|権限が未設定|権限が不正|メールアドレスを取得できません/.test(String(message || ''));
+    }
+
+    function showAccessDenied(message) {
+      ['roleSwitchHeader', 'top', 'executiveScoreCard', 'departmentGroupWarning', 'tabBar', 'uploadBox', 'main'].forEach(idOrClass => {
+        const byId = document.getElementById(idOrClass);
+        if (byId) byId.style.display = 'none';
+        document.querySelectorAll('.' + idOrClass).forEach(el => { el.style.display = 'none'; });
+      });
+
+      currentRows = [];
+      currentUser = null;
+      clientConfig = null;
+      clientPermissions = null;
+      lastRenderedHasSnapshot = false;
+      showMessage(message || 'アクセス権限がありません', true);
+      const messageEl = document.getElementById('message');
+      if (messageEl) messageEl.setAttribute('role', 'alert');
+    }
+
     function showError(error) {
-      showMessage((error && error.message) ? error.message : String(error), true);
+      const message = (error && error.message) ? error.message : String(error);
+      if (isAccessDeniedErrorMessage(message)) {
+        showAccessDenied('アクセス権限がありません');
+        return;
+      }
+      showMessage(message, true);
     }
 
     function normalizeHeader(value) {
