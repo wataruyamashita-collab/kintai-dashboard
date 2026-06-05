@@ -498,7 +498,6 @@
       background: #a61c00;
     }
 
-
     /* ===== UI polish: 2026 redesign patch ===== */
     * { box-sizing: border-box; }
 
@@ -514,6 +513,7 @@
 
     body > .top,
     body > .message,
+    body > .rolePreviewPanel,
     body > .departmentGroupWarning,
     body > .tabBar,
     body > .uploadBox,
@@ -808,9 +808,6 @@
       .toolbar { position: static; }
     }
 
-
-
-
     /* ===== UI polish: insight strip and filter controls ===== */
     .insightStrip {
       display: flex;
@@ -986,7 +983,6 @@
       .toolbar .clearButton { width: 100%; }
     }
 
-
     /* ===== 画面タブ ===== */
     .tabBar {
       display: none;
@@ -1024,7 +1020,6 @@
     .tabPanel {
       display: none;
     }
-
 
     /* ===== 管理者用：権限管理パネル ===== */
     .authControls input[type="text"] {
@@ -1094,6 +1089,70 @@
       font-weight: 700;
     }
 
+    .rolePreviewPanel {
+      background: #ffffff;
+      border: 2px dashed #8aa1b8;
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .rolePreviewHeader {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .rolePreviewTitle {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .rolePreviewButtons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .rolePreviewButton.active {
+      background: #1f4e79;
+      border-color: #1f4e79;
+      color: #ffffff;
+    }
+
+    .rolePreviewScreen {
+      min-height: 88px;
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      padding: 18px;
+      border: 1px solid #e1e6ee;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+
+    .rolePreviewMainText {
+      font-size: clamp(20px, 2.2vw, 30px);
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .rolePreviewSubText {
+      color: #5f6b7a;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .rolePreviewScreen.denied {
+      border-color: #f6b26b;
+      background: #fff7ed;
+    }
+
   </style>
 </head>
 <body>
@@ -1106,6 +1165,25 @@
   </div>
 
   <div id="message" class="message">保存済みデータを確認しています。</div>
+
+  <section class="rolePreviewPanel" aria-labelledby="rolePreviewTitle">
+    <div class="rolePreviewHeader">
+      <div>
+        <h2 class="rolePreviewTitle" id="rolePreviewTitle">ステップ2：権限別表示プレビュー</h2>
+        <div class="sub">同じURLのまま、テスト用ボタンでログインユーザーの権限を仮切替し、文字レベルの出し分けを確認します。</div>
+      </div>
+      <div class="rolePreviewButtons" aria-label="テスト用ログインユーザー切替">
+        <button type="button" class="rolePreviewButton" data-preview-role="executive" onclick="switchRolePreview('executive')">役員</button>
+        <button type="button" class="rolePreviewButton" data-preview-role="manager" onclick="switchRolePreview('manager')">所属長</button>
+        <button type="button" class="rolePreviewButton" data-preview-role="admin" onclick="switchRolePreview('admin')">admin</button>
+        <button type="button" class="rolePreviewButton" data-preview-role="none" onclick="switchRolePreview('none')">権限なし</button>
+      </div>
+    </div>
+    <div class="rolePreviewScreen" id="rolePreviewScreen" aria-live="polite">
+      <div class="rolePreviewMainText" id="rolePreviewMainText">権限別プレビューを準備しています。</div>
+      <div class="rolePreviewSubText" id="rolePreviewSubText">上のボタンで、役員 / 所属長 / admin / 権限なしを切り替えられます。</div>
+    </div>
+  </section>
   <div id="departmentGroupWarning" class="departmentGroupWarning" role="alert"></div>
 
   <div id="tabBar" class="tabBar" aria-label="画面切替">
@@ -1402,6 +1480,34 @@
     const DEPARTMENT_GROUP_ALL = '全社';
     const DEPARTMENT_GROUP_UNCLASSIFIED = '未分類';
 
+    const ROLE_PREVIEW_DEFINITIONS = {
+      executive: {
+        label: '役員',
+        screenName: '全体画面（役員）',
+        mainText: 'あなたは今【全体画面（役員）】を見ています',
+        subText: '役員権限の想定表示です。全社を閲覧できる画面として切り替わります。'
+      },
+      manager: {
+        label: '所属長',
+        screenName: '所属長画面',
+        mainText: 'あなたは今【所属長画面】を見ています',
+        subText: '所属長権限の想定表示です。自部署を確認・入力できる画面として切り替わります。'
+      },
+      admin: {
+        label: 'admin',
+        screenName: '管理画面（admin）',
+        mainText: 'あなたは今【管理画面（admin）】を見ています',
+        subText: 'admin権限の想定表示です。全社閲覧・CSV取込・権限管理ができる画面として切り替わります。'
+      },
+      none: {
+        label: '権限なし',
+        screenName: 'アクセス拒否',
+        mainText: 'アクセス権限がありません',
+        subText: '未登録または権限が空欄のユーザーを想定した表示です。業務画面は表示しない前提です。',
+        denied: true
+      }
+    };
+
     const FIELD = {
       DEPARTMENT: 0,
       EMPLOYEE_CODE: 1,
@@ -1445,6 +1551,7 @@
     let saveToastTimer = null;
 
     window.addEventListener('load', () => {
+      initializeRolePreview();
       setDefaultTargetMonth();
       setDefaultCutoffDate();
       initializeCompanyCalendarForm();
@@ -1464,6 +1571,34 @@
         .withFailureHandler(showError)
         .getInitialData();
     });
+
+    function initializeRolePreview() {
+      switchRolePreview('executive');
+    }
+
+    function switchRolePreview(role) {
+      const previewRole = ROLE_PREVIEW_DEFINITIONS[role] ? role : 'none';
+      const definition = ROLE_PREVIEW_DEFINITIONS[previewRole];
+      const screen = document.getElementById('rolePreviewScreen');
+      const mainText = document.getElementById('rolePreviewMainText');
+      const subText = document.getElementById('rolePreviewSubText');
+
+      if (screen) {
+        screen.classList.toggle('denied', Boolean(definition.denied));
+        screen.setAttribute('data-current-role', previewRole);
+      }
+
+      if (mainText) mainText.textContent = definition.mainText;
+      if (subText) {
+        subText.textContent = 'テスト用ログインユーザー：' + definition.label + ' ／ 画面種別：' + definition.screenName + '。' + definition.subText;
+      }
+
+      document.querySelectorAll('.rolePreviewButton').forEach(button => {
+        const isActive = button.getAttribute('data-preview-role') === previewRole;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
 
     function initializeCompanyCalendarForm() {
       const yearInput = document.getElementById('calendarYear');
@@ -2691,7 +2826,6 @@
       }
       return missing;
     }
-
 
     function switchTab(tabName) {
       activeTab = tabName || 'alert';
