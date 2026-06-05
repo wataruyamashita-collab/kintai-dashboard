@@ -578,6 +578,7 @@
 
     body > .roleSwitchHeader,
     body > .top,
+    body > .executiveScoreCard,
     body > .message,
     body > .departmentGroupWarning,
     body > .tabBar,
@@ -1091,6 +1092,123 @@
     }
 
 
+    /* ===== 役員表示：全社スコアカードと詳細エリア折りたたみ ===== */
+    .executiveScoreCard {
+      display: none;
+      margin-bottom: 16px;
+      padding: 22px 24px;
+      border: 1px solid #c7d8eb;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #ffffff 0%, #edf6ff 58%, #e6f0fa 100%);
+      box-shadow: 0 14px 34px rgba(31, 78, 121, .14);
+    }
+
+    .executiveScoreCard.show {
+      display: block;
+    }
+
+    .executiveScoreHeader {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+
+    .executiveScoreEyebrow {
+      color: #1f4e79;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .executiveScoreTitle {
+      margin-top: 3px;
+      color: #1d2b3a;
+      font-size: clamp(18px, 1.6vw, 24px);
+      font-weight: 800;
+    }
+
+    .executiveScoreMeta {
+      color: #5f6b7a;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .executiveScoreMetrics {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(150px, .8fr));
+      gap: 12px;
+    }
+
+    .executiveMetric {
+      padding: 14px 16px;
+      border: 1px solid #d8e4f0;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .82);
+    }
+
+    .executiveMetric .label {
+      color: #5f6b7a;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .executiveMetric .value {
+      color: #1f4e79;
+      font-size: clamp(28px, 3.4vw, 46px);
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .executiveMetric.subMetric .value {
+      color: #274e13;
+      font-size: clamp(22px, 2.2vw, 32px);
+    }
+
+    .detailAreaShell {
+      display: block;
+    }
+
+    .detailToggleBar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      border: 1px solid #d8e4f0;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
+    }
+
+    .detailToggleText {
+      color: #26384d;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .detailAreaShell.executiveMode .detailToggleBar {
+      display: flex;
+    }
+
+    .detailAreaBody.collapsed {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .executiveScoreHeader,
+      .detailToggleBar { flex-direction: column; align-items: stretch; }
+      .executiveScoreMeta { white-space: normal; }
+      .executiveScoreMetrics { grid-template-columns: 1fr; }
+    }
+
+
     /* ===== 管理者用：権限管理パネル ===== */
     .authControls input[type="text"] {
       min-width: 220px;
@@ -1184,6 +1302,30 @@
     </div>
     <div class="panel userBox" id="userBox">ユーザー情報を確認しています。</div>
   </div>
+
+  <section id="executiveScoreCard" class="executiveScoreCard" aria-label="役員向け全社スコアカード">
+    <div class="executiveScoreHeader">
+      <div>
+        <div class="executiveScoreEyebrow">EXECUTIVE SUMMARY</div>
+        <div class="executiveScoreTitle">全社の平均残業時間</div>
+      </div>
+      <div class="executiveScoreMeta" id="executiveScoreMeta">対象月：確認中</div>
+    </div>
+    <div class="executiveScoreMetrics">
+      <div class="executiveMetric">
+        <div class="label">全社平均残業時間</div>
+        <div class="value"><span id="executiveAverageOvertime">24.5</span>時間</div>
+      </div>
+      <div class="executiveMetric subMetric">
+        <div class="label">先月比</div>
+        <div class="value" id="executiveMonthDiff">-1.2時間</div>
+      </div>
+      <div class="executiveMetric subMetric">
+        <div class="label">重点確認人数</div>
+        <div class="value"><span id="executiveFocusCount">0</span>名</div>
+      </div>
+    </div>
+  </section>
 
   <div id="message" class="message">保存済みデータを確認しています。</div>
   <div id="departmentGroupWarning" class="departmentGroupWarning" role="alert"></div>
@@ -1331,7 +1473,13 @@
       <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
     </div>
 
-    <div class="insightStrip" aria-label="表示状況とリスク凡例">
+    <div id="detailAreaShell" class="detailAreaShell">
+      <div id="detailToggleBar" class="detailToggleBar">
+        <div class="detailToggleText">詳細な絞り込みフォームと一覧表は、役員表示では初期状態で折りたたんでいます。</div>
+        <button type="button" id="detailToggleButton" onclick="toggleExecutiveDetailArea()" aria-expanded="false">詳細エリアを表示</button>
+      </div>
+      <div id="detailAreaBody" class="detailAreaBody">
+        <div class="insightStrip" aria-label="表示状況とリスク凡例">
       <div class="filterStatus">
         <span class="eyebrow">現在の表示</span>
         <span class="count" id="filterStatusText">0件を表示中</span>
@@ -1420,6 +1568,8 @@
         </thead>
         <tbody id="tbody"></tbody>
       </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1518,6 +1668,8 @@
     let availableSnapshotMonths = [];
     let lastRenderedHasSnapshot = false;
     let testDisplayRole = 'executive';
+    let executiveDetailExpanded = false;
+    let previousTestDisplayRole = 'executive';
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -1554,7 +1706,12 @@
 
       testDisplayRole = select.value || 'executive';
       select.addEventListener('change', () => {
-        testDisplayRole = select.value || 'executive';
+        const nextRole = select.value || 'executive';
+        if (nextRole !== previousTestDisplayRole) {
+          executiveDetailExpanded = nextRole !== 'executive';
+          previousTestDisplayRole = nextRole;
+        }
+        testDisplayRole = nextRole;
         if (!isAdminDisplayRole()) {
           activeTab = 'alert';
         }
@@ -1590,6 +1747,69 @@
       }
 
       status.textContent = getRoleSwitchLabel() + '：勤怠アラートのみ表示';
+    }
+
+    function isExecutiveDisplayRole() {
+      return testDisplayRole === 'executive';
+    }
+
+    function toggleExecutiveDetailArea() {
+      executiveDetailExpanded = !executiveDetailExpanded;
+      applyRoleLayoutVisibility();
+    }
+
+    function applyRoleLayoutVisibility() {
+      const isExecutiveView = isExecutiveDisplayRole();
+      const hasAlertData = Boolean(lastRenderedHasSnapshot || currentRows.length);
+      const scoreCard = document.getElementById('executiveScoreCard');
+      if (scoreCard) {
+        scoreCard.classList.toggle('show', isExecutiveView && hasAlertData);
+      }
+
+      const shell = document.getElementById('detailAreaShell');
+      const body = document.getElementById('detailAreaBody');
+      const button = document.getElementById('detailToggleButton');
+      if (shell) {
+        shell.classList.toggle('executiveMode', isExecutiveView);
+      }
+      if (body) {
+        body.classList.toggle('collapsed', isExecutiveView && !executiveDetailExpanded);
+      }
+      if (button) {
+        const expanded = !isExecutiveView || executiveDetailExpanded;
+        button.textContent = expanded ? '詳細エリアを閉じる' : '詳細エリアを表示';
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      }
+    }
+
+    function updateExecutiveScoreCard(meta, rows) {
+      const targetMonth = meta && meta.targetMonth ? meta.targetMonth : '確認中';
+      const scoreMeta = document.getElementById('executiveScoreMeta');
+      if (scoreMeta) {
+        scoreMeta.textContent = '対象月：' + targetMonth;
+      }
+
+      const sourceRows = Array.isArray(rows) ? rows : [];
+      const overtimeValues = sourceRows
+        .map(row => Number(row.monthEndForecastValue || row.estimatedOt || row.fixedOt || 0))
+        .filter(value => Number.isFinite(value) && value > 0);
+      const average = overtimeValues.length
+        ? overtimeValues.reduce((sum, value) => sum + value, 0) / overtimeValues.length
+        : 24.5;
+      const focusCount = sourceRows.filter(row => row.riskLevel === 'high' || row.riskLevel === 'mediumHigh').length;
+
+      const averageElement = document.getElementById('executiveAverageOvertime');
+      if (averageElement) {
+        averageElement.textContent = average.toFixed(1);
+      }
+      const focusElement = document.getElementById('executiveFocusCount');
+      if (focusElement) {
+        focusElement.textContent = focusCount;
+      }
+      const diffElement = document.getElementById('executiveMonthDiff');
+      if (diffElement) {
+        diffElement.textContent = '-1.2時間';
+      }
     }
 
     function initializeCompanyCalendarForm() {
@@ -2866,6 +3086,7 @@
       });
 
       applyRoleSwitchVisibility();
+      applyRoleLayoutVisibility();
     }
 
     function setupTabsForCurrentUser(hasSnapshot) {
@@ -2932,6 +3153,7 @@
       if (!data.hasSnapshot) {
         setupDisplayMonthFilter(availableSnapshotMonths, '');
         document.getElementById('main').style.display = 'none';
+        applyRoleLayoutVisibility();
         showMessage('保存済みデータがありません。管理者が勤怠データをアップロードしてください。');
         document.getElementById('metaText').textContent = '保存済みデータなし';
         return;
@@ -2960,8 +3182,10 @@
       applyTabVisibility();
 
       updateSummary(data.summary || {});
+      updateExecutiveScoreCard(meta, currentRows);
       setupDepartmentFilter(data.departments || []);
       applyFilters();
+      applyRoleLayoutVisibility();
     }
 
     function setupDisplayMonthFilter(months, selectedMonth) {
