@@ -1324,6 +1324,130 @@
       margin-top: 6px;
     }
 
+    .agreementSummaryGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .agreementSummaryCard {
+      padding: 16px;
+      border: 1px solid #e0e7f1;
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: 0 8px 22px rgba(60, 64, 67, .06);
+    }
+
+    .agreementSummaryCard .label {
+      color: #5f6368;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+
+    .agreementSummaryCard .value {
+      margin-top: 6px;
+      color: #202124;
+      font-size: 30px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .managerListTable,
+    .departmentGroupTable {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .managerListWrap,
+    .departmentGroupTableWrap {
+      overflow: auto;
+      border: 1px solid #e0e7f1;
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .managerListTable th,
+    .managerListTable td,
+    .departmentGroupTable th,
+    .departmentGroupTable td {
+      padding: 10px;
+      border-right: 1px solid #eef2f7;
+      border-bottom: 1px solid #eef2f7;
+      vertical-align: top;
+      white-space: normal;
+    }
+
+    .managerListTable th,
+    .departmentGroupTable th {
+      position: sticky;
+      top: 0;
+      background: #e9eff6;
+      color: #26384d;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .agreementAlert {
+      display: grid;
+      gap: 6px;
+    }
+
+    .missingChip {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fff1f0;
+      color: #8a1c12;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .managerMemoBox {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .managerMemoBox textarea {
+      min-height: 72px;
+      border: 1px solid #cfd7e3;
+      border-radius: 10px;
+      padding: 8px;
+      font: inherit;
+      resize: vertical;
+    }
+
+    .departmentGroupForm {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    .departmentGroupForm label {
+      display: grid;
+      gap: 4px;
+      color: #5f6368;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .departmentGroupForm input {
+      height: 36px;
+      border: 1px solid #cfd7e3;
+      border-radius: 8px;
+      padding: 0 10px;
+    }
+
     .legacyCleanHidden {
       display: none !important;
     }
@@ -3228,6 +3352,7 @@
     function createExecutiveDashboardHtml(rows) {
       const avg = averageForecast(rows);
       const departments = groupByDepartment(rows);
+      const agreement = createAgreementSummary(rows);
       const detailRows = departments.map(item =>
         '<div class="cleanRow"><div><div class="cleanRowName">' + escapeHtml(item.department) + '</div><div class="cleanRowSub">対象 ' + item.count + '名</div></div><div class="cleanRowValue">' + formatOneDecimal(item.average) + '時間</div></div>'
       ).join('');
@@ -3238,18 +3363,58 @@
           '<p class="megaMetric"><span class="number">' + formatOneDecimal(avg) + '</span><span class="unit">時間</span></p>' +
           '<div class="trendText">' + getTrendText() + '</div>' +
         '</div>' +
+        '<div class="agreementSummaryGrid" aria-label="36協定の警告ステータスサマリー">' +
+          createAgreementSummaryCard('36協定 警告対象', agreement.alertTargets + '名', '実績または見込みアラートがある人数') +
+          createAgreementSummaryCard('36協定 未設定', agreement.missingAgreement + '名', '警告対象だが適用有無が未入力') +
+          createAgreementSummaryCard('高リスク', agreement.highRisk + '名', '80h見込みまたは45h超過5回以上') +
+          createAgreementSummaryCard('特別条項 未入力', agreement.missingSpecial + '名', '60h以上見込みで発動事由等が未入力') +
+        '</div>' +
         '<details class="cleanDetails">' +
           '<summary>部署ごとの詳細データを表示</summary>' +
           '<div class="cleanList">' + (detailRows || '<div class="emptyState">部署データはありません。</div>') + '</div>' +
         '</details>';
     }
 
+    function createAgreementSummary(rows) {
+      return (Array.isArray(rows) ? rows : []).reduce((acc, row) => {
+        const missingItems = Array.isArray(row.missingItems) ? row.missingItems : [];
+        const isAlertTarget = Boolean(row.actualAlert || row.forecastAlert);
+        if (isAlertTarget) acc.alertTargets += 1;
+        if (isAlertTarget && !row.agreement36) acc.missingAgreement += 1;
+        if (row.riskLevel === 'high') acc.highRisk += 1;
+        if (missingItems.includes('発動事由') || missingItems.includes('健康福祉措置')) acc.missingSpecial += 1;
+        return acc;
+      }, { alertTargets: 0, missingAgreement: 0, highRisk: 0, missingSpecial: 0 });
+    }
+
+    function createAgreementSummaryCard(label, value, subText) {
+      return '<div class="agreementSummaryCard"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value) + '</div><div class="sub">' + escapeHtml(subText) + '</div></div>';
+    }
+
     function createManagerDashboardHtml(rows) {
-      const departmentName = currentUser && currentUser.department ? currentUser.department : (rows[0] && rows[0].department) || '管轄部署';
+      const departmentName = currentUser && currentUser.department ? currentUser.department : (rows[0] && rows[0].departmentGroup) || '管轄部署';
       const avg = averageForecast(rows);
-      const rankingRows = rows.slice().sort((a, b) => getForecastHours(b) - getForecastHours(a)).map(row =>
-        '<div class="cleanRow"><div><div class="cleanRowName">' + escapeHtml(row.employeeName || '氏名未設定') + '</div><div class="cleanRowSub">' + escapeHtml(row.department || departmentName) + ' ／ ' + escapeHtml(row.employeeCode || '') + '</div></div><div class="cleanRowValue">' + formatOneDecimal(getForecastHours(row)) + '時間</div></div>'
-      ).join('');
+      const editable = canEditManualInputClient();
+      const bodyRows = rows.slice().sort((a, b) => getForecastHours(b) - getForecastHours(a)).map((row, index) => {
+        const rowKey = getDashboardRowKey(row);
+        const missingItems = Array.isArray(row.missingItems) ? row.missingItems : [];
+        const missingHtml = missingItems.length
+          ? missingItems.map(item => '<span class="missingChip">未入力：' + escapeHtml(item) + '</span>').join('')
+          : '<span class="safeBadge">必要入力なし</span>';
+        const alertHtml = '<div class="agreementAlert">' +
+          (row.actualAlert || row.forecastAlert ? '<span class="riskBadge ' + escapeHtml(row.riskLevel || 'medium') + '">' + escapeHtml(row.actualAlert || row.forecastAlert) + '</span>' : '<span class="safeBadge">該当なし</span>') +
+          missingHtml +
+        '</div>';
+        return '<tr class="' + escapeHtml(row.riskLevel || 'low') + '">' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td><strong>' + escapeHtml(row.employeeName || '氏名未設定') + '</strong><div class="sub">' + escapeHtml(row.employeeCode || '') + '</div></td>' +
+          '<td>' + escapeHtml(row.department || departmentName) + '</td>' +
+          '<td style="text-align:right;font-weight:800;">' + formatOneDecimal(getForecastHours(row)) + '時間</td>' +
+          '<td>' + alertHtml + '</td>' +
+          '<td>' + createDashboardAgreementSelect(row, rowKey, editable) + '</td>' +
+          '<td>' + createDashboardMemoInput(row, rowKey, editable) + '</td>' +
+        '</tr>';
+      }).join('');
       return '' +
         '<div class="cleanHero green">' +
           '<div class="eyebrow">Team forecast</div>' +
@@ -3258,9 +3423,31 @@
           '<div class="trendText">' + getTrendText() + '</div>' +
         '</div>' +
         '<div class="cleanCard" style="margin-top:16px;">' +
-          '<h3>部下ごとの現在の残業時間</h3>' +
-          '<div class="cleanList">' + (rankingRows || '<div class="emptyState">部下データはありません。</div>') + '</div>' +
+          '<h3>部下一覧：36協定アラート・面談メモ</h3>' +
+          '<div class="sub" style="margin-bottom:10px;">36協定適用有無は既存の保存ロジック、面談メモ/対策は既存の備考保存ロジックを利用して永続保存します。</div>' +
+          '<div class="managerListWrap"><table class="managerListTable"><thead><tr><th>#</th><th>社員</th><th>部署</th><th>月末予測</th><th>36協定アラート</th><th>36協定適用有無</th><th>面談メモ・対策</th></tr></thead><tbody>' +
+            (bodyRows || '<tr><td colspan="7" class="emptyState">部下データはありません。</td></tr>') +
+          '</tbody></table></div>' +
         '</div>';
+    }
+
+    function createDashboardAgreementSelect(row, rowKey, editable) {
+      const options = [
+        { value: '', label: '選択' },
+        { value: '適用', label: '適用' },
+        { value: '不適用', label: '不適用' }
+      ];
+      const selectHtml = options.map(option =>
+        '<option value="' + escapeHtml(option.value) + '"' + ((row.agreement36 || '') === option.value ? ' selected' : '') + '>' + escapeHtml(option.label) + '</option>'
+      ).join('');
+      return '<select class="agreementSelect" ' + (editable ? '' : 'disabled title="閲覧のみです"') + ' onchange="updateDashboardAgreement36(\'' + rowKey + '\', this.value)">' + selectHtml + '</select>';
+    }
+
+    function createDashboardMemoInput(row, rowKey, editable) {
+      return '<div class="managerMemoBox">' +
+        '<textarea id="managerMemo_' + rowKey + '" ' + (editable ? '' : 'disabled') + ' placeholder="面談メモや対策を入力">' + escapeHtml(row.note || '') + '</textarea>' +
+        '<button type="button" class="save" ' + (editable ? '' : 'disabled') + ' onclick="saveDashboardMemo(\'' + rowKey + '\')">保存</button>' +
+      '</div>';
     }
 
     function createAdminDashboardHtml(rows) {
@@ -3271,14 +3458,201 @@
       return '' +
         '<div class="cleanCard">' +
           '<div class="adminMenu" aria-label="管理者メニュー">' +
-            '<button type="button" onclick="switchTab(\'parameters\')">部署グループ管理</button>' +
+            '<button type="button" onclick="switchTab(\'parameters\')">会社カレンダー設定</button>' +
             '<button type="button" onclick="switchTab(\'auth\')">ユーザー権限設定</button>' +
             '<button type="button" onclick="switchTab(\'data\')">データ取込</button>' +
           '</div>' +
           '<h3>部署別の平均残業時間</h3>' +
           '<div class="cleanList">' + (departmentRows || '<div class="emptyState">部署データはありません。</div>') + '</div>' +
-          '<button type="button" class="csvDownloadButton" onclick="downloadCurrentRowsCsv()">データのCSVダウンロード</button>' +
+          '<button type="button" class="csvDownloadButton" onclick="downloadCurrentRowsCsv()">全社データのCSVダウンロード</button>' +
+        '</div>' +
+        createDepartmentGroupAdminBox(rows);
+    }
+
+    function createDepartmentGroupAdminBox(rows) {
+      const departments = [...new Set((Array.isArray(rows) ? rows : []).map(row => row.department).filter(Boolean))].sort();
+      const departmentOptions = departments.map(dept => '<option value="' + escapeHtml(dept) + '"></option>').join('');
+      const groupOptions = (currentDepartmentGroups || []).filter(group => group !== DEPARTMENT_GROUP_ALL).map(group => '<option value="' + escapeHtml(group) + '"></option>').join('');
+      const mappingRows = createDepartmentGroupMappingRows();
+      return '' +
+        '<div class="cleanCard" style="margin-top:16px;">' +
+          '<h3>部署グループの設定・入力フォーム</h3>' +
+          '<div class="sub">未分類部署や部署名変更を、社員コード単位または部署名単位で既存の部署グループ判定へ追加します。保存後は再取込時の部署グループ判定にも使われます。</div>' +
+          '<div class="departmentGroupForm">' +
+            '<label>部署名<input type="text" id="departmentGroupDepartmentInput" list="departmentGroupDepartmentList" placeholder="例：クラウド推進課"></label>' +
+            '<label>部署グループ<input type="text" id="departmentGroupNameInput" list="departmentGroupNameList" placeholder="例：営業支援ユニット"></label>' +
+            '<label>社員コード（任意）<input type="text" id="departmentGroupEmployeeCodeInput" placeholder="社員別に上書きする場合"></label>' +
+            '<label>社員名（任意）<input type="text" id="departmentGroupEmployeeNameInput" placeholder="任意"></label>' +
+            '<button type="button" class="save" onclick="saveDepartmentGroupSettingFromDashboard()">部署グループ設定を保存</button>' +
+            '<button type="button" onclick="loadDepartmentGroupSettingsForDashboard()">設定一覧を再読込</button>' +
+          '</div>' +
+          '<datalist id="departmentGroupDepartmentList">' + departmentOptions + '</datalist>' +
+          '<datalist id="departmentGroupNameList">' + groupOptions + '</datalist>' +
+          '<div class="cacheStatus" id="departmentGroupSettingStatus">部署グループ設定を入力してください。</div>' +
+          '<div class="departmentGroupTableWrap" style="margin-top:12px;"><table class="departmentGroupTable"><thead><tr><th>部署名</th><th>部署グループ</th><th>社員コード</th><th>社員名</th><th>更新日時</th><th>更新者</th></tr></thead><tbody id="departmentGroupSettingTbody">' + mappingRows + '</tbody></table></div>' +
         '</div>';
+    }
+
+    function createDepartmentGroupMappingRows() {
+      const mappings = getDepartmentGroupMappingsFromClientConfig();
+      if (!mappings.length) return '<tr><td colspan="6" class="emptyState">保存済みの部署グループ個別設定はありません。</td></tr>';
+      return mappings.map(item => '<tr>' +
+        '<td>' + escapeHtml(item.department || '') + '</td>' +
+        '<td><strong>' + escapeHtml(item.departmentGroup || '') + '</strong></td>' +
+        '<td>' + escapeHtml(item.employeeCode || '') + '</td>' +
+        '<td>' + escapeHtml(item.employeeName || '') + '</td>' +
+        '<td>' + escapeHtml(item.updatedAt || '') + '</td>' +
+        '<td>' + escapeHtml(item.updatedBy || '') + '</td>' +
+      '</tr>').join('');
+    }
+
+    function getDashboardRowKey(row) {
+      return encodeURIComponent(normalizeText(row && row.employeeCode) || normalizeText(row && row.employeeName) || 'row');
+    }
+
+    function findDashboardRowByKey(rowKey) {
+      const decoded = decodeURIComponent(String(rowKey || ''));
+      return (currentRows || []).find(row => normalizeText(row.employeeCode) === decoded)
+        || (currentRows || []).find(row => normalizeText(row.employeeName) === decoded)
+        || null;
+    }
+
+    function updateDashboardAgreement36(rowKey, value) {
+      const row = findDashboardRowByKey(rowKey);
+      if (!row) {
+        showMessage('更新対象の行を特定できませんでした。', true);
+        return;
+      }
+      updateAgreement36(row, value);
+    }
+
+    function saveDashboardMemo(rowKey) {
+      const row = findDashboardRowByKey(rowKey);
+      const input = document.getElementById('managerMemo_' + rowKey);
+      if (!row || !input) {
+        showMessage('保存対象のメモ欄を特定できませんでした。', true);
+        return;
+      }
+
+      if (!canEditManualInputClient()) {
+        showMessage('このユーザーは面談メモを保存できません。', true);
+        return;
+      }
+
+      const previousValue = row.note || '';
+      const previousMissingItems = Array.isArray(row.missingItems) ? row.missingItems.slice() : [];
+      const value = input.value.trim();
+      const rollback = createManualInputRollback(row, 'note', previousValue, previousMissingItems);
+
+      showSaveToast('保存中です…');
+      applyManualInputLocal(row, 'note', value);
+      persistManualInput(row, 'note', value, '面談メモ・対策を保存しました。', rollback, {
+        onSuccess: () => showSaveToast('保存しました'),
+        onFailure: () => showSaveToast('保存に失敗しました', true)
+      });
+    }
+
+    function getDepartmentGroupMappingsFromClientConfig() {
+      const employeeMaster = clientConfig && clientConfig.employeeMaster ? clientConfig.employeeMaster : {};
+      return Object.keys(employeeMaster || {}).map(key => {
+        const item = employeeMaster[key] || {};
+        return {
+          key,
+          employeeCode: item.employeeCode || (key.indexOf('dept:') === 0 ? '' : key),
+          employeeName: item.employeeName || '',
+          department: item.department || '',
+          departmentGroup: item.departmentGroup || '',
+          updatedAt: item.updatedAt || '',
+          updatedBy: item.updatedBy || ''
+        };
+      }).filter(item => item.department || item.departmentGroup)
+        .sort((a, b) => String(a.department || '').localeCompare(String(b.department || ''), 'ja') || String(a.employeeCode || '').localeCompare(String(b.employeeCode || ''), 'ja'));
+    }
+
+    function saveDepartmentGroupSettingFromDashboard() {
+      if (!currentUser || currentUser.role !== 'admin') {
+        showMessage('部署グループ設定は管理者のみ保存できます。', true);
+        return;
+      }
+
+      const payload = {
+        department: document.getElementById('departmentGroupDepartmentInput').value.trim(),
+        departmentGroup: document.getElementById('departmentGroupNameInput').value.trim(),
+        employeeCode: document.getElementById('departmentGroupEmployeeCodeInput').value.trim(),
+        employeeName: document.getElementById('departmentGroupEmployeeNameInput').value.trim()
+      };
+
+      const status = document.getElementById('departmentGroupSettingStatus');
+      if (!payload.department || !payload.departmentGroup) {
+        if (status) {
+          status.className = 'cacheStatus statusWarn';
+          status.textContent = '部署名と部署グループを入力してください。';
+        }
+        return;
+      }
+
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = '部署グループ設定を保存しています。';
+      }
+
+      google.script.run
+        .withSuccessHandler(result => {
+          clientConfig = Object.assign({}, clientConfig || {}, {
+            departmentGroups: result.departmentGroups || currentDepartmentGroups,
+            departmentGroupMaster: result.departmentGroupMaster || (clientConfig && clientConfig.departmentGroupMaster) || {},
+            employeeMaster: result.employeeMaster || (clientConfig && clientConfig.employeeMaster) || {}
+          });
+          currentDepartmentGroups = resolveDepartmentGroupOptions({ departmentGroups: result.departmentGroups, rows: currentRows });
+          setupAuthDepartmentOptions();
+          const tbody = document.getElementById('departmentGroupSettingTbody');
+          if (tbody) tbody.innerHTML = createDepartmentGroupMappingRows();
+          if (status) {
+            status.className = 'cacheStatus statusOk';
+            status.textContent = '部署グループ設定を保存しました。次回の再集計・再表示で判定に反映されます。';
+          }
+          showMessage('部署グループ設定を保存しました。', false, true);
+        })
+        .withFailureHandler(error => {
+          if (status) {
+            status.className = 'cacheStatus statusWarn';
+            status.textContent = '部署グループ設定の保存に失敗しました：' + ((error && error.message) ? error.message : String(error));
+          }
+          showError(error);
+        })
+        .saveDepartmentGroupSetting(payload);
+    }
+
+    function loadDepartmentGroupSettingsForDashboard() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      const status = document.getElementById('departmentGroupSettingStatus');
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = '部署グループ設定一覧を読み込んでいます。';
+      }
+
+      google.script.run
+        .withSuccessHandler(mappings => {
+          const employeeMaster = {};
+          (Array.isArray(mappings) ? mappings : []).forEach(item => {
+            const key = item.key || item.employeeCode || ('dept:' + item.department);
+            employeeMaster[key] = item;
+          });
+          clientConfig = Object.assign({}, clientConfig || {}, { employeeMaster });
+          const tbody = document.getElementById('departmentGroupSettingTbody');
+          if (tbody) tbody.innerHTML = createDepartmentGroupMappingRows();
+          if (status) {
+            status.className = 'cacheStatus statusOk';
+            status.textContent = '部署グループ設定一覧を読み込みました。';
+          }
+        })
+        .withFailureHandler(error => {
+          if (status) {
+            status.className = 'cacheStatus statusWarn';
+            status.textContent = '部署グループ設定一覧の読込に失敗しました：' + ((error && error.message) ? error.message : String(error));
+          }
+        })
+        .listDepartmentGroupSettings();
     }
 
     function downloadCurrentRowsCsv() {

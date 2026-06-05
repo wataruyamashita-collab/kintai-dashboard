@@ -620,6 +620,78 @@ function loadEmployeeMaster_() {
   return DEFAULT_EMPLOYEE_MASTER;
 }
 
+
+/**
+ * 管理者用：部署グループ設定（社員マスタ/部署マスタ相当）を保存する。
+ * 既存の employee_master.json をベースに、社員コード単位または部署名単位の上書き設定を追記する。
+ */
+function saveDepartmentGroupSetting(payload) {
+  const user = getCurrentUser_();
+  assertAdmin_(user);
+
+  if (!payload) throw new Error('部署グループ設定データがありません。');
+
+  const employeeCode = String(payload.employeeCode || '').trim();
+  const employeeName = String(payload.employeeName || '').trim();
+  const department = String(payload.department || '').trim();
+  const departmentGroup = String(payload.departmentGroup || '').trim();
+
+  if (!department) throw new Error('部署名を入力してください。');
+  if (!departmentGroup) throw new Error('部署グループを入力してください。');
+  if (departmentGroup === DEPARTMENT_GROUP_ALL) throw new Error('部署グループに「全社」は設定できません。');
+
+  const master = loadEmployeeMaster_();
+  const key = employeeCode || `dept:${department}`;
+  const before = master[key] || {};
+
+  master[key] = Object.assign({}, before, {
+    employeeCode,
+    employeeName,
+    department,
+    departmentGroup,
+    updatedAt: getNowText_(),
+    updatedBy: user.email
+  });
+
+  saveJsonFile_(APP_CONFIG.EMPLOYEE_MASTER_FILE_NAME, master);
+
+  return {
+    ok: true,
+    departmentGroups: createDepartmentGroupOptions_(),
+    departmentGroupMaster: createDepartmentGroupMaster_(),
+    employeeMaster: master,
+    mappings: listDepartmentGroupSettingsInternal_()
+  };
+}
+
+/**
+ * 管理者用：保存済み部署グループ設定を取得する。
+ */
+function listDepartmentGroupSettings() {
+  const user = getCurrentUser_();
+  assertAdmin_(user);
+  return listDepartmentGroupSettingsInternal_();
+}
+
+function listDepartmentGroupSettingsInternal_() {
+  const master = loadEmployeeMaster_();
+  return Object.keys(master || {})
+    .map(key => {
+      const item = master[key] || {};
+      return {
+        key,
+        employeeCode: String(item.employeeCode || (key.indexOf('dept:') === 0 ? '' : key)),
+        employeeName: String(item.employeeName || ''),
+        department: String(item.department || ''),
+        departmentGroup: String(item.departmentGroup || ''),
+        updatedAt: String(item.updatedAt || ''),
+        updatedBy: String(item.updatedBy || '')
+      };
+    })
+    .filter(item => item.department || item.departmentGroup)
+    .sort((a, b) => a.department.localeCompare(b.department, 'ja') || a.employeeCode.localeCompare(b.employeeCode, 'ja'));
+}
+
 function saveSnapshot_(snapshot) {
   saveJsonFile_(APP_CONFIG.LATEST_FILE_NAME, snapshot);
   saveJsonFile_(getSnapshotFileNameForMonth_(snapshot.meta.targetMonth), snapshot);
