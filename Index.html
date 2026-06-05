@@ -1451,9 +1451,17 @@
         </div>
 
         <div class="definition" style="margin-top:10px;">
-          所属長などを一括登録する場合は、CSVまたはExcelからコピーした表を取り込んでください。見出しは「メール, 氏名, 表示範囲, 権限, 有効, メモ」です。権限を省略すると所属長、表示範囲を省略すると先頭の部署グループ、有効を省略すると有効として登録します。
+          所属長などを一括登録する場合は、CSVまたはExcelからコピーした表を取り込んでください。見出しは「メール, 氏名, 表示範囲, 権限, 有効, メモ」です。CSV側で権限・表示範囲を省略した行には、下のプルダウンで選んだ既定値を適用します。有効を省略すると有効として登録します。
         </div>
         <div class="uploadControls authControls" style="margin-top:10px;">
+          <label>一括登録の既定値：
+            <select id="authBulkPreset">
+              <option value="executive">役員</option>
+              <option value="salesSupportManager">営業支援ユニット</option>
+              <option value="salesManager">営業ユニット</option>
+              <option value="adminManager">管理課</option>
+            </select>
+          </label>
           <label>権限CSV：<input type="file" id="authBulkFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"></label>
           <button class="primary" onclick="importAuthUsersFromFile()">CSVを一括登録</button>
           <button onclick="importAuthUsersFromPaste()">貼付表を一括登録</button>
@@ -3681,8 +3689,24 @@
       document.getElementById('authNote').value = '';
     }
 
+    function getAuthBulkPresetDefaults() {
+      const select = document.getElementById('authBulkPreset');
+      const preset = select ? select.value : 'executive';
+      const map = {
+        executive: { department: DEPARTMENT_GROUP_ALL, role: 'viewer' },
+        salesSupportManager: { department: '営業支援ユニット', role: 'manager' },
+        salesManager: { department: '営業ユニット', role: 'manager' },
+        adminManager: { department: '管理課', role: 'manager' }
+      };
+      return map[preset] || map.executive;
+    }
+
     function getDefaultAuthImportDepartment() {
-      return currentDepartmentGroups.find(group => group !== DEPARTMENT_GROUP_ALL) || DEPARTMENT_GROUP_ALL;
+      return getAuthBulkPresetDefaults().department;
+    }
+
+    function getDefaultAuthImportRole() {
+      return getAuthBulkPresetDefaults().role;
     }
 
     function findAuthImportValue(row, headerMap, keys, fallback) {
@@ -3756,7 +3780,7 @@
           email,
           name: findAuthImportValue(row, headerMap, ['氏名', '名前', 'name', 'Name', 'NAME'], ''),
           department: findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment),
-          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], 'manager')),
+          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], getDefaultAuthImportRole())),
           enabled: normalizeAuthImportEnabled(findAuthImportValue(row, headerMap, ['有効', '状態', 'enabled', 'Enabled', 'ENABLED'], 'TRUE')),
           note: findAuthImportValue(row, headerMap, ['メモ', '備考', 'note', 'Note', 'NOTE'], '')
         };
@@ -3864,7 +3888,7 @@
     function downloadAuthImportTemplate() {
       const rows = [
         ['メール', '氏名', '表示範囲', '権限', '有効', 'メモ'],
-        ['manager@example.co.jp', '所属長サンプル', getDefaultAuthImportDepartment(), 'manager', 'TRUE', '一括登録サンプル']
+        ['manager@example.co.jp', '一括登録サンプル', getDefaultAuthImportDepartment(), getDefaultAuthImportRole(), 'TRUE', '一括登録サンプル']
       ];
       const text = '\ufeff' + rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n');
       const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
