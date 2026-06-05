@@ -52,6 +52,10 @@
       box-shadow: 0 6px 18px rgba(22, 34, 51, .10);
     }
 
+    .roleSwitchHeader.roleSwitchHeaderHidden {
+      display: none !important;
+    }
+
     .roleSwitchHeader .roleSwitchTitle {
       font-size: 12px;
       font-weight: 800;
@@ -1288,7 +1292,7 @@
   </style>
 </head>
 <body>
-  <div class="roleSwitchHeader" aria-label="テスト用権限切り替え">
+  <div class="roleSwitchHeader roleSwitchHeaderHidden" aria-label="テスト用権限切り替え" aria-hidden="true">
     <div class="roleSwitchTitle">テスト用 権限切り替え</div>
     <div class="roleSwitchActions">
       <label class="roleSwitchControl" for="testRoleSwitch">
@@ -1733,6 +1737,15 @@
         }
       });
       applyTabVisibility();
+    }
+
+    function applyRoleSwitchHeaderAccess(user) {
+      const header = document.querySelector('.roleSwitchHeader');
+      if (!header) return;
+
+      const canUseTestSwitch = Boolean(user && String(user.role || '').trim().toLowerCase() === 'admin');
+      header.classList.toggle('roleSwitchHeaderHidden', !canUseTestSwitch);
+      header.setAttribute('aria-hidden', canUseTestSwitch ? 'false' : 'true');
     }
 
     function normalizeDisplayRole(role) {
@@ -3186,6 +3199,7 @@
     function renderApp(data) {
       lastRenderedHasSnapshot = Boolean(data && data.hasSnapshot);
       currentUser = data.user;
+      applyRoleSwitchHeaderAccess(currentUser);
       if (!applyInitialDisplayRoleFromUser(currentUser)) return;
       clientConfig = data.clientConfig;
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
