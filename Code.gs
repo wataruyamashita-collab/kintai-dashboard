@@ -14,6 +14,37 @@ const DEFAULT_AUTH_RULES = [];
 
 const DEFAULT_EMPLOYEE_MASTER = {};
 
+const AUTH_ROLE_DEFINITIONS = [
+  { value: 'executive', label: '役員', screen: 'executive' },
+  { value: 'manager', label: '所属長', screen: 'manager' },
+  { value: 'admin', label: '管理(admin)', screen: 'admin' }
+];
+
+const AUTH_ROLE_VALUES = AUTH_ROLE_DEFINITIONS.map(role => role.value);
+
+const AUTH_ROLE_LABELS = AUTH_ROLE_DEFINITIONS.reduce((labels, role) => {
+  labels[role.value] = role.label;
+  return labels;
+}, {});
+
+const AUTH_ROLE_SCREENS = AUTH_ROLE_DEFINITIONS.reduce((screens, role) => {
+  screens[role.value] = role.screen;
+  return screens;
+}, {});
+
+const AUTH_ROLE_ALIASES = {
+  '役員': 'executive',
+  executive: 'executive',
+  officer: 'executive',
+  '所属長': 'manager',
+  manager: 'manager',
+  '管理(admin)': 'admin',
+  '管理': 'admin',
+  admin: 'admin'
+};
+
+const ACCESS_DENIED_MESSAGE = 'アクセス権限がありません';
+
 const DEPARTMENT_GROUP_ALL = '全社';
 const DEPARTMENT_GROUP_UNCLASSIFIED = '未分類';
 
@@ -367,7 +398,8 @@ function getClientConfigForUser_(user) {
 }
 
 function filterRowsByAuthority_(rows, user) {
-  if (user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL) return rows;
+  if (!isAuthorizedUser_(user)) return [];
+  if (canViewAllDepartments_(user)) return rows;
   return rows.filter(row => row.departmentGroup === user.department);
 }
 
@@ -497,85 +529,66 @@ function getCurrentUser_() {
 
   const authRules = loadAuthRules_();
   const normalizedEmail = String(email).trim().toLowerCase();
-  let rule = authRules.find(r => String(r.email).trim().toLowerCase() === normalizedEmail);
-
-  if (!rule && authRules.length === 0) {
-    rule = bootstrapInitialAdminRule_(normalizedEmail);
-  }
+  const rule = authRules.find(r => String(r.email).trim().toLowerCase() === normalizedEmail);
 
   if (!rule) {
-    throw new Error(`閲覧権限が設定されていません：${email}`);
+    throwAccessDenied_();
+  }
+
+  const role = normalizeAuthRole_(rule.role);
+  if (!role) {
+    throwAccessDenied_();
+  }
+
+  const department = resolveDepartmentForRole_(role, rule.department);
+  if (!department) {
+    throwAccessDenied_();
   }
 
   return {
     email,
-    department: rule.department,
-    role: String(rule.role || 'viewer').toLowerCase()
+    department,
+    role,
+    roleLabel: getAuthRoleLabel_(role),
+    screenType: getScreenTypeForRole_(role)
   };
 }
 
-/**
- * 権限が一切未設定の初回起動時だけ、現在のログインユーザーを管理者として登録する。
- * 実メールアドレスをソースコードへ固定せず、以後は権限管理テーブルで管理するための救済処理。
- */
-function bootstrapInitialAdminRule_(email) {
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-  if (!normalizedEmail || hasAnyAuthConfiguration_()) return null;
-
-  setupManagementBaseTables();
-
-  const ss = getOrCreateManualInputSpreadsheet_();
-  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
-  const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
-  if (!sheet) return null;
-
-  const now = getNowText_();
-  const record = {
-    email: normalizedEmail,
-    name: '',
-    department: DEPARTMENT_GROUP_ALL,
-    role: 'admin',
-    enabled: 'TRUE',
-    note: '初回起動時に自動登録',
-    createdAt: now,
-    createdBy: 'system/bootstrap',
-    updatedAt: now,
-    updatedBy: 'system/bootstrap'
-  };
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
-  try {
-    if (sheet.getLastRow() > 1 || hasAnyAuthConfiguration_()) return null;
-    upsertObjectByKey_(sheet, 'email', normalizedEmail, record);
-    if (historySheet) appendAuthHistoryIfChanged_(historySheet, null, record, 'system/bootstrap');
-  } finally {
-    lock.releaseLock();
-  }
-
-  return {
-    email: normalizedEmail,
-    department: record.department,
-    role: record.role
-  };
+function throwAccessDenied_() {
+  throw new Error(ACCESS_DENIED_MESSAGE);
 }
 
-function hasAnyAuthConfiguration_() {
-  const ss = getManualManagementSpreadsheetIfExists_();
-  if (ss) {
-    const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
-    if (sheet && sheet.getLastRow() > 1) return true;
-  }
+function normalizeAuthRole_(role) {
+  const raw = String(role || '').trim();
+  if (!raw) return '';
+  return AUTH_ROLE_ALIASES[raw] || AUTH_ROLE_ALIASES[raw.toLowerCase()] || '';
+}
 
-  const data = loadJsonFile_(APP_CONFIG.AUTH_FILE_NAME);
-  if (Array.isArray(data) && data.length > 0) return true;
+function getAuthRoleLabel_(role) {
+  return AUTH_ROLE_LABELS[role] || '';
+}
 
-  return DEFAULT_AUTH_RULES.length > 0;
+function getScreenTypeForRole_(role) {
+  return AUTH_ROLE_SCREENS[role] || '';
+}
+
+function isAuthorizedUser_(user) {
+  return Boolean(user && AUTH_ROLE_VALUES.includes(String(user.role || '')));
+}
+
+function canViewAllDepartments_(user) {
+  return isAuthorizedUser_(user) && (user.role === 'admin' || user.role === 'executive');
+}
+
+function resolveDepartmentForRole_(role, department) {
+  const normalizedRole = normalizeAuthRole_(role);
+  if (!normalizedRole) return '';
+  if (normalizedRole === 'admin' || normalizedRole === 'executive') return DEPARTMENT_GROUP_ALL;
+  return String(department || '').trim();
 }
 
 function assertAdmin_(user) {
-  if (!user || user.role !== 'admin') {
+  if (!isAuthorizedUser_(user) || user.role !== 'admin') {
     throw new Error('この操作は管理者のみ実行できます。');
   }
 }
@@ -586,12 +599,19 @@ function assertAdmin_(user) {
  */
 function loadAuthRules_() {
   const tableRules = loadAuthRulesFromTable_();
-  if (tableRules.length > 0) return tableRules;
+  if (tableRules.length > 0 || hasAuthTableRows_()) return tableRules;
 
   const data = loadJsonFile_(APP_CONFIG.AUTH_FILE_NAME);
   if (Array.isArray(data) && data.length > 0) return data;
 
   return DEFAULT_AUTH_RULES;
+}
+
+function hasAuthTableRows_() {
+  const ss = getManualManagementSpreadsheetIfExists_();
+  if (!ss) return false;
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+  return Boolean(sheet && sheet.getLastRow() > 1);
 }
 
 function loadEmployeeMaster_() {
@@ -1174,6 +1194,17 @@ function formatManualInputSheet_(sheet) {
     sheet.getRange(2, deletedIndex, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(rule);
   }
 
+  // role 列がある場合、許可された3種類だけをプルダウンで選択させる
+  const roleIndex = headers.indexOf('role') + 1;
+  if (roleIndex > 0) {
+    const roleRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(AUTH_ROLE_DEFINITIONS.map(role => role.label), true)
+      .setAllowInvalid(false)
+      .build();
+
+    sheet.getRange(2, roleIndex, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(roleRule);
+  }
+
   // targetMonth 列は文字列として扱う
   const targetMonthIndex = headers.indexOf('targetMonth') + 1;
   if (targetMonthIndex > 0) {
@@ -1196,11 +1227,11 @@ function clearManualInputSpreadsheetCache() {
   PropertiesService.getScriptProperties().deleteProperty('MANUAL_INPUT_SPREADSHEET_ID');
 }
 /*******************************************************
- * 管理画面・管理監督者入力保存 土台コード
+ * 管理画面・所属長入力保存 土台コード
  * 
  * 目的：
  * 1. 管理者が権限管理をできるようにする
- * 2. 管理監督者が自部署の備考等を保存できるようにする
+ * 2. 所属長が自部署の備考等を保存できるようにする
  * 3. 再計算しても手入力内容が消えないようにする
  *******************************************************/
 
@@ -1209,7 +1240,7 @@ const MANAGEMENT_BASE = {
   MANUAL_HISTORY_SHEET: '手入力_履歴',
   AUTH_CURRENT_SHEET: '権限_現在値',
   AUTH_HISTORY_SHEET: '権限_履歴',
-  ROLES: ['admin', 'manager', 'viewer'],
+  ROLES: AUTH_ROLE_VALUES,
   MANUAL_FIELDS: ['agreement36', 'specialReason', 'healthMeasure', 'note']
 };
 
@@ -1328,7 +1359,7 @@ function seedDefaultAuthRulesIfEmpty_() {
     String(rule.email || '').trim().toLowerCase(),
     '',
     String(rule.department || ''),
-    String(rule.role || 'viewer').toLowerCase(),
+    getAuthRoleLabel_(normalizeAuthRole_(rule.role)),
     'TRUE',
     '初期設定から登録',
     now,
@@ -1356,12 +1387,15 @@ function loadAuthRulesFromTable_() {
 
   return rows
     .filter(row => String(row.enabled || '').toUpperCase() !== 'FALSE')
-    .filter(row => row.email && row.department && row.role)
-    .map(row => ({
-      email: String(row.email || '').trim().toLowerCase(),
-      department: String(row.department || '').trim(),
-      role: String(row.role || 'viewer').trim().toLowerCase()
-    }));
+    .map(row => {
+      const role = normalizeAuthRole_(row.role);
+      return {
+        email: String(row.email || '').trim().toLowerCase(),
+        department: resolveDepartmentForRole_(role, row.department),
+        role
+      };
+    })
+    .filter(row => row.email && row.department && row.role);
 }
 
 
@@ -1405,7 +1439,8 @@ function listAuthUsersInternal_() {
       email: String(row.email || '').trim().toLowerCase(),
       name: String(row.name || ''),
       department: String(row.department || ''),
-      role: String(row.role || ''),
+      role: normalizeAuthRole_(row.role),
+      roleLabel: getAuthRoleLabel_(normalizeAuthRole_(row.role)),
       enabled: String(row.enabled || '').toUpperCase() !== 'FALSE',
       note: String(row.note || ''),
       updatedAt: String(row.updatedAt || ''),
@@ -1427,7 +1462,7 @@ function saveAuthUser(payload) {
   const email = String(payload.email || '').trim().toLowerCase();
   const name = String(payload.name || '').trim();
   const department = String(payload.department || '').trim();
-  const role = String(payload.role || '').trim().toLowerCase();
+  const role = normalizeAuthRole_(payload.role);
   const enabled = payload.enabled === false ? 'FALSE' : 'TRUE';
   const note = String(payload.note || '').trim();
 
@@ -1436,15 +1471,20 @@ function saveAuthUser(payload) {
   }
 
   if (!MANAGEMENT_BASE.ROLES.includes(role)) {
-    throw new Error('権限は admin / manager / viewer のいずれかを指定してください。');
+    throw new Error('権限は「役員」「所属長」「管理(admin)」のいずれかを指定してください。');
   }
 
-  if (!createDepartmentGroupOptions_().includes(department)) {
+  const resolvedDepartment = resolveDepartmentForRole_(role, department);
+  if (!resolvedDepartment) {
+    throw new Error('所属長の表示範囲を選択してください。');
+  }
+
+  if (!createDepartmentGroupOptions_().includes(resolvedDepartment)) {
     throw new Error('表示範囲は現在の部署グループ一覧から選択してください。新しい部署グループは、保存済みデータまたは最新スナップショットに反映後に選択できます。');
   }
 
-  if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
-    throw new Error('admin 権限は表示範囲を「全社」にしてください。');
+  if ((role === 'admin' || role === 'executive') && resolvedDepartment !== DEPARTMENT_GROUP_ALL) {
+    throw new Error('役員・管理(admin) 権限は表示範囲を「全社」にしてください。');
   }
 
   const ss = getOrCreateManualInputSpreadsheet_();
@@ -1458,8 +1498,8 @@ function saveAuthUser(payload) {
   const record = {
     email,
     name,
-    department,
-    role,
+    department: resolvedDepartment,
+    role: getAuthRoleLabel_(role),
     enabled,
     note,
     createdAt: before ? before.createdAt : now,
@@ -1533,7 +1573,7 @@ function disableAuthUser(email) {
 
 
 /**
- * 管理監督者・管理者用：手入力内容を保存する。
+ * 所属長・管理(admin)用：手入力内容を保存する。
  * 対象：
  * - agreement36
  * - specialReason
@@ -1660,7 +1700,7 @@ function saveManualInput(payload) {
 
 /**
  * 対象月の手入力データを取得する。
- * 管理者は全件、manager/viewer は自部署のみ。
+ * 管理(admin) は全件、役員は全件閲覧のみ、所属長は自部署のみ。
  */
 function loadManualInputs(targetMonth) {
   const user = getCurrentUser_();
@@ -1708,9 +1748,11 @@ function applyManualInputsToRows(payload) {
  */
 function createClientPermissions_(user) {
   return {
-    canAdmin: user && user.role === 'admin',
-    canEditManualInputs: user && (user.role === 'admin' || user.role === 'manager'),
-    canManageAuth: user && user.role === 'admin'
+    canAdmin: isAuthorizedUser_(user) && user.role === 'admin',
+    canExecutive: isAuthorizedUser_(user) && user.role === 'executive',
+    canEditManualInputs: isAuthorizedUser_(user) && (user.role === 'admin' || user.role === 'manager'),
+    canManageAuth: isAuthorizedUser_(user) && user.role === 'admin',
+    screenType: isAuthorizedUser_(user) ? getScreenTypeForRole_(user.role) : ''
   };
 }
 
@@ -1770,9 +1812,9 @@ function loadManualInputsAllForMonth_(targetMonth) {
 
 /**
  * 手入力の保存権限を確認する。
- * admin：全社編集可
- * manager：自部署のみ編集可
- * viewer：編集不可
+ * 管理(admin)：全社編集可
+ * 所属長：自部署のみ編集可
+ * 役員：編集不可
  */
 function assertCanEditManualInput_(user, targetMonth, payloadRow) {
   if (!user) throw new Error('ユーザー情報を取得できません。');
@@ -1832,8 +1874,8 @@ function resolveAuthoritativeRow_(targetMonth, payloadRow) {
 
 
 function canViewManualInput_(user, record) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL) return true;
+  if (!isAuthorizedUser_(user)) return false;
+  if (canViewAllDepartments_(user)) return true;
   return String(record.departmentGroup || '') === String(user.department || '');
 }
 
