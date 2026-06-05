@@ -52,6 +52,10 @@
       box-shadow: 0 6px 18px rgba(22, 34, 51, .10);
     }
 
+    .roleSwitchHeader.roleSwitchHeaderHidden {
+      display: none !important;
+    }
+
     .roleSwitchHeader .roleSwitchTitle {
       font-size: 12px;
       font-weight: 800;
@@ -1288,7 +1292,7 @@
   </style>
 </head>
 <body>
-  <div class="roleSwitchHeader" aria-label="テスト用権限切り替え">
+  <div class="roleSwitchHeader roleSwitchHeaderHidden" aria-label="テスト用権限切り替え" aria-hidden="true">
     <div class="roleSwitchTitle">テスト用 権限切り替え</div>
     <div class="roleSwitchActions">
       <label class="roleSwitchControl" for="testRoleSwitch">
@@ -1445,6 +1449,26 @@
         <div class="definition" style="margin-top:10px;">
           権限の意味：admin＝全社閲覧・CSV取込・計算・権限管理、所属長＝自部署閲覧・自部署の手入力保存、役員＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
         </div>
+
+        <div class="definition" style="margin-top:10px;">
+          所属長などを一括登録する場合は、CSVまたはExcelからコピーした表を取り込んでください。見出しは「メール, 氏名, 表示範囲, 権限, 有効, メモ」です。CSV側で権限・表示範囲を省略した行には、下のプルダウンで選んだ既定値を適用します。有効を省略すると有効として登録します。
+        </div>
+        <div class="uploadControls authControls" style="margin-top:10px;">
+          <label>一括登録の既定値：
+            <select id="authBulkPreset">
+              <option value="executive">役員</option>
+              <option value="salesSupportManager">営業支援ユニット</option>
+              <option value="salesManager">営業ユニット</option>
+              <option value="adminManager">管理課</option>
+            </select>
+          </label>
+          <label>権限CSV：<input type="file" id="authBulkFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"></label>
+          <button class="primary" onclick="importAuthUsersFromFile()">CSVを一括登録</button>
+          <button onclick="importAuthUsersFromPaste()">貼付表を一括登録</button>
+          <button onclick="downloadAuthImportTemplate()">テンプレートCSV出力</button>
+        </div>
+        <textarea id="authBulkText" style="width:100%;min-height:76px;box-sizing:border-box;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;" placeholder="Excelの表をコピーして貼り付けできます。例：メール<TAB>氏名<TAB>表示範囲<TAB>権限<TAB>有効<TAB>メモ"></textarea>
+        <div class="cacheStatus" id="authBulkStatus">権限一括登録は未実行です。</div>
 
         <div class="cacheStatus" id="authStatus">権限一覧は未読込です。</div>
         <div class="authTableWrap">
@@ -1733,6 +1757,15 @@
         }
       });
       applyTabVisibility();
+    }
+
+    function applyRoleSwitchHeaderAccess(user) {
+      const header = document.querySelector('.roleSwitchHeader');
+      if (!header) return;
+
+      const canUseTestSwitch = Boolean(user && String(user.role || '').trim().toLowerCase() === 'admin');
+      header.classList.toggle('roleSwitchHeaderHidden', !canUseTestSwitch);
+      header.setAttribute('aria-hidden', canUseTestSwitch ? 'false' : 'true');
     }
 
     function normalizeDisplayRole(role) {
@@ -3186,6 +3219,7 @@
     function renderApp(data) {
       lastRenderedHasSnapshot = Boolean(data && data.hasSnapshot);
       currentUser = data.user;
+      applyRoleSwitchHeaderAccess(currentUser);
       if (!applyInitialDisplayRoleFromUser(currentUser)) return;
       clientConfig = data.clientConfig;
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
@@ -3653,6 +3687,219 @@
       document.getElementById('authRole').value = 'manager';
       document.getElementById('authEnabled').checked = true;
       document.getElementById('authNote').value = '';
+    }
+
+    function getAuthBulkPresetDefaults() {
+      const select = document.getElementById('authBulkPreset');
+      const preset = select ? select.value : 'executive';
+      const map = {
+        executive: { department: DEPARTMENT_GROUP_ALL, role: 'viewer' },
+        salesSupportManager: { department: '営業支援ユニット', role: 'manager' },
+        salesManager: { department: '営業ユニット', role: 'manager' },
+        adminManager: { department: '管理課', role: 'manager' }
+      };
+      return map[preset] || map.executive;
+    }
+
+    function getDefaultAuthImportDepartment() {
+      return getAuthBulkPresetDefaults().department;
+    }
+
+    function getDefaultAuthImportRole() {
+      return getAuthBulkPresetDefaults().role;
+    }
+
+    function findAuthImportValue(row, headerMap, keys, fallback) {
+      for (const key of keys) {
+        const index = headerMap[key];
+        if (index !== undefined) {
+          const value = cleanCellText(row[index]);
+          if (value !== '') return value;
+        }
+      }
+      return fallback || '';
+    }
+
+    function normalizeAuthImportRole(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized || normalized === '所属長' || normalized === 'manager' || normalized === '管理職') return 'manager';
+      if (normalized === '役員' || normalized === 'viewer' || normalized === 'executive') return 'viewer';
+      if (normalized === 'admin' || normalized === '管理者') return 'admin';
+      return normalized;
+    }
+
+    function normalizeAuthImportEnabled(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return true;
+      return !['false', '0', 'no', 'n', '無効', '停止', 'off'].includes(normalized);
+    }
+
+    function isValidAuthImportEmail(value) {
+      const email = String(value || '').trim();
+      return Boolean(email && email.indexOf('@') > 0 && email.indexOf('@') < email.length - 1);
+    }
+
+    function buildAuthImportPayloads(rows) {
+      const rowRecords = (Array.isArray(rows) ? rows : [])
+        .map((row, index) => ({
+          rowNumber: index + 1,
+          cells: row.map(cleanCellText)
+        }))
+        .filter(record => record.cells.some(cell => cell !== ''));
+
+      if (!rowRecords.length) {
+        throw new Error('一括登録する権限データがありません。');
+      }
+
+      const headerRecordIndex = rowRecords.findIndex(record => {
+        const normalized = record.cells.map(normalizeHeader);
+        return ['メール', 'メールアドレス', 'email'].some(key => normalized.includes(normalizeHeader(key)));
+      });
+
+      if (headerRecordIndex < 0) {
+        throw new Error('見出し行に「メール」または「email」が必要です。');
+      }
+
+      const headers = rowRecords[headerRecordIndex].cells.map(normalizeHeader);
+      const headerMap = {};
+      headers.forEach((header, index) => {
+        if (header && headerMap[header] === undefined) headerMap[header] = index;
+      });
+
+      const defaultDepartment = getDefaultAuthImportDepartment();
+      const payloads = rowRecords.slice(headerRecordIndex + 1).map(record => {
+        const row = record.cells;
+        const email = findAuthImportValue(row, headerMap, ['メール', 'メールアドレス', 'email', 'Email', 'EMAIL'], '');
+
+        if (!isValidAuthImportEmail(email)) {
+          throw new Error(`${record.rowNumber}行目のメールアドレスが未入力、または正しくありません。メール欄を確認してください。`);
+        }
+
+        return {
+          sourceRowNumber: record.rowNumber,
+          email,
+          name: findAuthImportValue(row, headerMap, ['氏名', '名前', 'name', 'Name', 'NAME'], ''),
+          department: findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment),
+          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], getDefaultAuthImportRole())),
+          enabled: normalizeAuthImportEnabled(findAuthImportValue(row, headerMap, ['有効', '状態', 'enabled', 'Enabled', 'ENABLED'], 'TRUE')),
+          note: findAuthImportValue(row, headerMap, ['メモ', '備考', 'note', 'Note', 'NOTE'], '')
+        };
+      });
+
+      if (!payloads.length) {
+        throw new Error('メールアドレスが入力された行がありません。');
+      }
+
+      return payloads;
+    }
+
+    async function importAuthUsersFromText(text, sourceLabel) {
+      const status = document.getElementById('authBulkStatus');
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = `${sourceLabel}を解析しています。`;
+      }
+
+      try {
+        validateCsvText(text);
+        const delimiter = detectCsvDelimiter(text);
+        const rows = await parseCsvRowsWithProgress(text, delimiter);
+        const users = buildAuthImportPayloads(rows);
+
+        if (!confirm(`${formatCount(users.length)}件の権限を一括登録します。既存メールは更新されます。よろしいですか？`)) {
+          if (status) {
+            status.className = 'cacheStatus';
+            status.textContent = '権限一括登録をキャンセルしました。';
+          }
+          return;
+        }
+
+        if (status) {
+          status.className = 'cacheStatus';
+          status.textContent = `権限 ${formatCount(users.length)}件を保存しています。`;
+        }
+
+        google.script.run
+          .withSuccessHandler(result => {
+            renderAuthUsers(result && result.users ? result.users : []);
+            if (status) {
+              const imported = result && result.importedCount !== undefined ? result.importedCount : users.length;
+              status.className = 'cacheStatus statusOk';
+              status.textContent = `権限一括登録が完了しました。登録・更新件数：${formatCount(imported)}件`;
+            }
+          })
+          .withFailureHandler(error => {
+            if (status) {
+              status.className = 'cacheStatus statusWarn';
+              status.textContent = '権限一括登録に失敗しました：' + ((error && error.message) ? error.message : String(error));
+            }
+          })
+          .bulkSaveAuthUsers({ users });
+      } catch (error) {
+        if (status) {
+          status.className = 'cacheStatus statusWarn';
+          status.textContent = '権限一括登録に失敗しました：' + ((error && error.message) ? error.message : String(error));
+        }
+      }
+    }
+
+    function importAuthUsersFromFile() {
+      const input = document.getElementById('authBulkFile');
+      const file = input && input.files && input.files[0];
+      const status = document.getElementById('authBulkStatus');
+      if (!file) {
+        if (status) {
+          status.className = 'cacheStatus statusWarn';
+          status.textContent = '権限CSVファイルを選択してください。';
+        }
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = event => {
+        const buffer = event.target.result;
+        let text = '';
+        try {
+          const utf8Text = new TextDecoder('utf-8').decode(buffer);
+          text = utf8Text.includes('�') ? new TextDecoder('shift_jis').decode(buffer) : utf8Text;
+        } catch (error) {
+          text = new TextDecoder('shift_jis').decode(buffer);
+        }
+        importAuthUsersFromText(text, `権限CSV「${file.name}」`);
+      };
+      reader.onerror = () => {
+        if (status) {
+          status.className = 'cacheStatus statusWarn';
+          status.textContent = '権限CSVファイルの読み込みに失敗しました。';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function importAuthUsersFromPaste() {
+      const textarea = document.getElementById('authBulkText');
+      importAuthUsersFromText(textarea ? textarea.value : '', '貼付表');
+    }
+
+    function escapeCsvCell(value) {
+      return '"' + String(value || '').replace(/"/g, '""') + '"';
+    }
+
+    function downloadAuthImportTemplate() {
+      const rows = [
+        ['メール', '氏名', '表示範囲', '権限', '有効', 'メモ'],
+        ['manager@example.co.jp', '一括登録サンプル', getDefaultAuthImportDepartment(), getDefaultAuthImportRole(), 'TRUE', '一括登録サンプル']
+      ];
+      const text = '\ufeff' + rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n');
+      const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'auth_users_template.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
     function saveAuthUserFromForm() {
@@ -4319,7 +4566,7 @@
     }
 
     function cleanCellText(value) {
-      return String(value || '').replace(/\u00a0/g, ' ').replace(/\r?\n/g, '').trim();
+      return String(value || '').replace(/^\ufeff/, '').replace(/\u00a0/g, ' ').replace(/\r?\n/g, '').trim();
     }
 
     function normalizeDepartmentName(value) {
