@@ -2991,7 +2991,9 @@
         employeeCode: employee.employeeCode,
         employeeName: employee.employeeName,
         estimatedOt: round2(employee.estimatedOt),
+        estimatedOtDisplay: formatHoursAsHHMM(employee.estimatedOt),
         fixedOt: round2(employee.confirmedOt),
+        fixedOtDisplay: formatHoursAsHHMM(employee.confirmedOt),
         statutoryOt: round2(employee.statutoryOt),
         actualAlert: employee.actualAlert,
         forecastAlert: employee.forecastAlert,
@@ -3737,8 +3739,8 @@
           row.department,
           row.employeeCode,
           row.employeeName,
-          row.estimatedOt,
-          row.fixedOt,
+          formatOvertimeDisplay(row.estimatedOtDisplay, row.estimatedOt),
+          formatOvertimeDisplay(row.fixedOtDisplay, row.fixedOt),
           row.actualAlert,
           row.forecastAlert,
           row.monthEndForecast,
@@ -4278,6 +4280,11 @@
       const h = Math.floor(totalMinutes / 60);
       const m = totalMinutes % 60;
       return `${h}:${String(m).padStart(2, '0')}`;
+    }
+
+    function formatOvertimeDisplay(displayValue, numericValue) {
+      const displayText = String(displayValue || '').trim();
+      return displayText || formatHoursAsHHMM(numericValue);
     }
 
     function escapeHtml(value) {
