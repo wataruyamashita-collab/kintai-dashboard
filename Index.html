@@ -1267,7 +1267,7 @@
       <div class="panel" id="authManagementBox">
         <h3>管理者用：閲覧・入力権限管理</h3>
         <div class="sub" style="margin-bottom:10px;">
-          同じURLで、管理者・管理監督者・閲覧者の表示範囲と入力権限を管理します。管理監督者は、自部署の備考等のみ保存できます。
+          同じURLで、admin・所属長・役員の表示範囲と入力権限を管理します。所属長は、自部署の備考等のみ保存できます。
         </div>
 
         <div class="uploadControls authControls">
@@ -1281,8 +1281,8 @@
           <label>権限：
             <select id="authRole">
               <option value="admin">admin</option>
-              <option value="manager">manager</option>
-              <option value="viewer">viewer</option>
+              <option value="viewer">役員</option>
+              <option value="manager">所属長</option>
             </select>
           </label>
           <label><input type="checkbox" id="authEnabled" checked> 有効</label>
@@ -1293,7 +1293,7 @@
         </div>
 
         <div class="definition" style="margin-top:10px;">
-          role の意味：admin＝全社閲覧・CSV取込・計算・権限管理、manager＝自部署閲覧・自部署の手入力保存、viewer＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
+          権限の意味：admin＝全社閲覧・CSV取込・計算・権限管理、所属長＝自部署閲覧・自部署の手入力保存、役員＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
         </div>
 
         <div class="cacheStatus" id="authStatus">権限一覧は未読込です。</div>
@@ -1571,6 +1571,13 @@
       if (testDisplayRole === 'admin') return 'admin';
       if (testDisplayRole === 'manager') return '所属長';
       return '役員';
+    }
+
+    function formatRoleLabel(role) {
+      if (role === 'admin') return 'admin';
+      if (role === 'manager') return '所属長';
+      if (role === 'viewer') return '役員';
+      return role || '';
     }
 
     function applyRoleSwitchVisibility() {
@@ -2913,7 +2920,7 @@
       document.getElementById('userBox').innerHTML =
         '<div><strong>ログインユーザー</strong>：' + escapeHtml(data.user.email) + '</div>' +
         '<div><strong>閲覧範囲</strong>：' + escapeHtml(data.user.department) + '</div>' +
-        '<div><strong>権限</strong>：' + escapeHtml(data.user.role) + '</div>';
+        '<div><strong>権限</strong>：' + escapeHtml(formatRoleLabel(data.user.role)) + '</div>';
 
       setupTabsForCurrentUser(data.hasSnapshot);
 
@@ -3282,7 +3289,7 @@
           user.email || '',
           user.name || '',
           user.department || '',
-          user.role || '',
+          formatRoleLabel(user.role),
           user.enabled ? '有効' : '無効',
           user.note || '',
           user.updatedAt || '',
