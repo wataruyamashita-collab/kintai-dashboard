@@ -77,6 +77,9 @@ function getInitialData() {
   const availableMonths = listAvailableSnapshotMonths_();
 
   if (!snapshot) {
+    const departmentGroups = createDepartmentGroupOptions_();
+    const departmentGroupStatus = createDepartmentGroupStatus_([]);
+
     return {
       user,
       hasSnapshot: false,
@@ -84,10 +87,10 @@ function getInitialData() {
       rows: [],
       summary: createSummary_([]),
       departments: [],
-      clientConfig: getClientConfigForUser_(user),
+      clientConfig: getClientConfigForUser_(user, { departmentGroups, departmentGroupStatus }),
       permissions: createClientPermissions_(user),
-      departmentGroups: createDepartmentGroupOptions_(),
-      departmentGroupStatus: createDepartmentGroupStatus_([]),
+      departmentGroups,
+      departmentGroupStatus,
       availableMonths
     };
   }
@@ -119,8 +122,11 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
     ? snapshot.meta.targetMonth
     : '';
 
-  const mergedRows = mergeManualInputsToRows_(snapshot.rows || [], targetMonth);
-  const rows = filterRowsByAuthority_(mergedRows, user);
+  const sourceRows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+  const authorityRows = filterRowsByAuthority_(sourceRows, user);
+  const rows = mergeManualInputsToRows_(authorityRows, targetMonth);
+  const departmentGroups = createDepartmentGroupOptions_(sourceRows);
+  const departmentGroupStatus = createDepartmentGroupStatus_(sourceRows);
 
   return {
     user,
@@ -129,10 +135,10 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
     rows,
     summary: createSummary_(rows),
     departments: createDepartmentList_(rows),
-    clientConfig: getClientConfigForUser_(user),
+    clientConfig: getClientConfigForUser_(user, { departmentGroups, departmentGroupStatus, sourceRows }),
     permissions: createClientPermissions_(user),
-    departmentGroups: createDepartmentGroupOptions_(),
-    departmentGroupStatus: createDepartmentGroupStatus_(mergedRows),
+    departmentGroups,
+    departmentGroupStatus,
     availableMonths: availableMonths || listAvailableSnapshotMonths_()
   };
 }
@@ -352,15 +358,22 @@ function roundSnapshotMetric_(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function getClientConfigForUser_(user) {
+function getClientConfigForUser_(user, precomputed) {
   if (!user || user.role !== 'admin') {
     return null;
   }
 
+  const options = precomputed || {};
+  const departmentGroups = Array.isArray(options.departmentGroups)
+    ? options.departmentGroups
+    : createDepartmentGroupOptions_(options.sourceRows);
+  const departmentGroupStatus = options.departmentGroupStatus
+    || createDepartmentGroupStatus_(options.sourceRows);
+
   return {
     departmentGroupRules: DEPARTMENT_GROUP_RULES,
-    departmentGroups: createDepartmentGroupOptions_(),
-    departmentGroupStatus: createDepartmentGroupStatus_(),
+    departmentGroups,
+    departmentGroupStatus,
     departmentGroupMaster: createDepartmentGroupMaster_(),
     employeeMaster: loadEmployeeMaster_()
   };
@@ -389,12 +402,15 @@ function createDepartmentList_(rows) {
 
 function createDepartmentGroupOptions_(extraRows) {
   const groups = new Set([DEPARTMENT_GROUP_ALL]);
+  const hasExtraRows = Array.isArray(extraRows) && extraRows.length > 0;
 
-  collectDepartmentGroupsFromRows_(groups, extraRows || []);
+  collectDepartmentGroupsFromRows_(groups, hasExtraRows ? extraRows : []);
 
-  const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
-  if (snapshot && Array.isArray(snapshot.rows)) {
-    collectDepartmentGroupsFromRows_(groups, snapshot.rows);
+  if (!hasExtraRows) {
+    const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+    if (snapshot && Array.isArray(snapshot.rows)) {
+      collectDepartmentGroupsFromRows_(groups, snapshot.rows);
+    }
   }
 
   loadManualInputsAll_().forEach(record => addDepartmentGroupOption_(groups, record.departmentGroup));
@@ -618,6 +634,7 @@ function loadEmployeeMaster_() {
 function saveSnapshot_(snapshot) {
   saveJsonFile_(APP_CONFIG.LATEST_FILE_NAME, snapshot);
   saveJsonFile_(getSnapshotFileNameForMonth_(snapshot.meta.targetMonth), snapshot);
+  clearAvailableSnapshotMonthsCache_();
 }
 
 function getSnapshotFileNameForMonth_(targetMonth) {
@@ -631,6 +648,17 @@ function loadSnapshotByMonth_(targetMonth) {
 }
 
 function listAvailableSnapshotMonths_() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('availableSnapshotMonths');
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      // キャッシュ破損時は通常取得に戻す。
+    }
+  }
+
   const folder = getOrCreateFolder_();
   const files = folder.getFiles();
   const monthMap = {};
@@ -649,10 +677,16 @@ function listAvailableSnapshotMonths_() {
     if (latestMonth) monthMap[latestMonth] = true;
   }
 
-  return Object.keys(monthMap).sort().reverse().map(month => ({
+  const months = Object.keys(monthMap).sort().reverse().map(month => ({
     value: month,
     label: formatYearMonthLabel_(month)
   }));
+  cache.put('availableSnapshotMonths', JSON.stringify(months), 300);
+  return months;
+}
+
+function clearAvailableSnapshotMonthsCache_() {
+  CacheService.getScriptCache().remove('availableSnapshotMonths');
 }
 
 function formatYearMonthLabel_(targetMonth) {
