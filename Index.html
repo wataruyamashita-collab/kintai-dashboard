@@ -68,6 +68,26 @@
       white-space: nowrap;
     }
 
+    .roleSwitchHeader .roleSwitchActions {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .roleSwitchHeader .roleSwitchStatus {
+      min-width: 190px;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 255, 255, .40);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .16);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+
     .roleSwitchHeader select {
       height: 30px;
       min-width: 120px;
@@ -556,6 +576,7 @@
       line-height: 1.55;
     }
 
+    body > .roleSwitchHeader,
     body > .top,
     body > .message,
     body > .departmentGroupWarning,
@@ -1143,14 +1164,17 @@
 <body>
   <div class="roleSwitchHeader" aria-label="テスト用権限切り替え">
     <div class="roleSwitchTitle">テスト用 権限切り替え</div>
-    <label class="roleSwitchControl" for="testRoleSwitch">
-      表示権限
-      <select id="testRoleSwitch" aria-label="テスト用表示権限">
-        <option value="executive">役員</option>
-        <option value="manager">所属長</option>
-        <option value="admin">admin</option>
-      </select>
-    </label>
+    <div class="roleSwitchActions">
+      <label class="roleSwitchControl" for="testRoleSwitch">
+        表示権限
+        <select id="testRoleSwitch" aria-label="テスト用表示権限">
+          <option value="executive">役員</option>
+          <option value="manager">所属長</option>
+          <option value="admin">admin</option>
+        </select>
+      </label>
+      <span id="roleSwitchStatus" class="roleSwitchStatus" aria-live="polite">役員：メイン画面を表示</span>
+    </div>
   </div>
 
   <div class="top">
@@ -1492,6 +1516,8 @@
     let currentSnapshotPayload = null;
     let currentDepartmentGroups = [DEPARTMENT_GROUP_ALL];
     let availableSnapshotMonths = [];
+    let lastRenderedHasSnapshot = false;
+    let testDisplayRole = 'executive';
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -1504,6 +1530,7 @@
       setDefaultTargetMonth();
       setDefaultCutoffDate();
       initializeCompanyCalendarForm();
+      initializeRoleSwitchHeader();
 
       const fileInput = document.getElementById('fileInput');
       fileInput.addEventListener('change', () => {
@@ -1520,6 +1547,56 @@
         .withFailureHandler(showError)
         .getInitialData();
     });
+
+    function initializeRoleSwitchHeader() {
+      const select = document.getElementById('testRoleSwitch');
+      if (!select) return;
+
+      testDisplayRole = select.value || 'executive';
+      select.addEventListener('change', () => {
+        testDisplayRole = select.value || 'executive';
+        if (testDisplayRole === 'admin') {
+          activeTab = 'auth';
+        } else {
+          activeTab = 'alert';
+        }
+        applyTabVisibility();
+      });
+      applyRoleSwitchVisibility();
+    }
+
+    function applyRoleSwitchVisibility() {
+      const isAdminView = testDisplayRole === 'admin';
+      const hasSnapshot = Boolean(lastRenderedHasSnapshot || currentRows.length);
+      const uploadBox = document.getElementById('uploadBox');
+      const main = document.getElementById('main');
+      const dataImportPanel = document.getElementById('dataImportPanel');
+      const parameterPanel = document.getElementById('parameterPanel');
+      const authPanel = document.getElementById('authPanel');
+      const status = document.getElementById('roleSwitchStatus');
+
+      if (isAdminView) {
+        if (uploadBox) uploadBox.style.display = 'block';
+        if (main) main.style.display = 'none';
+        if (dataImportPanel) dataImportPanel.style.display = 'none';
+        if (parameterPanel) parameterPanel.style.display = 'none';
+        if (authPanel) authPanel.style.display = 'block';
+        if (status) status.textContent = 'admin：部署グループ設定フォームを表示';
+      } else {
+        if (authPanel) authPanel.style.display = 'none';
+        if (dataImportPanel) dataImportPanel.style.display = 'none';
+        if (parameterPanel) parameterPanel.style.display = 'none';
+        if (uploadBox) uploadBox.style.display = 'none';
+        if (main) main.style.display = hasSnapshot ? 'block' : 'none';
+        if (status) {
+          status.textContent = (testDisplayRole === 'manager' ? '所属長' : '役員') + '：メイン画面を表示';
+        }
+      }
+
+      document.querySelectorAll('.tabButton').forEach(button => {
+        button.classList.toggle('active', button.getAttribute('data-tab') === (isAdminView ? 'auth' : 'alert'));
+      });
+    }
 
     function initializeCompanyCalendarForm() {
       const yearInput = document.getElementById('calendarYear');
@@ -2772,6 +2849,8 @@
       document.querySelectorAll('.tabButton').forEach(button => {
         button.classList.toggle('active', button.getAttribute('data-tab') === activeTab);
       });
+
+      applyRoleSwitchVisibility();
     }
 
     function setupTabsForCurrentUser(hasSnapshot) {
@@ -2807,6 +2886,7 @@
     }
 
     function renderApp(data) {
+      lastRenderedHasSnapshot = Boolean(data && data.hasSnapshot);
       currentUser = data.user;
       clientConfig = data.clientConfig;
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
@@ -2856,6 +2936,7 @@
     }
 
     function renderAnalysisResult(data) {
+      lastRenderedHasSnapshot = true;
       currentRows = data.rows || [];
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
       setupAuthDepartmentOptions();
