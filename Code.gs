@@ -77,6 +77,9 @@ function getInitialData() {
   const availableMonths = listAvailableSnapshotMonths_();
 
   if (!snapshot) {
+    const departmentGroups = createDepartmentGroupOptions_();
+    const departmentGroupStatus = createDepartmentGroupStatus_([]);
+
     return {
       user,
       hasSnapshot: false,
@@ -84,10 +87,10 @@ function getInitialData() {
       rows: [],
       summary: createSummary_([]),
       departments: [],
-      clientConfig: getClientConfigForUser_(user),
+      clientConfig: getClientConfigForUser_(user, { departmentGroups, departmentGroupStatus }),
       permissions: createClientPermissions_(user),
-      departmentGroups: createDepartmentGroupOptions_(),
-      departmentGroupStatus: createDepartmentGroupStatus_([]),
+      departmentGroups,
+      departmentGroupStatus,
       availableMonths
     };
   }
@@ -119,8 +122,11 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
     ? snapshot.meta.targetMonth
     : '';
 
-  const mergedRows = mergeManualInputsToRows_(snapshot.rows || [], targetMonth);
-  const rows = filterRowsByAuthority_(mergedRows, user);
+  const sourceRows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+  const authorityRows = filterRowsByAuthority_(sourceRows, user);
+  const rows = mergeManualInputsToRows_(authorityRows, targetMonth);
+  const departmentGroups = createDepartmentGroupOptions_(sourceRows);
+  const departmentGroupStatus = createDepartmentGroupStatus_(sourceRows);
 
   return {
     user,
@@ -129,10 +135,10 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
     rows,
     summary: createSummary_(rows),
     departments: createDepartmentList_(rows),
-    clientConfig: getClientConfigForUser_(user),
+    clientConfig: getClientConfigForUser_(user, { departmentGroups, departmentGroupStatus, sourceRows }),
     permissions: createClientPermissions_(user),
-    departmentGroups: createDepartmentGroupOptions_(),
-    departmentGroupStatus: createDepartmentGroupStatus_(mergedRows),
+    departmentGroups,
+    departmentGroupStatus,
     availableMonths: availableMonths || listAvailableSnapshotMonths_()
   };
 }
@@ -352,15 +358,22 @@ function roundSnapshotMetric_(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function getClientConfigForUser_(user) {
+function getClientConfigForUser_(user, precomputed) {
   if (!user || user.role !== 'admin') {
     return null;
   }
 
+  const options = precomputed || {};
+  const departmentGroups = Array.isArray(options.departmentGroups)
+    ? options.departmentGroups
+    : createDepartmentGroupOptions_(options.sourceRows);
+  const departmentGroupStatus = options.departmentGroupStatus
+    || createDepartmentGroupStatus_(options.sourceRows);
+
   return {
     departmentGroupRules: DEPARTMENT_GROUP_RULES,
-    departmentGroups: createDepartmentGroupOptions_(),
-    departmentGroupStatus: createDepartmentGroupStatus_(),
+    departmentGroups,
+    departmentGroupStatus,
     departmentGroupMaster: createDepartmentGroupMaster_(),
     employeeMaster: loadEmployeeMaster_()
   };
@@ -389,12 +402,15 @@ function createDepartmentList_(rows) {
 
 function createDepartmentGroupOptions_(extraRows) {
   const groups = new Set([DEPARTMENT_GROUP_ALL]);
+  const hasExtraRows = Array.isArray(extraRows) && extraRows.length > 0;
 
-  collectDepartmentGroupsFromRows_(groups, extraRows || []);
+  collectDepartmentGroupsFromRows_(groups, hasExtraRows ? extraRows : []);
 
-  const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
-  if (snapshot && Array.isArray(snapshot.rows)) {
-    collectDepartmentGroupsFromRows_(groups, snapshot.rows);
+  if (!hasExtraRows) {
+    const snapshot = loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME);
+    if (snapshot && Array.isArray(snapshot.rows)) {
+      collectDepartmentGroupsFromRows_(groups, snapshot.rows);
+    }
   }
 
   loadManualInputsAll_().forEach(record => addDepartmentGroupOption_(groups, record.departmentGroup));
@@ -618,6 +634,7 @@ function loadEmployeeMaster_() {
 function saveSnapshot_(snapshot) {
   saveJsonFile_(APP_CONFIG.LATEST_FILE_NAME, snapshot);
   saveJsonFile_(getSnapshotFileNameForMonth_(snapshot.meta.targetMonth), snapshot);
+  clearAvailableSnapshotMonthsCache_();
 }
 
 function getSnapshotFileNameForMonth_(targetMonth) {
@@ -631,6 +648,17 @@ function loadSnapshotByMonth_(targetMonth) {
 }
 
 function listAvailableSnapshotMonths_() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('availableSnapshotMonths');
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      // キャッシュ破損時は通常取得に戻す。
+    }
+  }
+
   const folder = getOrCreateFolder_();
   const files = folder.getFiles();
   const monthMap = {};
@@ -649,10 +677,16 @@ function listAvailableSnapshotMonths_() {
     if (latestMonth) monthMap[latestMonth] = true;
   }
 
-  return Object.keys(monthMap).sort().reverse().map(month => ({
+  const months = Object.keys(monthMap).sort().reverse().map(month => ({
     value: month,
     label: formatYearMonthLabel_(month)
   }));
+  cache.put('availableSnapshotMonths', JSON.stringify(months), 300);
+  return months;
+}
+
+function clearAvailableSnapshotMonthsCache_() {
+  CacheService.getScriptCache().remove('availableSnapshotMonths');
 }
 
 function formatYearMonthLabel_(targetMonth) {
@@ -1496,6 +1530,96 @@ function saveAuthUser(payload) {
 
   return {
     ok: true,
+    users: listAuthUsersInternal_()
+  };
+}
+
+
+/**
+ * 管理者用：権限ユーザーを一括追加・更新する。
+ * CSV/Excel貼付で解析済みの配列を受け取り、既存メールは更新する。
+ */
+function bulkSaveAuthUsers(payload) {
+  const user = getCurrentUser_();
+  assertAdmin_(user);
+
+  const users = payload && Array.isArray(payload.users) ? payload.users : [];
+  if (users.length === 0) throw new Error('一括登録する権限データがありません。');
+  if (users.length > 500) throw new Error('一括登録は500件以内にしてください。');
+
+  const availableDepartments = createDepartmentGroupOptions_();
+  const currentUserEmail = String(user.email || '').trim().toLowerCase();
+  const seenEmails = {};
+
+  const normalizedUsers = users.map((item, index) => {
+    const lineNumber = Number(item.sourceRowNumber || 0) > 0 ? Number(item.sourceRowNumber) : index + 2;
+    const email = String(item.email || '').trim().toLowerCase();
+    const name = String(item.name || '').trim();
+    const department = String(item.department || '').trim();
+    const role = String(item.role || 'manager').trim().toLowerCase();
+    const enabled = item.enabled === false ? 'FALSE' : 'TRUE';
+    const note = String(item.note || '').trim();
+
+    if (!email || email.indexOf('@') <= 0 || email.indexOf('@') >= email.length - 1) {
+      throw new Error(`${lineNumber}行目のメールアドレスが未入力、または正しくありません。メール欄を確認してください。`);
+    }
+    if (seenEmails[email]) {
+      throw new Error(`${lineNumber}行目：同じメールアドレスが一括登録データ内で重複しています：${email}`);
+    }
+    seenEmails[email] = true;
+
+    if (!MANAGEMENT_BASE.ROLES.includes(role)) {
+      throw new Error(`${lineNumber}行目：権限は admin / manager / viewer のいずれかを指定してください。`);
+    }
+    if (!availableDepartments.includes(department)) {
+      throw new Error(`${lineNumber}行目：表示範囲「${department}」は現在の部署グループ一覧にありません。`);
+    }
+    if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
+      throw new Error(`${lineNumber}行目：admin 権限は表示範囲を「全社」にしてください。`);
+    }
+    if (email === currentUserEmail && enabled === 'FALSE') {
+      throw new Error(`${lineNumber}行目：自分自身の権限は無効化できません。`);
+    }
+
+    return {
+      email,
+      name,
+      department,
+      role,
+      enabled,
+      note
+    };
+  });
+
+  const ss = getOrCreateManualInputSpreadsheet_();
+  const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
+  const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
+  const now = getNowText_();
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    normalizedUsers.forEach(item => {
+      const existingRowNumber = findRowByKey_(sheet, 'email', item.email);
+      const before = existingRowNumber > 0 ? getObjectAtRow_(sheet, existingRowNumber) : null;
+      const record = Object.assign({}, item, {
+        createdAt: before ? before.createdAt : now,
+        createdBy: before ? before.createdBy : user.email,
+        updatedAt: now,
+        updatedBy: user.email
+      });
+
+      upsertObjectByKey_(sheet, 'email', item.email, record);
+      appendAuthHistoryIfChanged_(historySheet, before, record, user.email);
+    });
+  } finally {
+    lock.releaseLock();
+  }
+
+  return {
+    ok: true,
+    importedCount: normalizedUsers.length,
     users: listAuthUsersInternal_()
   };
 }
