@@ -1185,9 +1185,9 @@
 
     <div id="authPanel" class="tabPanel adminTabPanel">
       <div class="panel" id="authManagementBox">
-        <h3>管理者用：閲覧・入力権限管理</h3>
+        <h3>管理者用：マスター名簿（閲覧・入力権限管理）</h3>
         <div class="sub" style="margin-bottom:10px;">
-          同じURLで、管理者・管理監督者・閲覧者の表示範囲と入力権限を管理します。管理監督者は、自部署の備考等のみ保存できます。
+          同じURLで、役員・所属長・管理(admin)の権限を判別するためのマスター名簿を管理します。権限が空欄または未登録のユーザーは、デフォルト拒否として全画面を非表示にします。
         </div>
 
         <div class="uploadControls authControls">
@@ -1200,9 +1200,9 @@
           </label>
           <label>権限：
             <select id="authRole">
-              <option value="admin">admin</option>
-              <option value="manager">manager</option>
-              <option value="viewer">viewer</option>
+              <option value="executive">役員</option>
+              <option value="manager">所属長</option>
+              <option value="admin">管理(admin)</option>
             </select>
           </label>
           <label><input type="checkbox" id="authEnabled" checked> 有効</label>
@@ -1213,7 +1213,7 @@
         </div>
 
         <div class="definition" style="margin-top:10px;">
-          role の意味：admin＝全社閲覧・CSV取込・計算・権限管理、manager＝自部署閲覧・自部署の手入力保存、viewer＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
+          権限は「役員」「所属長」「管理(admin)」の3種類だけです。役員＝全社閲覧、所属長＝自部署閲覧・自部署の手入力保存、管理(admin)＝全社閲覧・CSV取込・計算・権限管理。権限が空欄または未登録の場合は「アクセス権限がありません」として拒否します。
         </div>
 
         <div class="cacheStatus" id="authStatus">権限一覧は未読込です。</div>
@@ -2778,7 +2778,7 @@
       document.getElementById('userBox').innerHTML =
         '<div><strong>ログインユーザー</strong>：' + escapeHtml(data.user.email) + '</div>' +
         '<div><strong>閲覧範囲</strong>：' + escapeHtml(data.user.department) + '</div>' +
-        '<div><strong>権限</strong>：' + escapeHtml(data.user.role) + '</div>';
+        '<div><strong>権限</strong>：' + escapeHtml(data.user.roleLabel || data.user.role) + '</div>';
 
       setupTabsForCurrentUser(data.hasSnapshot);
 
@@ -2923,8 +2923,10 @@
     function createClientPermissionsFallback(user) {
       return {
         canAdmin: user && user.role === 'admin',
+        canExecutive: user && user.role === 'executive',
         canEditManualInputs: user && (user.role === 'admin' || user.role === 'manager'),
-        canManageAuth: user && user.role === 'admin'
+        canManageAuth: user && user.role === 'admin',
+        screenType: user ? (user.screenType || user.role || '') : ''
       };
     }
 
@@ -3146,7 +3148,7 @@
           user.email || '',
           user.name || '',
           user.department || '',
-          user.role || '',
+          user.roleLabel || user.role || '',
           user.enabled ? '有効' : '無効',
           user.note || '',
           user.updatedAt || '',
@@ -3200,7 +3202,7 @@
       document.getElementById('authName').value = user.name || '';
       setupAuthDepartmentOptions(user.department || DEPARTMENT_GROUP_ALL);
       document.getElementById('authDepartment').value = user.department || DEPARTMENT_GROUP_ALL;
-      document.getElementById('authRole').value = user.role || 'viewer';
+      document.getElementById('authRole').value = user.role || '';
       document.getElementById('authEnabled').checked = user.enabled !== false;
       document.getElementById('authNote').value = user.note || '';
     }
