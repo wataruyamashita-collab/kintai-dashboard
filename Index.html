@@ -3644,17 +3644,25 @@
 
         const actionTd = document.createElement('td');
         const editButton = document.createElement('button');
+        editButton.type = 'button';
         editButton.textContent = '編集';
-        editButton.onclick = () => setAuthForm(user);
+        editButton.addEventListener('click', event => {
+          event.preventDefault();
+          setAuthForm(user);
+        });
         actionTd.appendChild(editButton);
 
         if (user.enabled) {
           const disableButton = document.createElement('button');
+          disableButton.type = 'button';
           disableButton.textContent = '無効化';
           disableButton.className = 'deleteButton';
           disableButton.style.marginLeft = '6px';
           disableButton.style.marginRight = '0';
-          disableButton.onclick = () => disableAuthUserFromButton(user.email);
+          disableButton.addEventListener('click', event => {
+            event.preventDefault();
+            disableAuthUserFromButton(user.email);
+          });
           actionTd.appendChild(disableButton);
         }
 
@@ -3668,14 +3676,39 @@
       }
     }
 
+    function normalizeAuthFormRole(role) {
+      const normalized = String(role || '').trim().toLowerCase();
+      if (normalized === 'admin' || normalized === '管理者') return 'admin';
+      if (normalized === 'manager' || normalized === '所属長' || normalized === '管理職') return 'manager';
+      if (normalized === 'viewer' || normalized === 'executive' || normalized === '役員') return 'viewer';
+      return 'viewer';
+    }
+
     function setAuthForm(user) {
-      document.getElementById('authEmail').value = user.email || '';
-      document.getElementById('authName').value = user.name || '';
-      setupAuthDepartmentOptions(user.department || DEPARTMENT_GROUP_ALL);
-      document.getElementById('authDepartment').value = user.department || DEPARTMENT_GROUP_ALL;
-      document.getElementById('authRole').value = user.role || 'viewer';
-      document.getElementById('authEnabled').checked = user.enabled !== false;
-      document.getElementById('authNote').value = user.note || '';
+      const emailInput = document.getElementById('authEmail');
+      const nameInput = document.getElementById('authName');
+      const departmentSelect = document.getElementById('authDepartment');
+      const roleSelect = document.getElementById('authRole');
+      const enabledInput = document.getElementById('authEnabled');
+      const noteInput = document.getElementById('authNote');
+      const status = document.getElementById('authStatus');
+
+      const department = user.department || DEPARTMENT_GROUP_ALL;
+      setupAuthDepartmentOptions(department);
+
+      emailInput.value = user.email || '';
+      nameInput.value = user.name || '';
+      departmentSelect.value = department;
+      roleSelect.value = normalizeAuthFormRole(user.role);
+      enabledInput.checked = user.enabled !== false;
+      noteInput.value = user.note || '';
+
+      if (status) {
+        status.className = 'cacheStatus';
+        status.textContent = `編集中：${user.email || ''} の権限情報を上部フォームに反映しました。内容を確認して「権限を保存」を押してください。`;
+      }
+      emailInput.focus();
+      emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function resetAuthForm() {
