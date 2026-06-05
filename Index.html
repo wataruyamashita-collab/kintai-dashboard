@@ -35,6 +35,50 @@
       margin: 0 0 10px;
     }
 
+
+    .roleSwitchHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 38px;
+      margin: 0 0 14px;
+      padding: 8px 12px;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #1f4e79 0%, #2f6f9f 100%);
+      border: 1px solid rgba(31, 78, 121, .22);
+      border-radius: 14px;
+      color: #ffffff;
+      box-shadow: 0 6px 18px rgba(22, 34, 51, .10);
+    }
+
+    .roleSwitchHeader .roleSwitchTitle {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
+    .roleSwitchHeader .roleSwitchControl {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .roleSwitchHeader select {
+      height: 30px;
+      min-width: 120px;
+      border-color: rgba(255, 255, 255, .72);
+      border-radius: 999px;
+      background: #ffffff;
+      color: #1f4e79;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
     .top {
       display: flex;
       justify-content: space-between;
@@ -1097,6 +1141,18 @@
   </style>
 </head>
 <body>
+  <div class="roleSwitchHeader" aria-label="テスト用権限切り替え">
+    <div class="roleSwitchTitle">テスト用 権限切り替え</div>
+    <label class="roleSwitchControl" for="testRoleSwitch">
+      表示権限
+      <select id="testRoleSwitch" aria-label="テスト用表示権限">
+        <option value="executive">役員</option>
+        <option value="manager">所属長</option>
+        <option value="admin">admin</option>
+      </select>
+    </label>
+  </div>
+
   <div class="top">
     <div>
       <h1>勤怠アラート確認画面</h1>
