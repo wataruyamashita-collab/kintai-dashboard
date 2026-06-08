@@ -2137,3 +2137,207 @@ function appendAuthHistoryIfChanged_(sheet, before, after, userEmail) {
 function getNowText_() {
   return Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm:ss');
 }
+
+/**
+ * クライアントの権限情報を生成する。
+ */
+function createClientPermissions_(user) {
+  if (!user) return null;
+  
+  return {
+    canSave: user.role === 'admin',
+    canEditManual: user.role === 'admin' || user.role === 'manager',
+    canViewAll: user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL
+  };
+}
+
+/**
+ * 手入力内容をマージして行に追加する。
+ */
+function mergeManualInputsToRows_(rows, targetMonth) {
+  if (!Array.isArray(rows)) return [];
+  
+  const manualInputs = loadManualInputsAll_();
+  const manualMap = {};
+  
+  manualInputs.forEach(item => {
+    const key = createManualInputKey_(item.targetMonth, item.employeeCode, item.employeeName);
+    if (String(item.deleted || '').toUpperCase() !== 'TRUE') {
+      manualMap[key] = item;
+    }
+  });
+  
+  return rows.map(row => {
+    const key = createManualInputKey_(targetMonth, row.employeeCode, row.employeeName);
+    const manual = manualMap[key];
+    
+    if (manual) {
+      return Object.assign({}, row, {
+        agreement36: manual.agreement36 || row.agreement36,
+        specialReason: manual.specialReason || row.specialReason,
+        healthMeasure: manual.healthMeasure || row.healthMeasure,
+        note: manual.note || row.note
+      });
+    }
+    return row;
+  });
+}
+
+/**
+ * サーバー側で未入力項目を計算する。
+ */
+function calculateMissingItemsServer_(row) {
+  const missing = [];
+  
+  if (!row) return missing;
+  
+  if (!row.estimatedOt || Number(row.estimatedOt) === 0) missing.push('estimatedOt');
+  if (!row.fixedOt || Number(row.fixedOt) === 0) missing.push('fixedOt');
+  if (!row.monthEndForecastValue || Number(row.monthEndForecastValue) === 0) missing.push('forecast');
+  
+  return missing;
+}
+
+/**
+ * シートを行ごとにオブジェクト配列に変換する。
+ */
+function readSheetObjects_(sheet) {
+  if (!sheet) return [];
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length === 0) return [];
+  
+  const headers = data[0].map(h => String(h || '').trim());
+  const objects = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const obj = {};
+    
+    headers.forEach((header, col) => {
+      if (header) {
+        obj[header] = row[col] !== undefined ? row[col] : '';
+      }
+    });
+    
+    objects.push(obj);
+  }
+  
+  return objects;
+}
+
+/**
+ * キーで行番号を検索する。見つからない場合は -1 を返す。
+ */
+function findRowByKey_(sheet, keyColumn, keyValue) {
+  if (!sheet) return -1;
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length === 0) return -1;
+  
+  const headers = data[0].map(h => String(h || '').trim());
+  const keyIndex = headers.indexOf(keyColumn);
+  
+  if (keyIndex === -1) return -1;
+  
+  const searchValue = String(keyValue || '').trim().toLowerCase();
+  
+  for (let i = 1; i < data.length; i++) {
+    const cellValue = String(data[i][keyIndex] || '').trim().toLowerCase();
+    if (cellValue === searchValue) {
+      return i + 1; // Google Sheets は 1 インデックス
+    }
+  }
+  
+  return -1;
+}
+
+/**
+ * シートの特定行をオブジェクトに変換する。
+ */
+function getObjectAtRow_(sheet, rowNumber) {
+  if (!sheet || rowNumber <= 0) return null;
+  
+  const data = sheet.getDataRange().getValues();
+  if (rowNumber > data.length) return null;
+  
+  const headers = data[0].map(h => String(h || '').trim());
+  const row = data[rowNumber - 1]; // 1-indexed to 0-indexed
+  
+  const obj = {};
+  headers.forEach((header, col) => {
+    if (header) {
+      obj[header] = row[col] !== undefined ? row[col] : '';
+    }
+  });
+  
+  return obj;
+}
+
+/**
+ * オブジェクトをシートの特定行に設定する。
+ */
+function setObjectAtRow_(sheet, rowNumber, obj) {
+  if (!sheet || rowNumber <= 0 || !obj) return;
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length === 0) return;
+  
+  const headers = data[0].map(h => String(h || '').trim());
+  const row = headers.map(header => obj[header] !== undefined ? obj[header] : '');
+  
+  sheet.getRange(rowNumber, 1, 1, headers.length).setValues([row]);
+}
+
+/**
+ * キーに基づいてオブジェクトを挿入または更新する。
+ */
+function upsertObjectByKey_(sheet, keyColumn, keyValue, obj) {
+  if (!sheet || !keyColumn || !obj) return;
+  
+  const rowNumber = findRowByKey_(sheet, keyColumn, keyValue);
+  
+  if (rowNumber > 0) {
+    // Update existing row
+    setObjectAtRow_(sheet, rowNumber, obj);
+  } else {
+    // Insert new row
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+      .map(h => String(h || '').trim());
+    const row = headers.map(header => obj[header] !== undefined ? obj[header] : '');
+    sheet.appendRow(row);
+  }
+}
+
+/**
+ * 手入力可能かどうかを確認する。
+ */
+function assertCanEditManualInput_(user, targetMonth, row) {
+  if (!user) throw new Error('ユーザー情報が取得できません。');
+  
+  // admin と manager は編集可能
+  if (user.role === 'admin') {
+    return row;
+  }
+  
+  if (user.role === 'manager') {
+    // 自分の部署のデータのみ編集可能
+    if (row && row.departmentGroup && row.departmentGroup === user.department) {
+      return row;
+    }
+    throw new Error('異なる部署のデータは編集できません。');
+  }
+  
+  throw new Error('手入力内容の編集権限がありません。');
+}
+
+/**
+ * 手入力レコードのキーを生成する。
+ */
+function createManualInputKey_(targetMonth, employeeCode, employeeName) {
+  const month = String(targetMonth || '').trim().replace('/', '-');
+  const code = String(employeeCode || '').trim();
+  const name = String(employeeName || '').trim();
+  
+  return `${month}|${code}|${name}`.toLowerCase();
+}
