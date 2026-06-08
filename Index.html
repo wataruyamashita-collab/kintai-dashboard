@@ -281,7 +281,9 @@
       z-index: 2;
     }
 
-    tr.high td { background: var(--danger); }
+    tr.high td { background: var(--danger); font-weight: 700; }
+    tr.high td * { font-weight: inherit; }
+    tr.high .riskBadge.high { font-weight: 800; }
     tr.mediumHigh td { background: var(--orange); }
     tr.medium td { background: var(--yellow); }
     tr.low td { background: #fff; }
