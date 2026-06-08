@@ -282,9 +282,7 @@
     }
 
     tr.high td { background: var(--danger); font-weight: 700; }
-    tr.high td * { font-weight: inherit; }
-    tr.high .riskBadge.high { font-weight: 800; }
-    tr.mediumHigh td { background: var(--orange); }
+    tr.mediumHigh td { background: var(--orange); font-weight: 700; }
     tr.medium td { background: var(--yellow); }
     tr.low td { background: #fff; }
 
@@ -833,13 +831,13 @@
       text-align: center;
     }
 
-    tr.high td { background: #ffd6d6; }
-    tr.mediumHigh td { background: #fff7ed; }
+    tr.high td { background: #ffd6d6; font-weight: 700; }
+    tr.mediumHigh td { background: #fff7ed; font-weight: 700; }
     tr.medium td { background: #fffbea; }
     tr.low td { background: #ffffff; }
 
     tr.high td:first-child { box-shadow: inset 10px 0 0 #b00020; font-weight: 700; }
-    tr.mediumHigh td:first-child { box-shadow: inset 5px 0 0 #d46b08; }
+    tr.mediumHigh td:first-child { box-shadow: inset 5px 0 0 #d46b08; font-weight: 700; }
     tr.medium td:first-child { box-shadow: inset 5px 0 0 #b7791f; }
     tr.low td:first-child { box-shadow: inset 5px 0 0 #2f855a; }
 
@@ -862,7 +860,17 @@
     }
 
     tr.high td:nth-child(-n+4) { background: #ffc2c2; font-weight: 700; }
-    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; }
+    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; font-weight: 700; }
+
+    tr.high td *,
+    tr.mediumHigh td * {
+      font-weight: inherit;
+    }
+
+    tr.high .riskBadge.high,
+    tr.mediumHigh .riskBadge.mediumHigh {
+      font-weight: 800;
+    }
     tr.medium td:nth-child(-n+4) { background: #fffbea; }
     tr.low td:nth-child(-n+4) { background: #ffffff; }
 
