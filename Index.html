@@ -792,6 +792,11 @@
       background: #e9eff6;
       color: #26384d;
       font-weight: 700;
+      vertical-align: middle;
+    }
+
+    .fixedLayout td {
+      vertical-align: middle;
     }
 
     .fixedLayout tbody tr:hover td {
@@ -4155,6 +4160,11 @@
       });
     }
 
+    function resolveDisplayRowNo(row, index) {
+      const rowNo = Number(row && row.rowNo);
+      return Number.isFinite(rowNo) && rowNo > 0 ? rowNo : index + 1;
+    }
+
     function renderRows(rows) {
       const tbody = document.getElementById('tbody');
       tbody.innerHTML = '';
@@ -4172,12 +4182,12 @@
 
       const editable = canEditManualInputClient();
 
-      rows.forEach(row => {
+      rows.forEach((row, index) => {
         const tr = document.createElement('tr');
         tr.className = row.riskLevel || '';
 
         const cells = [
-          row.rowNo || '',
+          resolveDisplayRowNo(row, index),
           row.department,
           row.employeeCode,
           row.employeeName,
