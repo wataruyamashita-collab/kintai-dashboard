@@ -281,9 +281,9 @@
       z-index: 2;
     }
 
-    tr.high td { background: var(--danger); }
-    tr.mediumHigh td { background: var(--orange); }
-    tr.medium td { background: var(--yellow); }
+    tr.high td { background: var(--danger); font-weight: 700; }
+    tr.mediumHigh td { background: var(--orange); font-weight: 700; }
+    tr.medium td { background: #fff; }
     tr.low td { background: #fff; }
 
     .missing {
@@ -413,8 +413,8 @@
 
     table.fixedLayout {
       table-layout: fixed;
-      width: 1420px;
-      min-width: 1420px;
+      width: 1710px;
+      min-width: 1710px;
     }
 
     table.fixedLayout th,
@@ -831,13 +831,13 @@
       text-align: center;
     }
 
-    tr.high td { background: #ffd6d6; }
-    tr.mediumHigh td { background: #fff7ed; }
-    tr.medium td { background: #fffbea; }
+    tr.high td { background: #ffd6d6; font-weight: 700; }
+    tr.mediumHigh td { background: #fff7ed; font-weight: 700; }
+    tr.medium td { background: #ffffff; }
     tr.low td { background: #ffffff; }
 
     tr.high td:first-child { box-shadow: inset 10px 0 0 #b00020; font-weight: 700; }
-    tr.mediumHigh td:first-child { box-shadow: inset 5px 0 0 #d46b08; }
+    tr.mediumHigh td:first-child { box-shadow: inset 5px 0 0 #d46b08; font-weight: 700; }
     tr.medium td:first-child { box-shadow: inset 5px 0 0 #b7791f; }
     tr.low td:first-child { box-shadow: inset 5px 0 0 #2f855a; }
 
@@ -860,8 +860,18 @@
     }
 
     tr.high td:nth-child(-n+4) { background: #ffc2c2; font-weight: 700; }
-    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; }
-    tr.medium td:nth-child(-n+4) { background: #fffbea; }
+    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; font-weight: 700; }
+
+    tr.high td *,
+    tr.mediumHigh td * {
+      font-weight: inherit;
+    }
+
+    tr.high .riskBadge.high,
+    tr.mediumHigh .riskBadge.mediumHigh {
+      font-weight: 800;
+    }
+    tr.medium td:nth-child(-n+4) { background: #ffffff; }
     tr.low td:nth-child(-n+4) { background: #ffffff; }
 
     .riskBadge,
@@ -879,7 +889,7 @@
 
     .riskBadge.high { color: #ffffff; background: #b00020; font-weight: 800; box-shadow: 0 2px 8px rgba(176, 0, 32, 0.38); }
     .riskBadge.mediumHigh { color: #8a3f00; background: #ffe8cc; }
-    .riskBadge.medium { color: #745100; background: #fff1b8; }
+    .riskBadge.medium { color: #745100; background: transparent; }
     .riskBadge.low { color: #2f855a; background: #e6f4ea; }
     .safeBadge { color: #2f855a; background: #e6f4ea; }
 
@@ -1594,7 +1604,7 @@
           <col style="width:105px">
           <col style="width:105px">
           <col style="width:130px">
-          <col style="width:145px">
+          <col style="width:200px">
           <col style="width:115px">
           <col style="width:95px">
           <col style="width:105px">
