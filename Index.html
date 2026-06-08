@@ -3128,6 +3128,25 @@
       return '';
     }
 
+    function getWeekdayCountInMonth(year, month) {
+      const numericYear = Number(year);
+      const numericMonth = Number(month);
+      if (!Number.isInteger(numericYear) || !Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12) {
+        return 1;
+      }
+
+      const lastDay = new Date(numericYear, numericMonth, 0).getDate();
+      let count = 0;
+
+      for (let day = 1; day <= lastDay; day++) {
+        const date = new Date(numericYear, numericMonth - 1, day);
+        const weekday = date.getDay();
+        if (weekday !== 0 && weekday !== 6) count++;
+      }
+
+      return count || 1;
+    }
+
     function determineRiskLevel(employee) {
       const alertBaseOt = Number(employee.alertBaseOt || 0);
       if (employee.monthEndForecast >= 80 || employee.over45Count >= 5) return 'high';
