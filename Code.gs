@@ -181,7 +181,7 @@ function saveClientSnapshot(payload) {
       calculationAudit: payload.calculationAudit || null,
       validationMetrics,
       over45Definition: '45h超過回数は、対象年1月以降、法定時間外残業が45時間以上となった月数です。',
-      forecastDefinition: '月末予測は、早期警戒を目的として、MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。本人の過去月実績補正は任意です。固定値補正は使用しません。',
+      forecastDefinition: '月末予測は、45h（法定時間外労働）、60h（月60時間超割増対象・法定休日労働を除く）、80h（時間外＋休日労働）を別々の実績値で、現時点実績 + (現時点実績 ÷ 経過営業日数) × 残営業日数により算出します。見込みは小数第1位切り上げ、超過判定は > で行います。',
       approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与計算には使用しません。CSV取込は10MB未満のファイルを対象に、引用符内のカンマ・改行を考慮して必要列のみを抽出します。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
     },
     rows: payload.rows
@@ -1985,13 +1985,14 @@ function createManualInputKey_(targetMonth, employeeCode, employeeName) {
 
 function calculateMissingItemsServer_(row) {
   const missing = [];
-  const forecast = Number(row.monthEndForecastValue || 0);
+  const forecast60 = Number(row.forecast60 || 0);
+  const forecast80 = Number(row.forecast80 || 0);
 
   if (row.actualAlert || row.forecastAlert) {
     if (!row.agreement36) missing.push('36協定');
   }
 
-  if (forecast >= 60) {
+  if (forecast60 > 60 || forecast80 > 80) {
     if (!row.specialReason) missing.push('発動事由');
     if (!row.healthMeasure) missing.push('健康福祉措置');
   }

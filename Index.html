@@ -582,7 +582,6 @@
 
     body > .roleSwitchHeader,
     body > .top,
-    body > .executiveScoreCard,
     body > .message,
     body > .departmentGroupWarning,
     body > .tabBar,
@@ -1130,120 +1129,9 @@
     }
 
 
-    /* ===== 役員表示：全社スコアカードと詳細エリア折りたたみ ===== */
-    .executiveScoreCard {
-      display: none;
-      margin-bottom: 16px;
-      padding: 22px 24px;
-      border: 1px solid #c7d8eb;
-      border-radius: 20px;
-      background: linear-gradient(135deg, #ffffff 0%, #edf6ff 58%, #e6f0fa 100%);
-      box-shadow: 0 14px 34px rgba(31, 78, 121, .14);
-    }
-
-    .executiveScoreCard.show {
-      display: block;
-    }
-
-    .executiveScoreHeader {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 14px;
-    }
-
-    .executiveScoreEyebrow {
-      color: #1f4e79;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .08em;
-    }
-
-    .executiveScoreTitle {
-      margin-top: 3px;
-      color: #1d2b3a;
-      font-size: clamp(18px, 1.6vw, 24px);
-      font-weight: 800;
-    }
-
-    .executiveScoreMeta {
-      color: #5f6b7a;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .executiveScoreMetrics {
-      display: grid;
-      grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(150px, .8fr));
-      gap: 12px;
-    }
-
-    .executiveMetric {
-      padding: 14px 16px;
-      border: 1px solid #d8e4f0;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, .82);
-    }
-
-    .executiveMetric .label {
-      color: #5f6b7a;
-      font-size: 12px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .executiveMetric .value {
-      color: #1f4e79;
-      font-size: clamp(28px, 3.4vw, 46px);
-      font-weight: 900;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .executiveMetric.subMetric .value {
-      color: #274e13;
-      font-size: clamp(22px, 2.2vw, 32px);
-    }
-
+    /* ===== 詳細エリア ===== */
     .detailAreaShell {
       display: block;
-    }
-
-    .detailToggleBar {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
-      padding: 12px 14px;
-      border: 1px solid #d8e4f0;
-      border-radius: 16px;
-      background: #ffffff;
-      box-shadow: 0 6px 18px rgba(22, 34, 51, .05);
-    }
-
-    .detailToggleText {
-      color: #26384d;
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.5;
-    }
-
-    .detailAreaShell.executiveMode .detailToggleBar {
-      display: flex;
-    }
-
-    .detailAreaBody.collapsed {
-      display: none;
-    }
-
-    @media (max-width: 900px) {
-      .executiveScoreHeader,
-      .detailToggleBar { flex-direction: column; align-items: stretch; }
-      .executiveScoreMeta { white-space: normal; }
-      .executiveScoreMetrics { grid-template-columns: 1fr; }
     }
 
 
@@ -1348,30 +1236,6 @@
     </div>
     <div class="panel userBox" id="userBox">ユーザー情報を確認しています。</div>
   </div>
-
-  <section id="executiveScoreCard" class="executiveScoreCard" aria-label="役員向け全社スコアカード">
-    <div class="executiveScoreHeader">
-      <div>
-        <div class="executiveScoreEyebrow">EXECUTIVE SUMMARY</div>
-        <div class="executiveScoreTitle">全社の平均残業時間</div>
-      </div>
-      <div class="executiveScoreMeta" id="executiveScoreMeta">対象月：確認中</div>
-    </div>
-    <div class="executiveScoreMetrics">
-      <div class="executiveMetric">
-        <div class="label">全社平均残業時間</div>
-        <div class="value"><span id="executiveAverageOvertime">24.5</span>時間</div>
-      </div>
-      <div class="executiveMetric subMetric">
-        <div class="label">先月比</div>
-        <div class="value" id="executiveMonthDiff">-1.2時間</div>
-      </div>
-      <div class="executiveMetric subMetric">
-        <div class="label">重点確認人数</div>
-        <div class="value"><span id="executiveFocusCount">0</span>名</div>
-      </div>
-    </div>
-  </section>
 
   <div id="message" class="message">保存済みデータを確認しています。</div>
   <div id="departmentGroupWarning" class="departmentGroupWarning" role="alert"></div>
@@ -1540,10 +1404,6 @@
     </div>
 
     <div id="detailAreaShell" class="detailAreaShell">
-      <div id="detailToggleBar" class="detailToggleBar">
-        <div class="detailToggleText">詳細な絞り込みフォームと一覧表は、役員表示では初期状態で折りたたんでいます。</div>
-        <button type="button" id="detailToggleButton" onclick="toggleExecutiveDetailArea()" aria-expanded="false">詳細エリアを表示</button>
-      </div>
       <div id="detailAreaBody" class="detailAreaBody">
         <div class="insightStrip" aria-label="表示状況とリスク凡例">
       <div class="filterStatus">
@@ -1589,7 +1449,7 @@
     <div class="definition" id="definitionBox">
       <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
       <strong>45h超過回数</strong>：対象年1月以降、法定時間外残業が45時間以上となった月数です。<br>
-      <strong>月末予測残業時間</strong>：MAX(概算残業時間, 確定残業時間) ÷ 出社日数 × 当月営業日数で算出します。
+      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 経過営業日数) × 残営業日数により算出します。
     </div>
 
     <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
@@ -1735,7 +1595,6 @@
     let lastRenderedHasSnapshot = false;
     let testDisplayRole = 'executive';
     let initialDisplayRoleApplied = false;
-    let executiveDetailExpanded = false;
     let previousTestDisplayRole = 'executive';
     const TEST_MANAGER_LOCK_DEPARTMENT = '営業第1課';
     let lockedManagerDepartment = '';
@@ -1777,7 +1636,6 @@
       select.addEventListener('change', () => {
         const nextRole = select.value || 'executive';
         if (nextRole !== previousTestDisplayRole) {
-          executiveDetailExpanded = nextRole !== 'executive';
           previousTestDisplayRole = nextRole;
         }
         testDisplayRole = nextRole;
@@ -1817,10 +1675,6 @@
       const preserveDetailState = Boolean(options && options.preserveDetailState);
       const select = document.getElementById('testRoleSwitch');
       if (select) select.value = nextRole;
-
-      if (!preserveDetailState && nextRole !== previousTestDisplayRole) {
-        executiveDetailExpanded = nextRole !== 'executive';
-      }
 
       testDisplayRole = nextRole;
       previousTestDisplayRole = nextRole;
@@ -1889,62 +1743,14 @@
       return testDisplayRole === 'manager';
     }
 
-    function toggleExecutiveDetailArea() {
-      executiveDetailExpanded = !executiveDetailExpanded;
-      applyRoleLayoutVisibility();
-    }
-
     function applyRoleLayoutVisibility() {
-      const isExecutiveView = isExecutiveDisplayRole();
-      const hasAlertData = Boolean(lastRenderedHasSnapshot || currentRows.length);
-      const scoreCard = document.getElementById('executiveScoreCard');
-      if (scoreCard) {
-        scoreCard.classList.toggle('show', isExecutiveView && hasAlertData);
-      }
-
       const shell = document.getElementById('detailAreaShell');
       const body = document.getElementById('detailAreaBody');
-      const button = document.getElementById('detailToggleButton');
       if (shell) {
-        shell.classList.toggle('executiveMode', isExecutiveView);
+        shell.classList.remove('executiveMode');
       }
       if (body) {
-        body.classList.toggle('collapsed', isExecutiveView && !executiveDetailExpanded);
-      }
-      if (button) {
-        const expanded = !isExecutiveView || executiveDetailExpanded;
-        button.textContent = expanded ? '詳細エリアを閉じる' : '詳細エリアを表示';
-        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      }
-    }
-
-    function updateExecutiveScoreCard(meta, rows) {
-      const targetMonth = meta && meta.targetMonth ? meta.targetMonth : '確認中';
-      const scoreMeta = document.getElementById('executiveScoreMeta');
-      if (scoreMeta) {
-        scoreMeta.textContent = '対象月：' + targetMonth;
-      }
-
-      const sourceRows = Array.isArray(rows) ? rows : [];
-      const overtimeValues = sourceRows
-        .map(row => Number(row.monthEndForecastValue || row.estimatedOt || row.fixedOt || 0))
-        .filter(value => Number.isFinite(value) && value > 0);
-      const average = overtimeValues.length
-        ? overtimeValues.reduce((sum, value) => sum + value, 0) / overtimeValues.length
-        : 24.5;
-      const focusCount = sourceRows.filter(row => row.riskLevel === 'high' || row.riskLevel === 'mediumHigh').length;
-
-      const averageElement = document.getElementById('executiveAverageOvertime');
-      if (averageElement) {
-        averageElement.textContent = average.toFixed(1);
-      }
-      const focusElement = document.getElementById('executiveFocusCount');
-      if (focusElement) {
-        focusElement.textContent = focusCount;
-      }
-      const diffElement = document.getElementById('executiveMonthDiff');
-      if (diffElement) {
-        diffElement.textContent = '-1.2時間';
+        body.classList.remove('collapsed');
       }
     }
 
@@ -2903,6 +2709,8 @@
         employee.legalOt += legalOt;
         employee.confirmedOt += confirmedOt;
         employee.estimatedOt += dailyEstimatedOt;
+        employee.overtimeFor60Actual += statutoryOt + prescribedHolidayWork;
+        employee.overtimeAndHolidayActual += statutoryOt + prescribedHolidayWork + legalHolidayWork;
         employee.actualWorkHours += actualWorkHours;
         employee.scheduledHours += scheduledHours;
         employee.prescribedHolidayWork += prescribedHolidayWork;
@@ -2931,32 +2739,45 @@
         const attendanceDaysTotal = round2(employee.attendanceDaysTotal);
         const elapsedDays = attendanceDaysTotal > 0
           ? attendanceDaysTotal
-          : (Object.keys(employee.elapsedWorkingDates).length || 1);
+          : Object.keys(employee.elapsedWorkingDates).length;
 
         const targetWorkingDays = Number(options.businessDays || 0) > 0
           ? Number(options.businessDays)
           : (Object.keys(employee.targetWorkingDates).length || getWeekdayCountInMonth(target.year, target.month));
 
-        const currentJudgeOt = Math.max(employee.estimatedOt, employee.confirmedOt);
-        employee.alertBaseOt = currentJudgeOt;
-        const rawForecast = currentJudgeOt / elapsedDays * targetWorkingDays;
+        const totalWorkDays = targetWorkingDays;
+        const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays);
+        const overtimeForecast = calculateOvertimeForecast({
+          employeeId: employee.employeeCode,
+          employeeName: employee.employeeName,
+          month: targetMonth,
+          totalWorkDays,
+          elapsedWorkDays: elapsedDays,
+          remainingWorkDays,
+          statutoryOvertimeActual: employee.statutoryOt,
+          overtimeFor60Actual: employee.overtimeFor60Actual,
+          overtimeAndHolidayActual: employee.overtimeAndHolidayActual,
+          plannedHolidayWorkHours: employee.plannedHolidayWorkHours
+        });
 
-        let forecast = rawForecast;
-
-        if (options.usePastAverage) {
-          const pastRecords = employeePastMonthlyJudgeOt[employeeKey] || {};
-          const pastValues = Object.values(pastRecords).filter(v => Number(v) > 0);
-
-          if (pastValues.length > 0 && elapsedDays < targetWorkingDays) {
-            const pastAverage = pastValues.reduce((sum, val) => sum + val, 0) / pastValues.length;
-            const progressRatio = Math.min(1, elapsedDays / targetWorkingDays);
-            forecast = (progressRatio * rawForecast) + ((1 - progressRatio) * pastAverage);
-          }
-        }
-
-        employee.monthEndForecast = forecast;
-        employee.actualAlert = employee.alertBaseOt >= 45 ? '45h到達アラート' : '';
-        employee.forecastAlert = createForecastAlert(employee.monthEndForecast);
+        employee.overtimeForecast = overtimeForecast;
+        employee.forecast45 = overtimeForecast.forecast45;
+        employee.forecast60 = overtimeForecast.forecast60;
+        employee.forecast80 = overtimeForecast.forecast80;
+        employee.status45 = overtimeForecast.status45;
+        employee.status60 = overtimeForecast.status60;
+        employee.status80 = overtimeForecast.status80;
+        employee.remainingTo45 = overtimeForecast.remainingTo45;
+        employee.remainingTo60 = overtimeForecast.remainingTo60;
+        employee.remainingTo80 = overtimeForecast.remainingTo80;
+        employee.dailyLimitTo45 = overtimeForecast.dailyLimitTo45;
+        employee.dailyLimitTo60 = overtimeForecast.dailyLimitTo60;
+        employee.dailyLimitTo80 = overtimeForecast.dailyLimitTo80;
+        employee.overallStatus = overtimeForecast.overallStatus;
+        employee.monthEndForecast = overtimeForecast.overallForecast;
+        employee.alertBaseOt = employee.statutoryOt;
+        employee.actualAlert = employee.alertBaseOt > 45 ? '45h超過アラート' : '';
+        employee.forecastAlert = createForecastAlert(overtimeForecast);
         employee.riskLevel = determineRiskLevel(employee);
         employee.missingItems = detectMissingItems(employee);
 
@@ -3001,7 +2822,7 @@
           estimatedEqualsConfirmedCount += 1;
         }
         if (Number(row.monthEndForecastValue) < 0) errors.push(`${label} 月末予測残業時間がマイナスです。`);
-        if (Number(row.elapsedDays) <= 0) errors.push(`${label} 経過日数が0以下です。`);
+        if (Number(row.elapsedDays) < 0) errors.push(`${label} 経過日数がマイナスです。`);
         if (Number(row.targetWorkingDays) <= 0) errors.push(`${label} 所定日数が0以下です。`);
 
         const hhmmValue = parseHHMMToHours(row.monthEndForecast);
@@ -3101,6 +2922,9 @@
         legalOt: 0,
         statutoryOt: 0,
         estimatedOt: 0,
+        overtimeFor60Actual: 0,
+        overtimeAndHolidayActual: 0,
+        plannedHolidayWorkHours: 0,
         actualWorkHours: 0,
         scheduledHours: 0,
         prescribedHolidayWork: 0,
@@ -3136,6 +2960,22 @@
         monthEndForecast: formatHoursAsHHMM(employee.monthEndForecast),
         monthEndForecastValue: round2(employee.monthEndForecast),
         alertBaseOt: round2(employee.alertBaseOt),
+        forecast45: round1(employee.forecast45),
+        forecast60: round1(employee.forecast60),
+        forecast80: round1(employee.forecast80),
+        status45: employee.status45,
+        status60: employee.status60,
+        status80: employee.status80,
+        remainingTo45: round1(employee.remainingTo45),
+        remainingTo60: round1(employee.remainingTo60),
+        remainingTo80: round1(employee.remainingTo80),
+        dailyLimitTo45: round1(employee.dailyLimitTo45),
+        dailyLimitTo60: round1(employee.dailyLimitTo60),
+        dailyLimitTo80: round1(employee.dailyLimitTo80),
+        overallStatus: employee.overallStatus,
+        overtimeFor60Actual: round2(employee.overtimeFor60Actual),
+        overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
+        plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
@@ -3150,10 +2990,129 @@
       };
     }
 
-    function createForecastAlert(forecast) {
-      if (forecast >= 80) return '80h超過見込みアラート';
-      if (forecast >= 60) return '60h超過見込みアラート';
-      if (forecast >= 45) return '45h超過見込みアラート';
+    function safeNumber(value) {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'string' && value.includes(':')) return parseTimeToDecimal(value);
+      const num = Number(String(value).replace(/,/g, '').trim());
+      return Number.isFinite(num) && num > 0 ? num : 0;
+    }
+
+    function parseTimeToDecimal(value) {
+      if (typeof value !== 'string') return safeNumber(value);
+      const parts = value.split(':');
+      if (parts.length !== 2) {
+        const num = Number(value);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+      }
+      const hours = Number(parts[0]);
+      const minutes = Number(parts[1]);
+      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
+      return Math.max(0, hours + minutes / 60);
+    }
+
+    function ceilTo1(value) {
+      const num = safeNumber(value);
+      return Math.ceil((num - Number.EPSILON) * 10) / 10;
+    }
+
+    function floorTo1(value) {
+      const num = safeNumber(value);
+      return Math.floor((num + Number.EPSILON) * 10) / 10;
+    }
+
+    function calculateOvertimeForecast(input) {
+      input = input || {};
+      const employeeId = input.employeeId || '';
+      const employeeName = input.employeeName || '';
+      const month = input.month || '';
+      const totalWorkDays = safeNumber(input.totalWorkDays);
+      const elapsedWorkDays = safeNumber(input.elapsedWorkDays);
+      const remainingWorkDays = input.remainingWorkDays !== undefined && input.remainingWorkDays !== null
+        ? safeNumber(input.remainingWorkDays)
+        : Math.max(0, totalWorkDays - elapsedWorkDays);
+      const statutoryOvertimeActual = safeNumber(input.statutoryOvertimeActual);
+      const overtimeFor60Actual = safeNumber(input.overtimeFor60Actual);
+      const overtimeAndHolidayActual = safeNumber(input.overtimeAndHolidayActual);
+      const plannedHolidayWorkHours = safeNumber(input.plannedHolidayWorkHours);
+      const totalWorkingHoursActual = safeNumber(input.totalWorkingHoursActual);
+      const calendarDays = safeNumber(input.calendarDays);
+      const useStrict80Formula = input.useStrict80Formula === true;
+
+      function forecastByWorkDays(actual, extraFutureHours) {
+        const safeActual = safeNumber(actual);
+        const extra = safeNumber(extraFutureHours);
+        if (elapsedWorkDays <= 0) return ceilTo1(safeActual + extra);
+        return ceilTo1(safeActual + (safeActual / elapsedWorkDays) * remainingWorkDays + extra);
+      }
+
+      function remainingToLimit(limit, actual, planned) {
+        return floorTo1(Math.max(0, safeNumber(limit) - safeNumber(actual) - safeNumber(planned)));
+      }
+
+      function dailyLimitToLimit(limit, actual, planned) {
+        if (remainingWorkDays <= 0) return 0;
+        return floorTo1(Math.max(0, (safeNumber(limit) - safeNumber(actual) - safeNumber(planned)) / remainingWorkDays));
+      }
+
+      const forecast45 = forecastByWorkDays(statutoryOvertimeActual, 0);
+      const forecast60 = forecastByWorkDays(overtimeFor60Actual, 0);
+      let forecast80;
+
+      if (useStrict80Formula && totalWorkingHoursActual > 0 && calendarDays > 0) {
+        const forecastTotalWorkingHours = elapsedWorkDays <= 0
+          ? totalWorkingHoursActual + plannedHolidayWorkHours
+          : totalWorkingHoursActual + (totalWorkingHoursActual / elapsedWorkDays) * remainingWorkDays + plannedHolidayWorkHours;
+        const statutoryMonthlyHours = (calendarDays / 7) * 40;
+        forecast80 = ceilTo1(Math.max(0, forecastTotalWorkingHours - statutoryMonthlyHours));
+      } else {
+        forecast80 = forecastByWorkDays(overtimeAndHolidayActual, plannedHolidayWorkHours);
+      }
+
+      const status45 = forecast45 > 45 ? '45h超見込み' : '';
+      const status60 = forecast60 > 60 ? '60h超見込み' : '';
+      const status80 = forecast80 > 80 ? '80h超見込み' : '';
+
+      let overallStatus = '問題なし';
+      let overallForecast = Math.max(forecast45, forecast60, forecast80);
+      if (forecast80 > 80) {
+        overallStatus = '80h超見込み';
+        overallForecast = forecast80;
+      } else if (forecast60 > 60) {
+        overallStatus = '60h超見込み';
+        overallForecast = forecast60;
+      } else if (forecast45 > 45) {
+        overallStatus = '45h超見込み';
+        overallForecast = forecast45;
+      }
+
+      return {
+        employeeId,
+        employeeName,
+        month,
+        forecast45,
+        status45,
+        remainingTo45: remainingToLimit(45, statutoryOvertimeActual, 0),
+        dailyLimitTo45: dailyLimitToLimit(45, statutoryOvertimeActual, 0),
+        forecast60,
+        status60,
+        remainingTo60: remainingToLimit(60, overtimeFor60Actual, 0),
+        dailyLimitTo60: dailyLimitToLimit(60, overtimeFor60Actual, 0),
+        forecast80,
+        status80,
+        remainingTo80: remainingToLimit(80, overtimeAndHolidayActual, plannedHolidayWorkHours),
+        dailyLimitTo80: dailyLimitToLimit(80, overtimeAndHolidayActual, plannedHolidayWorkHours),
+        overallStatus,
+        overallForecast
+      };
+    }
+
+    function createForecastAlert(forecastResult) {
+      if (!forecastResult) return '';
+      if (typeof forecastResult === 'object') return forecastResult.overallStatus === '問題なし' ? '' : forecastResult.overallStatus;
+      const forecast = safeNumber(forecastResult);
+      if (forecast > 80) return '80h超見込み';
+      if (forecast > 60) return '60h超見込み';
+      if (forecast > 45) return '45h超見込み';
       return '';
     }
 
@@ -3177,10 +3136,13 @@
     }
 
     function determineRiskLevel(employee) {
-      const alertBaseOt = Number(employee.alertBaseOt || 0);
-      if (employee.monthEndForecast >= 80 || employee.over45Count >= 5) return 'high';
-      if (employee.monthEndForecast >= 60 || employee.over45Count >= 4) return 'mediumHigh';
-      if (employee.monthEndForecast >= 45 || alertBaseOt >= 45) return 'medium';
+      const forecast45 = safeNumber(employee.forecast45);
+      const forecast60 = safeNumber(employee.forecast60);
+      const forecast80 = safeNumber(employee.forecast80);
+      const alertBaseOt = safeNumber(employee.alertBaseOt);
+      if (forecast80 > 80 || employee.over45Count >= 5) return 'high';
+      if (forecast60 > 60 || employee.over45Count >= 4) return 'mediumHigh';
+      if (forecast45 > 45 || alertBaseOt > 45) return 'medium';
       return 'low';
     }
 
@@ -3189,7 +3151,7 @@
       if (employee.actualAlert || employee.forecastAlert) {
         if (!employee.agreement36) missing.push('36協定');
       }
-      if (employee.monthEndForecast >= 60) {
+      if (safeNumber(employee.forecast60) > 60 || safeNumber(employee.forecast80) > 80) {
         if (!employee.specialReason) missing.push('発動事由');
         if (!employee.healthMeasure) missing.push('健康福祉措置');
       }
@@ -3341,7 +3303,6 @@
       applyTabVisibility();
 
       updateSummary(data.summary || {});
-      updateExecutiveScoreCard(meta, currentRows);
       setupDepartmentFilter(data.departments || []);
       applyFilters();
       applyRoleLayoutVisibility();
@@ -4628,7 +4589,7 @@
     }
 
     function showAccessDenied(message) {
-      ['roleSwitchHeader', 'top', 'executiveScoreCard', 'departmentGroupWarning', 'tabBar', 'uploadBox', 'main'].forEach(idOrClass => {
+      ['roleSwitchHeader', 'top', 'departmentGroupWarning', 'tabBar', 'uploadBox', 'main'].forEach(idOrClass => {
         const byId = document.getElementById(idOrClass);
         if (byId) byId.style.display = 'none';
         document.querySelectorAll('.' + idOrClass).forEach(el => { el.style.display = 'none'; });
