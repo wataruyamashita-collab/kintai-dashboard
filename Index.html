@@ -2609,10 +2609,10 @@
       const clockRange = getNormalizedClockRange(row);
       if (!clockRange) return 0;
 
-      const ordinaryOvertime = Math.min(
-        ORDINARY_OVERTIME_DAILY_CAP_HOURS,
-        Math.max(0, clockRange.endHours - ORDINARY_OVERTIME_START_HOUR)
-      );
+      const ordinaryOvertimeEndHour = ORDINARY_OVERTIME_START_HOUR + ORDINARY_OVERTIME_DAILY_CAP_HOURS;
+      const overlapStart = Math.max(clockRange.startHours, ORDINARY_OVERTIME_START_HOUR);
+      const overlapEnd = Math.min(clockRange.endHours, ordinaryOvertimeEndHour);
+      const ordinaryOvertime = Math.max(0, overlapEnd - overlapStart);
       return round2(ordinaryOvertime);
     }
 
