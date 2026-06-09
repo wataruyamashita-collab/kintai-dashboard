@@ -1448,7 +1448,7 @@
 
     <div class="definition" id="definitionBox">
       <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
-      <strong>45h超過回数</strong>：対象年1月以降、法定時間外残業が45時間以上となった月数です。<br>
+      <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。<br>
       <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 経過営業日数) × 残営業日数により算出します。
     </div>
 
@@ -1553,6 +1553,8 @@
     const SOURCE_COLUMN_P_INDEX = 15;
     const SOURCE_COLUMN_S_INDEX = 18;
     const SOURCE_COLUMN_T_INDEX = 19;
+    const ORDINARY_OVERTIME_START_HOUR = 17.5;
+    const ORDINARY_OVERTIME_DAILY_CAP_HOURS = 0.5;
 
     const MAX_CSV_FILE_SIZE_BYTES = 10 * 1024 * 1024;
     const DEPARTMENT_GROUP_ALL = '全社';
@@ -2525,7 +2527,7 @@
           cutoffDate: currentSnapshotPayload.cutoffDate,
           uploadedAt: '未保存',
           sourceRows: cachedRows.length,
-          over45Definition: '45h超過回数は、対象年1月以降、法定時間外残業が45時間以上となった月数です。'
+          over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。'
         },
         rows,
         summary,
@@ -2576,19 +2578,11 @@
     }
 
     function calculatePrescribedExcessByExistingFormula(row, scheduledHours, paidLeave, legalHolidayWork) {
-      const startValue = normalizeText(row[FIELD.RAW_S_START_TIME]);
-      const endValue = normalizeText(row[FIELD.RAW_T_END_TIME]);
+      const clockRange = getNormalizedClockRange(row);
+      if (!clockRange) return null;
 
-      if (!startValue || !endValue) return null;
-
-      const startHours = toClockHours(startValue);
-      const endHoursRaw = toClockHours(endValue);
-
-      if (!Number.isFinite(startHours) || !Number.isFinite(endHoursRaw)) return null;
-
-      let endHours = endHoursRaw;
-      if (endHours < startHours) endHours += 24;
-
+      const startHours = clockRange.startHours;
+      const endHours = clockRange.endHours;
       const breakHours = toHours(row[FIELD.RAW_K_BREAK_HOURS]);
       const paidLeaveDays = toNumber(row[FIELD.RAW_N_PAID_LEAVE_DAYS]);
       const deductHours = toHours(row[FIELD.RAW_P_DEDUCT_HOURS]);
@@ -2605,6 +2599,36 @@
 
       const result = round2(base - deductHours);
       return result < 0 ? 0 : result;
+    }
+
+    function calculateOrdinaryOvertimeFrom1730(row, scheduledHours) {
+      if (toHours(scheduledHours) <= 0) return 0;
+
+      const clockRange = getNormalizedClockRange(row);
+      if (!clockRange) return 0;
+
+      const ordinaryOvertime = Math.min(
+        ORDINARY_OVERTIME_DAILY_CAP_HOURS,
+        Math.max(0, clockRange.endHours - ORDINARY_OVERTIME_START_HOUR)
+      );
+      return round2(ordinaryOvertime);
+    }
+
+    function getNormalizedClockRange(row) {
+      const startValue = normalizeText(row[FIELD.RAW_S_START_TIME]);
+      const endValue = normalizeText(row[FIELD.RAW_T_END_TIME]);
+
+      if (!startValue || !endValue) return null;
+
+      const startHours = toClockHours(startValue);
+      const endHoursRaw = toClockHours(endValue);
+
+      if (!Number.isFinite(startHours) || !Number.isFinite(endHoursRaw)) return null;
+
+      let endHours = endHoursRaw;
+      if (endHours < startHours) endHours += 24;
+
+      return { startHours, endHours };
     }
 
     function toClockHours(value) {
@@ -2631,7 +2655,7 @@
       const target = parseYearMonth(targetMonth);
       const cutoff = parseDateKey(cutoffDate);
       const employees = {};
-      const monthlyStatutoryOtMap = {};
+      const monthlyAgreement45OtMap = {};
       const employeePastMonthlyJudgeOt = {};
 
       rows.forEach(row => {
@@ -2657,7 +2681,8 @@
         const scheduledHours = toHours(row[FIELD.SCHEDULED_HOURS]);
         const legalOt = toHours(row[FIELD.LEGAL_OT]);
         const statutoryOt = toHours(row[FIELD.STATUTORY_OT]);
-        const confirmedOt = legalOt + statutoryOt;
+        const ordinaryOtFrom1730 = calculateOrdinaryOvertimeFrom1730(row, scheduledHours);
+        const confirmedOt = Math.max(legalOt, ordinaryOtFrom1730) + statutoryOt;
         const paidLeave = toNumber(row[FIELD.PAID_LEAVE]);
         const prescribedHolidayWork = toHours(row[FIELD.PRESCRIBED_HOLIDAY_WORK]);
         const legalHolidayWork = toHours(row[FIELD.LEGAL_HOLIDAY_WORK]);
@@ -2694,8 +2719,8 @@
         employee.paidLeaveCumulative += paidLeave;
 
         const ymKey = `${date.year}/${String(date.month).padStart(2, '0')}`;
-        const statutoryMonthKey = `${employeeKey}__${ymKey}`;
-        monthlyStatutoryOtMap[statutoryMonthKey] = (monthlyStatutoryOtMap[statutoryMonthKey] || 0) + statutoryOt;
+        const agreement45MonthKey = `${employeeKey}__${ymKey}`;
+        monthlyAgreement45OtMap[agreement45MonthKey] = (monthlyAgreement45OtMap[agreement45MonthKey] || 0) + statutoryOt;
 
         if (date.month < target.month) {
           if (!employeePastMonthlyJudgeOt[employeeKey]) employeePastMonthlyJudgeOt[employeeKey] = {};
@@ -2722,9 +2747,9 @@
         }
       });
 
-      Object.keys(monthlyStatutoryOtMap).forEach(key => {
-        const monthlyOt = monthlyStatutoryOtMap[key];
-        if (monthlyOt >= 45) {
+      Object.keys(monthlyAgreement45OtMap).forEach(key => {
+        const monthlyOt = monthlyAgreement45OtMap[key];
+        if (monthlyOt > 45) {
           const employeeKey = key.split('__')[0];
           if (employees[employeeKey]) employees[employeeKey].over45Count += 1;
         }
@@ -2775,8 +2800,9 @@
         employee.dailyLimitTo80 = overtimeForecast.dailyLimitTo80;
         employee.overallStatus = overtimeForecast.overallStatus;
         employee.monthEndForecast = overtimeForecast.overallForecast;
-        employee.alertBaseOt = employee.statutoryOt;
-        employee.actualAlert = employee.alertBaseOt > 45 ? '45h超過アラート' : '';
+        const agreement45ActualOt = employee.statutoryOt;
+        employee.alertBaseOt = agreement45ActualOt;
+        employee.actualAlert = agreement45ActualOt > 45 ? '45h超過アラート' : '';
         employee.forecastAlert = createForecastAlert(overtimeForecast);
         employee.riskLevel = determineRiskLevel(employee);
         employee.missingItems = detectMissingItems(employee);
