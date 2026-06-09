@@ -501,6 +501,39 @@
       white-space: normal;
     }
 
+    .forecastSummary {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+
+    .forecastSummaryMain {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .forecastDetailTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .forecastDetailTable th,
+    .forecastDetailTable td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: normal;
+    }
+
+    .forecastDetailTable th:not(:first-child),
+    .forecastDetailTable td:not(:first-child) {
+      text-align: right;
+    }
+
     .agreementSelect {
       width: 100%;
       height: 30px;
@@ -4477,6 +4510,41 @@
       return num.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
     }
 
+    function createForecastDetailDiv(className, text) {
+      const div = document.createElement('div');
+      if (className) div.className = className;
+      div.textContent = text;
+      return div;
+    }
+
+    function appendForecastDetailTable(container, items) {
+      const table = document.createElement('table');
+      table.className = 'forecastDetailTable';
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      ['区分', '実績', '予測'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        [item.label, item.actual, item.forecast].forEach(text => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+    }
+
     function renderForecastDetailBody(row, container) {
       container.innerHTML = '';
       const calc = row.forecastCalculation || {};
@@ -4486,52 +4554,43 @@
       const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
       const futurePaidLeave = safeNumber(calc.futurePaidLeave !== undefined ? calc.futurePaidLeave : row.futurePaidLeave);
+      const overallForecast = calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue;
 
-      const premise = appendForecastDetailSection(container, '予測に使った日数');
-      appendForecastDetailLine(premise, '対象月の営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
-      appendForecastDetailLine(premise, '実績経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社日数 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 ＋ 集計基準日までの年次有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
-      appendForecastDetailLine(premise, '集計基準日後の年次有休予定', `${formatForecastDetailNumber(futurePaidLeave, 1)}日`);
-      appendForecastDetailLine(premise, '未来の稼働見込み日数', `${formatForecastDetailNumber(remainingWorkDays, 1)}日（営業日数 − 実績経過日数 − 未来有休予定）`);
+      const summary = appendForecastDetailSection(container, '概要');
+      const summaryBox = document.createElement('div');
+      summaryBox.className = 'forecastSummary';
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（${formatForecastDetailNumber(overallForecast, 1)}h）`));
+      summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日 ／ 残り ${formatForecastDetailNumber(remainingWorkDays, 1)}日 ／ 未来有休 ${formatForecastDetailNumber(futurePaidLeave, 1)}日`));
+      summaryBox.appendChild(createForecastDetailDiv('', `判定：${calc.overallStatus || row.overallStatus || '問題なし'}`));
+      summary.appendChild(summaryBox);
 
-      const formulaSection = appendForecastDetailSection(container, '計算式');
-      appendForecastDetailLine(formulaSection, '基本式', '現時点実績 + (現時点実績 ÷ 実績経過日数) × 未来の稼働見込み日数');
+      const days = appendForecastDetailSection(container, '日数の内訳');
+      appendForecastDetailLine(days, '営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
+      appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
+      appendForecastDetailLine(days, '残り日数', `${formatForecastDetailNumber(remainingWorkDays, 1)}日（未来有休 ${formatForecastDetailNumber(futurePaidLeave, 1)}日を控除）`);
 
-      const forecastItems = [
+      const formulaSection = appendForecastDetailSection(container, '計算');
+      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
+      appendForecastDetailTable(formulaSection, [
         {
-          label: '45h判定用（法定時間外労働）',
-          actual: calc.statutoryOvertimeActual !== undefined ? calc.statutoryOvertimeActual : row.statutoryOt,
-          forecast: calc.forecast45 !== undefined ? calc.forecast45 : row.forecast45
+          label: '45h',
+          actual: `${formatForecastDetailNumber(calc.statutoryOvertimeActual !== undefined ? calc.statutoryOvertimeActual : row.statutoryOt, 2)}h`,
+          forecast: `${formatForecastDetailNumber(calc.forecast45 !== undefined ? calc.forecast45 : row.forecast45, 1)}h`
         },
         {
-          label: '60h判定用（月60時間超割増対象）',
-          actual: calc.overtimeFor60Actual !== undefined ? calc.overtimeFor60Actual : row.overtimeFor60Actual,
-          forecast: calc.forecast60 !== undefined ? calc.forecast60 : row.forecast60
+          label: '60h',
+          actual: `${formatForecastDetailNumber(calc.overtimeFor60Actual !== undefined ? calc.overtimeFor60Actual : row.overtimeFor60Actual, 2)}h`,
+          forecast: `${formatForecastDetailNumber(calc.forecast60 !== undefined ? calc.forecast60 : row.forecast60, 1)}h`
         },
         {
-          label: '80h判定用（時間外＋休日労働）',
-          actual: calc.overtimeAndHolidayActual !== undefined ? calc.overtimeAndHolidayActual : row.overtimeAndHolidayActual,
-          forecast: calc.forecast80 !== undefined ? calc.forecast80 : row.forecast80,
-          extra: calc.plannedHolidayWorkHours !== undefined ? calc.plannedHolidayWorkHours : row.plannedHolidayWorkHours
+          label: '80h',
+          actual: `${formatForecastDetailNumber(calc.overtimeAndHolidayActual !== undefined ? calc.overtimeAndHolidayActual : row.overtimeAndHolidayActual, 2)}h`,
+          forecast: `${formatForecastDetailNumber(calc.forecast80 !== undefined ? calc.forecast80 : row.forecast80, 1)}h`
         }
-      ];
+      ]);
 
-      forecastItems.forEach(item => {
-        const actual = safeNumber(item.actual);
-        const extra = safeNumber(item.extra);
-        const actualText = formatForecastDetailNumber(actual, 2);
-        const remainingText = formatForecastDetailNumber(remainingWorkDays, 1);
-        const forecastText = formatForecastDetailNumber(item.forecast, 1);
-        const formula = document.createElement('code');
-        formula.className = 'forecastFormula';
-        const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailNumber(extra, 2)}h` : '';
-        formula.textContent = `${item.label}: ${actualText}h + (${actualText}h ÷ ${formatForecastDetailNumber(elapsedDays, 1)}日) × ${remainingText}日${extraText} = ${forecastText}h`;
-        formulaSection.appendChild(formula);
-      });
-
-      const result = appendForecastDetailSection(container, '表示結果');
-      appendForecastDetailLine(result, '月末予測残業時間', `${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（判定表示値：${formatForecastDetailNumber(calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue, 1)}h）`);
-      appendForecastDetailLine(result, '総合ステータス', calc.overallStatus || row.overallStatus || '問題なし');
-      appendForecastDetailLine(result, '補足', '見込み値は小数第1位で切り上げ、45h・60h・80hを別々の対象時間で計算しています。');
+      const note = appendForecastDetailSection(container, '補足');
+      appendForecastDetailLine(note, '端数処理', '予測値は小数第1位で切り上げます。');
     }
 
     function openTextModal(row, field) {
