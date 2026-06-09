@@ -1451,7 +1451,7 @@
     <div class="definition" id="definitionBox">
       <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
       <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。<br>
-      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 経過営業日数) × 残営業日数により算出します。
+      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 経過日数（出社日数＋対象月の年次有休取得日数）) × 残営業日数により算出します。
     </div>
 
     <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
@@ -2719,6 +2719,9 @@
         }
 
         employee.paidLeaveCumulative += paidLeave;
+        if (date.year === target.year && date.month === target.month) {
+          employee.targetMonthPaidLeave += paidLeave;
+        }
 
         const ymKey = `${date.year}/${String(date.month).padStart(2, '0')}`;
         const agreement45MonthKey = `${employeeKey}__${ymKey}`;
@@ -2764,8 +2767,10 @@
         if (!employee.hasTargetMonthData) return;
 
         const attendanceDaysTotal = round2(employee.attendanceDaysTotal);
-        const elapsedDays = attendanceDaysTotal > 0
-          ? attendanceDaysTotal
+        const targetMonthPaidLeave = round2(employee.targetMonthPaidLeave);
+        const elapsedDaysWithPaidLeave = round2(attendanceDaysTotal + targetMonthPaidLeave);
+        const elapsedDays = elapsedDaysWithPaidLeave > 0
+          ? elapsedDaysWithPaidLeave
           : Object.keys(employee.elapsedWorkingDates).length;
 
         const targetWorkingDays = Number(options.businessDays || 0) > 0
@@ -2958,6 +2963,7 @@
         prescribedHolidayWork: 0,
         legalHolidayWork: 0,
         paidLeaveCumulative: 0,
+        targetMonthPaidLeave: 0,
         attendanceDaysTotal: 0,
         over45Count: 0,
         elapsedWorkingDates: {},
@@ -3006,6 +3012,7 @@
         plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
+        targetMonthPaidLeave: round1(employee.targetMonthPaidLeave),
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
         agreement36: employee.agreement36,
         specialReason: employee.specialReason,
