@@ -4563,16 +4563,27 @@
       if (safeActual <= 0 && safeForecast <= 0 && safeExtra <= 0) return null;
 
       const actualText = formatForecastDetailNumber(safeActual, 2);
-      const elapsedText = formatForecastDetailNumber(elapsedDays, 1);
-      const remainingText = formatForecastDetailNumber(remainingWorkDays, 1);
+      const elapsed = safeNumber(elapsedDays);
+      const remaining = safeNumber(remainingWorkDays);
+      const elapsedText = formatForecastDetailNumber(elapsed, 1);
+      const remainingText = formatForecastDetailNumber(remaining, 1);
+      const futureWorkText = elapsed > 0
+        ? formatForecastDetailNumber((safeActual / elapsed) * remaining, 2)
+        : '0';
       const extraText = safeExtra > 0 ? ` + 予定休日労働 ${formatForecastDetailNumber(safeExtra, 2)}h` : '';
-      const calculation = safeNumber(elapsedDays) > 0
-        ? `${actualText}h + (${actualText}h ÷ ${elapsedText}日) × ${remainingText}日${extraText}`
-        : `${actualText}h${extraText}`;
+      const forecastText = formatForecastDetailNumber(safeForecast, 1);
+      let calculation;
+      if (remaining <= 0) {
+        calculation = `${actualText}h${extraText} = ${forecastText}h（残り日数0日のため、追加見込みは0h）`;
+      } else if (elapsed > 0) {
+        calculation = `${actualText}h + 追加${futureWorkText}h = ${forecastText}h（追加 = ${actualText}h ÷ ${elapsedText}日 × ${remainingText}日${extraText}）`;
+      } else {
+        calculation = `${actualText}h${extraText} = ${forecastText}h`;
+      }
       return {
         label,
         calculation,
-        forecast: `${formatForecastDetailNumber(safeForecast, 1)}h`
+        forecast: `${forecastText}h`
       };
     }
 
@@ -4635,6 +4646,7 @@
 
       const note = appendForecastDetailSection(container, '補足');
       appendForecastDetailLine(note, '端数処理', '予測値は小数第1位で切り上げます。');
+      appendForecastDetailLine(note, '残り0日の場合', '掛け算の部分だけが0hです。月末予測は現時点の実績時間をそのまま含みます。');
     }
 
     function openTextModal(row, field) {
