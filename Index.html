@@ -433,6 +433,74 @@
       font-weight: 600;
     }
 
+    .forecastCell {
+      text-align: center;
+    }
+
+    .forecastDetailButton {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 34px;
+      padding: 4px 6px;
+      border: 1px solid #b6d7a8;
+      border-radius: 8px;
+      background: #f3f8ef;
+      color: #274e13;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .forecastDetailButton:hover,
+    .forecastDetailButton:focus {
+      background: #e2f0d9;
+      outline: 2px solid rgba(39, 78, 19, .18);
+      outline-offset: 1px;
+    }
+
+    .forecastDetailHint {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .forecastDetailContent {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .forecastDetailSection {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .forecastDetailSection:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .forecastDetailSection h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .forecastFormula {
+      display: block;
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f8f9fa;
+      border: 1px solid var(--line);
+      font-family: Consolas, 'Courier New', monospace;
+      white-space: normal;
+    }
+
     .agreementSelect {
       width: 100%;
       height: 30px;
@@ -1451,7 +1519,7 @@
     <div class="definition" id="definitionBox">
       <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
       <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。<br>
-      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 経過日数（出社日数＋対象月の年次有休取得日数）) × 残営業日数により算出します。
+      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。
     </div>
 
     <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
@@ -1515,6 +1583,19 @@
         <button type="button" id="modalExportButton" onclick="exportTextModalContent()">出力</button>
         <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
         <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="forecastDetailModal" onclick="closeForecastDetailModalByOverlay(event)">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="forecastDetailTitle">
+      <div class="modalHeader" id="forecastDetailTitle">月末予測の計算根拠</div>
+      <div class="modalBody">
+        <div class="modalMeta" id="forecastDetailMeta"></div>
+        <div class="forecastDetailContent" id="forecastDetailBody"></div>
+      </div>
+      <div class="modalFooter">
+        <button type="button" id="forecastDetailCloseButton" onclick="closeForecastDetailModal()">閉じる</button>
       </div>
     </div>
   </div>
@@ -2711,7 +2792,12 @@
           employee.targetWorkingDates[date.key] = true;
         }
 
-        if (!isSameOrBefore(date, cutoff)) return;
+        if (!isSameOrBefore(date, cutoff)) {
+          if (date.year === target.year && date.month === target.month && paidLeave > 0) {
+            employee.futurePaidLeave += paidLeave;
+          }
+          return;
+        }
 
         if (date.year === target.year && date.month === target.month) {
           employee.department = resolved.department;
@@ -2778,7 +2864,9 @@
           : (Object.keys(employee.targetWorkingDates).length || getWeekdayCountInMonth(target.year, target.month));
 
         const totalWorkDays = targetWorkingDays;
-        const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays);
+        const futurePaidLeave = round2(employee.futurePaidLeave);
+        const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays - futurePaidLeave);
+        employee.forecastRemainingWorkDays = remainingWorkDays;
         const overtimeForecast = calculateOvertimeForecast({
           employeeId: employee.employeeCode,
           employeeName: employee.employeeName,
@@ -2964,6 +3052,8 @@
         legalHolidayWork: 0,
         paidLeaveCumulative: 0,
         targetMonthPaidLeave: 0,
+        futurePaidLeave: 0,
+        forecastRemainingWorkDays: 0,
         attendanceDaysTotal: 0,
         over45Count: 0,
         elapsedWorkingDates: {},
@@ -3013,6 +3103,25 @@
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
         targetMonthPaidLeave: round1(employee.targetMonthPaidLeave),
+        futurePaidLeave: round1(employee.futurePaidLeave),
+        forecastRemainingWorkDays: round2(employee.forecastRemainingWorkDays),
+        forecastCalculation: {
+          totalWorkDays: round2(targetWorkingDays),
+          elapsedDays: round2(elapsedDays),
+          attendanceDaysTotal: round2(employee.attendanceDaysTotal),
+          targetMonthPaidLeave: round2(employee.targetMonthPaidLeave),
+          futurePaidLeave: round2(employee.futurePaidLeave),
+          remainingWorkDays: round2(employee.forecastRemainingWorkDays),
+          statutoryOvertimeActual: round2(employee.statutoryOt),
+          overtimeFor60Actual: round2(employee.overtimeFor60Actual),
+          overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
+          plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
+          forecast45: round1(employee.forecast45),
+          forecast60: round1(employee.forecast60),
+          forecast80: round1(employee.forecast80),
+          overallForecast: round1(employee.monthEndForecast),
+          overallStatus: employee.overallStatus
+        },
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
         agreement36: employee.agreement36,
         specialReason: employee.specialReason,
@@ -4241,6 +4350,28 @@
         cells.forEach((cell, index) => {
           const td = document.createElement('td');
 
+          if (index === 8) {
+            td.className = 'forecastCell';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'forecastDetailButton';
+            button.title = 'クリックして月末予測の計算根拠を表示';
+            button.onclick = () => openForecastDetailModal(row);
+
+            const valueSpan = document.createElement('span');
+            valueSpan.textContent = cell == null ? '' : cell;
+            button.appendChild(valueSpan);
+
+            const hintSpan = document.createElement('span');
+            hintSpan.className = 'forecastDetailHint';
+            hintSpan.textContent = '根拠を表示';
+            button.appendChild(hintSpan);
+
+            td.appendChild(button);
+            tr.appendChild(td);
+            return;
+          }
+
           if (index === 6 || index === 7) {
             const span = document.createElement('span');
             const displayCell = normalizeAlertDisplayLabel(cell);
@@ -4299,6 +4430,108 @@
         });
         tbody.appendChild(tr);
       });
+    }
+
+    function openForecastDetailModal(row) {
+      if (!row) return;
+
+      const meta = document.getElementById('forecastDetailMeta');
+      const body = document.getElementById('forecastDetailBody');
+      if (!meta || !body) return;
+
+      meta.textContent = `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
+      renderForecastDetailBody(row, body);
+      document.getElementById('forecastDetailModal').style.display = 'flex';
+    }
+
+    function closeForecastDetailModal() {
+      document.getElementById('forecastDetailModal').style.display = 'none';
+    }
+
+    function closeForecastDetailModalByOverlay(event) {
+      if (event.target && event.target.id === 'forecastDetailModal') closeForecastDetailModal();
+    }
+
+    function appendForecastDetailLine(container, label, value) {
+      const div = document.createElement('div');
+      const strong = document.createElement('strong');
+      strong.textContent = label + '：';
+      div.appendChild(strong);
+      div.appendChild(document.createTextNode(value));
+      container.appendChild(div);
+    }
+
+    function appendForecastDetailSection(container, title) {
+      const section = document.createElement('div');
+      section.className = 'forecastDetailSection';
+      const heading = document.createElement('h4');
+      heading.textContent = title;
+      section.appendChild(heading);
+      container.appendChild(section);
+      return section;
+    }
+
+    function formatForecastDetailNumber(value, digits) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return '0';
+      return num.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    function renderForecastDetailBody(row, container) {
+      container.innerHTML = '';
+      const calc = row.forecastCalculation || {};
+      const elapsedDays = safeNumber(calc.elapsedDays !== undefined ? calc.elapsedDays : row.elapsedDays);
+      const remainingWorkDays = safeNumber(calc.remainingWorkDays !== undefined ? calc.remainingWorkDays : row.forecastRemainingWorkDays);
+      const totalWorkDays = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
+      const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
+      const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
+      const futurePaidLeave = safeNumber(calc.futurePaidLeave !== undefined ? calc.futurePaidLeave : row.futurePaidLeave);
+
+      const premise = appendForecastDetailSection(container, '予測に使った日数');
+      appendForecastDetailLine(premise, '対象月の営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
+      appendForecastDetailLine(premise, '実績経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社日数 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 ＋ 集計基準日までの年次有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
+      appendForecastDetailLine(premise, '集計基準日後の年次有休予定', `${formatForecastDetailNumber(futurePaidLeave, 1)}日`);
+      appendForecastDetailLine(premise, '未来の稼働見込み日数', `${formatForecastDetailNumber(remainingWorkDays, 1)}日（営業日数 − 実績経過日数 − 未来有休予定）`);
+
+      const formulaSection = appendForecastDetailSection(container, '計算式');
+      appendForecastDetailLine(formulaSection, '基本式', '現時点実績 + (現時点実績 ÷ 実績経過日数) × 未来の稼働見込み日数');
+
+      const forecastItems = [
+        {
+          label: '45h判定用（法定時間外労働）',
+          actual: calc.statutoryOvertimeActual !== undefined ? calc.statutoryOvertimeActual : row.statutoryOt,
+          forecast: calc.forecast45 !== undefined ? calc.forecast45 : row.forecast45
+        },
+        {
+          label: '60h判定用（月60時間超割増対象）',
+          actual: calc.overtimeFor60Actual !== undefined ? calc.overtimeFor60Actual : row.overtimeFor60Actual,
+          forecast: calc.forecast60 !== undefined ? calc.forecast60 : row.forecast60
+        },
+        {
+          label: '80h判定用（時間外＋休日労働）',
+          actual: calc.overtimeAndHolidayActual !== undefined ? calc.overtimeAndHolidayActual : row.overtimeAndHolidayActual,
+          forecast: calc.forecast80 !== undefined ? calc.forecast80 : row.forecast80,
+          extra: calc.plannedHolidayWorkHours !== undefined ? calc.plannedHolidayWorkHours : row.plannedHolidayWorkHours
+        }
+      ];
+
+      forecastItems.forEach(item => {
+        const actual = safeNumber(item.actual);
+        const extra = safeNumber(item.extra);
+        const actualText = formatForecastDetailNumber(actual, 2);
+        const remainingText = formatForecastDetailNumber(remainingWorkDays, 1);
+        const forecastText = formatForecastDetailNumber(item.forecast, 1);
+        const formula = document.createElement('code');
+        formula.className = 'forecastFormula';
+        const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailNumber(extra, 2)}h` : '';
+        formula.textContent = `${item.label}: ${actualText}h + (${actualText}h ÷ ${formatForecastDetailNumber(elapsedDays, 1)}日) × ${remainingText}日${extraText} = ${forecastText}h`;
+        formulaSection.appendChild(formula);
+      });
+
+      const result = appendForecastDetailSection(container, '表示結果');
+      appendForecastDetailLine(result, '月末予測残業時間', `${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（判定表示値：${formatForecastDetailNumber(calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue, 1)}h）`);
+      appendForecastDetailLine(result, '総合ステータス', calc.overallStatus || row.overallStatus || '問題なし');
+      appendForecastDetailLine(result, '補足', '見込み値は小数第1位で切り上げ、45h・60h・80hを別々の対象時間で計算しています。');
     }
 
     function openTextModal(row, field) {
