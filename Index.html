@@ -3151,8 +3151,14 @@
       return '';
     }
 
+    function normalizeAlertDisplayLabel(alertText) {
+      return String(alertText || '')
+        .replace('超過見込みアラート', '超見込み')
+        .replace('超過アラート', '超過');
+    }
+
     function getAlertBadgeLevel(alertText, fallbackLevel) {
-      const text = String(alertText || '');
+      const text = normalizeAlertDisplayLabel(alertText);
       if (text.includes('80h')) return 'high';
       if (text.includes('60h')) return 'mediumHigh';
       if (text.includes('45h')) return 'medium';
@@ -4237,9 +4243,10 @@
 
           if (index === 6 || index === 7) {
             const span = document.createElement('span');
-            if (cell) {
-              span.className = 'riskBadge ' + getAlertBadgeLevel(cell, row.riskLevel);
-              span.textContent = cell;
+            const displayCell = normalizeAlertDisplayLabel(cell);
+            if (displayCell) {
+              span.className = 'riskBadge ' + getAlertBadgeLevel(displayCell, row.riskLevel);
+              span.textContent = displayCell;
             } else {
               span.className = 'safeBadge';
               span.textContent = '該当なし';
