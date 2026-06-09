@@ -4683,7 +4683,7 @@
     }
 
     function parseYearMonth(value) {
-      const text = normalizeText(value).replace('-', '/');
+      const text = normalizeText(value).replace(/-/g, '/');
       const parts = text.split('/').map(Number);
       return { year: parts[0], month: parts[1] };
     }

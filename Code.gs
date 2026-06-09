@@ -743,7 +743,7 @@ function getFileByName_(folder, fileName) {
 }
 
 function normalizeTargetMonth_(value) {
-  const text = normalizeText_(value).replace('-', '/');
+  const text = normalizeText_(value).replace(/-/g, '/');
   const match = text.match(/^(\d{4})\/0?(\d{1,2})$/);
   if (!match) return '';
   return `${match[1]}/${String(Number(match[2])).padStart(2, '0')}`;
