@@ -2419,7 +2419,7 @@
 
       if (!targetMonth) return showMessage('対象月を選択してください。', true);
 
-      const normalizedTargetMonth = targetMonth.replace('-', '/');
+      const normalizedTargetMonth = targetMonth.replace(/-/g, '/');
       const rowsForAnalysis = getRowsForTargetMonth(normalizedTargetMonth);
       const normalizedCutoffDate = determineAutoCutoffDate(rowsForAnalysis, normalizedTargetMonth);
 
@@ -3427,7 +3427,7 @@
 
       const targetMonthInput = document.getElementById('targetMonth');
       if (targetMonthInput && targetMonthInput.value) {
-        return targetMonthInput.value.replace('-', '/');
+        return targetMonthInput.value.replace(/-/g, '/');
       }
 
       return '';
