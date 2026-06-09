@@ -2809,7 +2809,7 @@
         employee.monthEndForecast = overtimeForecast.overallForecast;
         const agreement45ActualOt = employee.statutoryOt;
         employee.alertBaseOt = agreement45ActualOt;
-        employee.actualAlert = agreement45ActualOt > 45 ? '45h超過アラート' : '';
+        employee.actualAlert = agreement45ActualOt > 45 ? '45h超過' : '';
         employee.forecastAlert = createForecastAlert(overtimeForecast);
         employee.riskLevel = determineRiskLevel(employee);
         employee.missingItems = detectMissingItems(employee);
