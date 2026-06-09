@@ -889,8 +889,8 @@
     }
 
     .riskBadge.high { color: #ffffff; background: #b00020; font-weight: 800; box-shadow: 0 2px 8px rgba(176, 0, 32, 0.38); }
-    .riskBadge.mediumHigh { color: #8a3f00; background: #ffe8cc; }
-    .riskBadge.medium { color: #745100; background: transparent; }
+    .riskBadge.mediumHigh { color: #8a3f00; background: #ffe8cc; border: 1px solid rgba(212, 107, 8, .16); }
+    .riskBadge.medium { color: #745100; background: #fff2cc; border: 1px solid rgba(183, 121, 31, .18); }
     .riskBadge.low { color: #2f855a; background: #e6f4ea; }
     .safeBadge { color: #2f855a; background: #e6f4ea; }
 
@@ -3151,6 +3151,14 @@
       return '';
     }
 
+    function getAlertBadgeLevel(alertText, fallbackLevel) {
+      const text = String(alertText || '');
+      if (text.includes('80h')) return 'high';
+      if (text.includes('60h')) return 'mediumHigh';
+      if (text.includes('45h')) return 'medium';
+      return fallbackLevel || 'medium';
+    }
+
     function getWeekdayCountInMonth(year, month) {
       const numericYear = Number(year);
       const numericMonth = Number(month);
@@ -4230,7 +4238,7 @@
           if (index === 6 || index === 7) {
             const span = document.createElement('span');
             if (cell) {
-              span.className = 'riskBadge ' + (row.riskLevel || 'medium');
+              span.className = 'riskBadge ' + getAlertBadgeLevel(cell, row.riskLevel);
               span.textContent = cell;
             } else {
               span.className = 'safeBadge';
