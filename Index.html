@@ -418,8 +418,8 @@
 
     table.fixedLayout {
       table-layout: fixed;
-      width: 1795px;
-      min-width: 1795px;
+      width: 1825px;
+      min-width: 1825px;
     }
 
     table.fixedLayout th,
@@ -436,6 +436,60 @@
       color: #1f4e79;
       text-decoration: underline;
       font-weight: 600;
+    }
+
+    .monthForecastCell {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .monthForecastGraph {
+      display: grid;
+      gap: 5px;
+      width: 100%;
+      min-width: 112px;
+    }
+
+    .monthForecastValue {
+      color: #0f172a;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .monthForecastTrack {
+      height: 7px;
+      overflow: hidden;
+      border: 1px solid #d7e0ea;
+      border-radius: 999px;
+      background: #eef3f8;
+    }
+
+    .monthForecastFill {
+      height: 100%;
+      border-radius: 999px;
+      background: #4f789f;
+    }
+
+    .monthForecastFill.medium {
+      background: #c5972f;
+    }
+
+    .monthForecastFill.mediumHigh {
+      background: #d97917;
+    }
+
+    .monthForecastFill.high {
+      background: #b91c1c;
+    }
+
+    .monthForecastScale {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
     }
 
     .forecastCell {
@@ -1600,7 +1654,7 @@
           <col style="width:105px">
           <col style="width:130px">
           <col style="width:200px">
-          <col style="width:115px">
+          <col style="width:145px">
           <col style="width:85px">
           <col style="width:95px">
           <col style="width:105px">
@@ -1619,7 +1673,7 @@
             <th><span class="compactHeader">確定<br>残業時間</span></th>
             <th><span class="compactHeader">超過<br>アラート内容</span></th>
             <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
-            <th><span class="compactHeader">月末予測<br>残業時間</span></th>
+            <th><span class="compactHeader">月末予測<br>残業時間/グラフ</span></th>
             <th><span class="compactHeader">予測<br>根拠</span></th>
             <th><span class="compactHeader">45h超過<br>回数</span></th>
             <th><span class="compactHeader">累計有休<br>取得日数</span></th>
@@ -4411,6 +4465,52 @@
       return Number.isFinite(rowNo) && rowNo > 0 ? rowNo : index + 1;
     }
 
+    function getMonthForecastGraphLevel(value) {
+      const hours = safeNumber(value);
+      if (hours >= 80) return 'high';
+      if (hours >= 60) return 'mediumHigh';
+      if (hours >= 45) return 'medium';
+      return '';
+    }
+
+    function renderMonthForecastGraphCell(td, row) {
+      const forecastHours = safeNumber(row.monthEndForecastValue || row.monthEndForecast);
+      const displayValue = row.monthEndForecast || formatHoursAsHHMM(forecastHours);
+      const graphMaxHours = 80;
+      const ratio = graphMaxHours > 0 ? forecastHours / graphMaxHours : 0;
+      const fillWidth = Math.min(100, Math.max(0, ratio * 100));
+
+      td.className = 'monthForecastCell';
+      td.title = `月末予測 ${displayValue}（80h基準のグラフ）`;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'monthForecastGraph';
+
+      const value = document.createElement('div');
+      value.className = 'monthForecastValue';
+      value.textContent = displayValue;
+
+      const track = document.createElement('div');
+      track.className = 'monthForecastTrack';
+      track.setAttribute('aria-label', `月末予測 ${displayValue} / 80:00`);
+
+      const fill = document.createElement('div');
+      fill.className = 'monthForecastFill';
+      const level = getMonthForecastGraphLevel(forecastHours);
+      if (level) fill.classList.add(level);
+      fill.style.width = `${fillWidth}%`;
+      track.appendChild(fill);
+
+      const scale = document.createElement('div');
+      scale.className = 'monthForecastScale';
+      scale.textContent = '80h基準';
+
+      wrapper.appendChild(value);
+      wrapper.appendChild(track);
+      wrapper.appendChild(scale);
+      td.appendChild(wrapper);
+    }
+
     function renderRows(rows) {
       const tbody = document.getElementById('tbody');
       tbody.innerHTML = '';
@@ -4453,6 +4553,12 @@
 
         cells.forEach((cell, index) => {
           const td = document.createElement('td');
+
+          if (index === 8) {
+            renderMonthForecastGraphCell(td, row);
+            tr.appendChild(td);
+            return;
+          }
 
           if (index === 9) {
             td.className = 'forecastCell';
