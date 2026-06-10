@@ -321,11 +321,14 @@
 
     .modalBox {
       width: min(720px, 96vw);
+      max-height: calc(100vh - 48px);
       background: #fff;
       border-radius: 14px;
       border: 1px solid var(--line);
       box-shadow: 0 16px 40px rgba(0,0,0,.22);
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .modalHeader {
@@ -337,6 +340,7 @@
 
     .modalBody {
       padding: 18px;
+      overflow-y: auto;
     }
 
     .modalMeta {
@@ -405,6 +409,7 @@
       justify-content: flex-end;
       gap: 10px;
       background: #fafafa;
+      flex-shrink: 0;
     }
 
     .modalFooter button {
@@ -431,6 +436,76 @@
       color: #1f4e79;
       text-decoration: underline;
       font-weight: 600;
+    }
+
+    .forecastCell {
+      text-align: center;
+    }
+
+    .forecastDetailButton {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 34px;
+      padding: 4px 6px;
+      border: 1px solid #b6d7a8;
+      border-radius: 8px;
+      background: #f3f8ef;
+      color: #274e13;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .forecastDetailButton:hover,
+    .forecastDetailButton:focus {
+      background: #e2f0d9;
+      outline: 2px solid rgba(39, 78, 19, .18);
+      outline-offset: 1px;
+    }
+
+    .forecastDetailHint {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .forecastDetailContent {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .forecastDetailSection {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .forecastDetailSection:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .forecastDetailSection h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .forecastSummary {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+
+    .forecastSummaryMain {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 700;
     }
 
     .agreementSelect {
@@ -1515,6 +1590,19 @@
         <button type="button" id="modalExportButton" onclick="exportTextModalContent()">出力</button>
         <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
         <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="forecastDetailModal" onclick="closeForecastDetailModalByOverlay(event)">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="forecastDetailTitle">
+      <div class="modalHeader" id="forecastDetailTitle">月末予測の計算根拠</div>
+      <div class="modalBody">
+        <div class="modalMeta" id="forecastDetailMeta"></div>
+        <div class="forecastDetailContent" id="forecastDetailBody"></div>
+      </div>
+      <div class="modalFooter">
+        <button type="button" id="forecastDetailCloseButton" onclick="closeForecastDetailModal()">閉じる</button>
       </div>
     </div>
   </div>
@@ -2779,6 +2867,7 @@
 
         const totalWorkDays = targetWorkingDays;
         const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays);
+        employee.forecastRemainingWorkDays = remainingWorkDays;
         const overtimeForecast = calculateOvertimeForecast({
           employeeId: employee.employeeCode,
           employeeName: employee.employeeName,
@@ -2964,6 +3053,7 @@
         legalHolidayWork: 0,
         paidLeaveCumulative: 0,
         targetMonthPaidLeave: 0,
+        forecastRemainingWorkDays: 0,
         attendanceDaysTotal: 0,
         over45Count: 0,
         elapsedWorkingDates: {},
@@ -3013,6 +3103,22 @@
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
         targetMonthPaidLeave: round1(employee.targetMonthPaidLeave),
+        forecastRemainingWorkDays: round2(employee.forecastRemainingWorkDays),
+        forecastCalculation: {
+          totalWorkDays: round2(targetWorkingDays),
+          elapsedDays: round2(elapsedDays),
+          attendanceDaysTotal: round2(employee.attendanceDaysTotal),
+          targetMonthPaidLeave: round2(employee.targetMonthPaidLeave),
+          remainingWorkDays: round2(employee.forecastRemainingWorkDays),
+          statutoryOvertimeActual: round2(employee.statutoryOt),
+          overtimeFor60Actual: round2(employee.overtimeFor60Actual),
+          overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
+          plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
+          forecast45: round1(employee.forecast45),
+          forecast60: round1(employee.forecast60),
+          forecast80: round1(employee.forecast80),
+          overallForecast: round1(employee.monthEndForecast)
+        },
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
         agreement36: employee.agreement36,
         specialReason: employee.specialReason,
@@ -4241,6 +4347,28 @@
         cells.forEach((cell, index) => {
           const td = document.createElement('td');
 
+          if (index === 8) {
+            td.className = 'forecastCell';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'forecastDetailButton';
+            button.title = 'クリックして月末予測の計算根拠を表示';
+            button.onclick = () => openForecastDetailModal(row);
+
+            const valueSpan = document.createElement('span');
+            valueSpan.textContent = cell == null ? '' : cell;
+            button.appendChild(valueSpan);
+
+            const hintSpan = document.createElement('span');
+            hintSpan.className = 'forecastDetailHint';
+            hintSpan.textContent = '根拠を表示';
+            button.appendChild(hintSpan);
+
+            td.appendChild(button);
+            tr.appendChild(td);
+            return;
+          }
+
           if (index === 6 || index === 7) {
             const span = document.createElement('span');
             const displayCell = normalizeAlertDisplayLabel(cell);
@@ -4299,6 +4427,152 @@
         });
         tbody.appendChild(tr);
       });
+    }
+
+    function openForecastDetailModal(row) {
+      if (!row) return;
+
+      const meta = document.getElementById('forecastDetailMeta');
+      const body = document.getElementById('forecastDetailBody');
+      if (!meta || !body) return;
+
+      meta.textContent = `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
+      renderForecastDetailBody(row, body);
+      document.getElementById('forecastDetailModal').style.display = 'flex';
+    }
+
+    function closeForecastDetailModal() {
+      document.getElementById('forecastDetailModal').style.display = 'none';
+    }
+
+    function closeForecastDetailModalByOverlay(event) {
+      if (event.target && event.target.id === 'forecastDetailModal') closeForecastDetailModal();
+    }
+
+    function appendForecastDetailLine(container, label, value) {
+      const div = document.createElement('div');
+      const strong = document.createElement('strong');
+      strong.textContent = label + '：';
+      div.appendChild(strong);
+      div.appendChild(document.createTextNode(value));
+      container.appendChild(div);
+    }
+
+    function appendForecastDetailSection(container, title) {
+      const section = document.createElement('div');
+      section.className = 'forecastDetailSection';
+      const heading = document.createElement('h4');
+      heading.textContent = title;
+      section.appendChild(heading);
+      container.appendChild(section);
+      return section;
+    }
+
+    function formatForecastDetailNumber(value, digits) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return '0';
+      return num.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    function formatForecastDetailHours(value) {
+      return formatHoursAsHHMM(safeNumber(value));
+    }
+
+    function createForecastDetailDiv(className, text) {
+      const div = document.createElement('div');
+      if (className) div.className = className;
+      div.textContent = text;
+      return div;
+    }
+
+    function resolveMonthEndForecastBasis(calc, row) {
+      const candidates = [
+        {
+          actual: calc.statutoryOvertimeActual !== undefined ? calc.statutoryOvertimeActual : row.statutoryOt,
+          forecast: calc.forecast45 !== undefined ? calc.forecast45 : row.forecast45,
+          extra: 0
+        },
+        {
+          actual: calc.overtimeFor60Actual !== undefined ? calc.overtimeFor60Actual : row.overtimeFor60Actual,
+          forecast: calc.forecast60 !== undefined ? calc.forecast60 : row.forecast60,
+          extra: 0
+        },
+        {
+          actual: calc.overtimeAndHolidayActual !== undefined ? calc.overtimeAndHolidayActual : row.overtimeAndHolidayActual,
+          forecast: calc.forecast80 !== undefined ? calc.forecast80 : row.forecast80,
+          extra: calc.plannedHolidayWorkHours !== undefined ? calc.plannedHolidayWorkHours : row.plannedHolidayWorkHours
+        }
+      ]
+        .map(item => ({
+          actual: safeNumber(item.actual),
+          forecast: safeNumber(item.forecast),
+          extra: safeNumber(item.extra)
+        }))
+        .filter(item => item.actual > 0 || item.forecast > 0 || item.extra > 0);
+
+      if (candidates.length === 0) {
+        return {
+          actual: 0,
+          forecast: safeNumber(calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue),
+          extra: 0
+        };
+      }
+
+      return candidates.reduce((best, item) => item.forecast > best.forecast ? item : best, candidates[0]);
+    }
+
+    function appendMonthEndForecastFormula(container, basis, elapsedDays, remainingWorkDays, fallbackForecast) {
+      const actual = safeNumber(basis.actual);
+      const forecast = safeNumber(basis.forecast);
+      const extra = safeNumber(basis.extra);
+      const elapsed = safeNumber(elapsedDays);
+      const remaining = safeNumber(remainingWorkDays);
+      const computedForecast = elapsed > 0
+        ? ceilTo1(actual + (actual / elapsed) * remaining + extra)
+        : ceilTo1(actual + extra);
+      const displayForecast = forecast > 0 ? forecast : (safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : computedForecast);
+      const displayActual = remaining <= 0 && forecast <= 0 && safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : actual;
+      const actualText = formatForecastDetailHours(displayActual);
+      const forecastText = formatForecastDetailHours(displayForecast);
+      const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailHours(extra)}` : '';
+
+      let formula;
+      if (remaining <= 0 || elapsed <= 0) {
+        formula = `実績 ${actualText}${extraText} + 追加見込み 0:00 → 月末予測 ${forecastText}`;
+      } else {
+        const additional = (actual / elapsed) * remaining;
+        const additionalText = formatForecastDetailHours(additional);
+        const rateBaseText = formatForecastDetailHours(actual);
+        formula = `実績 ${actualText} + 追加見込み ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}`;
+      }
+
+      appendForecastDetailLine(container, '根拠式', formula);
+    }
+
+    function renderForecastDetailBody(row, container) {
+      container.innerHTML = '';
+      const calc = row.forecastCalculation || {};
+      const elapsedDays = safeNumber(calc.elapsedDays !== undefined ? calc.elapsedDays : row.elapsedDays);
+      const remainingWorkDays = safeNumber(calc.remainingWorkDays !== undefined ? calc.remainingWorkDays : row.forecastRemainingWorkDays);
+      const totalWorkDays = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
+      const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
+      const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
+      const overallForecast = safeNumber(row.monthEndForecastValue) || safeNumber(calc.overallForecast);
+      const basis = resolveMonthEndForecastBasis(calc, row);
+
+      const summary = appendForecastDetailSection(container, '概要');
+      const summaryBox = document.createElement('div');
+      summaryBox.className = 'forecastSummary';
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatForecastDetailHours(overallForecast)}`));
+      summary.appendChild(summaryBox);
+
+      const days = appendForecastDetailSection(container, '日数の内訳');
+      appendForecastDetailLine(days, '営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
+      appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
+
+      const formulaSection = appendForecastDetailSection(container, '計算');
+      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
+      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
     }
 
     function openTextModal(row, field) {
