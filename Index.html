@@ -1537,7 +1537,7 @@
     <div class="definition" id="definitionBox">
       <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
       <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。<br>
-      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 経過日数（出社日数＋対象月の年次有休取得日数）) × 残営業日数により算出します。
+      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。
     </div>
 
     <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
@@ -2810,7 +2810,12 @@
           employee.targetWorkingDates[date.key] = true;
         }
 
-        if (!isSameOrBefore(date, cutoff)) return;
+        if (!isSameOrBefore(date, cutoff)) {
+          if (date.year === target.year && date.month === target.month && paidLeave > 0) {
+            employee.futurePaidLeave += paidLeave;
+          }
+          return;
+        }
 
         if (date.year === target.year && date.month === target.month) {
           employee.department = resolved.department;
