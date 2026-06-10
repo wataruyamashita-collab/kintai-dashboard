@@ -418,8 +418,8 @@
 
     table.fixedLayout {
       table-layout: fixed;
-      width: 1710px;
-      min-width: 1710px;
+      width: 1795px;
+      min-width: 1795px;
     }
 
     table.fixedLayout th,
@@ -444,7 +444,6 @@
 
     .forecastDetailButton {
       display: inline-flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       width: 100%;
@@ -464,12 +463,6 @@
       background: #e2f0d9;
       outline: 2px solid rgba(39, 78, 19, .18);
       outline-offset: 1px;
-    }
-
-    .forecastDetailHint {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 600;
     }
 
     .forecastDetailContent {
@@ -1543,6 +1536,7 @@
           <col style="width:130px">
           <col style="width:200px">
           <col style="width:115px">
+          <col style="width:85px">
           <col style="width:95px">
           <col style="width:105px">
           <col style="width:125px">
@@ -1561,6 +1555,7 @@
             <th><span class="compactHeader">超過<br>アラート内容</span></th>
             <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
             <th><span class="compactHeader">月末予測<br>残業時間</span></th>
+            <th><span class="compactHeader">予測<br>根拠</span></th>
             <th><span class="compactHeader">45h超過<br>回数</span></th>
             <th><span class="compactHeader">累計有休<br>取得日数</span></th>
             <th><span class="compactHeader">36協定適用<br>事前申請</span></th>
@@ -4317,7 +4312,7 @@
       if (!rows.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 15;
+        td.colSpan = 16;
         td.className = 'emptyState';
         td.textContent = '表示対象データはありません。';
         tr.appendChild(td);
@@ -4341,6 +4336,7 @@
           row.actualAlert,
           row.forecastAlert,
           row.monthEndForecast,
+          'forecastDetail',
           row.over45Count,
           row.paidLeaveTotal,
           row.agreement36,
@@ -4352,22 +4348,14 @@
         cells.forEach((cell, index) => {
           const td = document.createElement('td');
 
-          if (index === 8) {
+          if (index === 9) {
             td.className = 'forecastCell';
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'forecastDetailButton';
             button.title = 'クリックして月末予測の計算根拠を表示';
+            button.textContent = '表示';
             button.onclick = () => openForecastDetailModal(row);
-
-            const valueSpan = document.createElement('span');
-            valueSpan.textContent = cell == null ? '' : cell;
-            button.appendChild(valueSpan);
-
-            const hintSpan = document.createElement('span');
-            hintSpan.className = 'forecastDetailHint';
-            hintSpan.textContent = '根拠を表示';
-            button.appendChild(hintSpan);
 
             td.appendChild(button);
             tr.appendChild(td);
@@ -4389,7 +4377,7 @@
             return;
           }
 
-          if (index === 11) {
+          if (index === 12) {
             const select = document.createElement('select');
             select.className = 'agreementSelect';
             select.disabled = !editable;
@@ -4413,10 +4401,10 @@
             }
             td.appendChild(select);
           }
-          else if (index === 12 || index === 13 || index === 14) {
-            const fieldMap = { 12: 'specialReason', 13: 'healthMeasure', 14: 'note' };
+          else if (index === 13 || index === 14 || index === 15) {
+            const fieldMap = { 13: 'specialReason', 14: 'healthMeasure', 15: 'note' };
             const field = fieldMap[index];
-            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 14 ? ' noteCell' : '');
+            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 15 ? ' noteCell' : '');
             td.textContent = cell ? '入力済み' : (editable ? 'クリック' : '未入力');
 
             if (editable) {
