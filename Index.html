@@ -4614,6 +4614,36 @@
       }, `M ${points[0].x} ${points[0].y}`);
     }
 
+    function getSmoothSegmentPoint(start, end, t) {
+      const clampedT = clampNumber(t, 0, 1);
+      const midX = (start.x + end.x) / 2;
+      const c1 = { x: midX, y: start.y };
+      const c2 = { x: midX, y: end.y };
+      const mt = 1 - clampedT;
+      return {
+        x: mt ** 3 * start.x + 3 * mt ** 2 * clampedT * c1.x + 3 * mt * clampedT ** 2 * c2.x + clampedT ** 3 * end.x,
+        y: mt ** 3 * start.y + 3 * mt ** 2 * clampedT * c1.y + 3 * mt * clampedT ** 2 * c2.y + clampedT ** 3 * end.y
+      };
+    }
+
+    function getForecastCurvePointAtThreshold(points, thresholdY) {
+      const start = points.forecastPoints[0];
+      const end = points.forecastPoints[points.forecastPoints.length - 1];
+      const minY = Math.min(start.y, end.y);
+      const maxY = Math.max(start.y, end.y);
+      if (thresholdY < minY || thresholdY > maxY) return null;
+
+      let low = 0;
+      let high = 1;
+      for (let i = 0; i < 24; i++) {
+        const mid = (low + high) / 2;
+        const point = getSmoothSegmentPoint(start, end, mid);
+        if (start.y > end.y ? point.y > thresholdY : point.y < thresholdY) low = mid;
+        else high = mid;
+      }
+      return getSmoothSegmentPoint(start, end, (low + high) / 2);
+    }
+
     function getForecastCurvePoints(context, width, height, padding) {
       const innerWidth = width - padding.left - padding.right;
       const innerHeight = height - padding.top - padding.bottom;
@@ -4964,8 +4994,11 @@
 
       limitStatuses.forEach(limit => {
         if (!limit.crossingDay) return;
-        const x = points.xForDay(limit.crossingDay);
-        const y = points.yForHours(limit.value);
+        const thresholdY = points.yForHours(limit.value);
+        const crossingPoint = getForecastCurvePointAtThreshold(points, thresholdY);
+        if (!crossingPoint) return;
+        const x = crossingPoint.x;
+        const y = thresholdY;
         svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom }));
 
         const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 14, 'text-anchor': 'middle' });
@@ -4981,10 +5014,16 @@
 
       panel.appendChild(svg);
       appendForecastCurveLegend(panel);
-      const warningText = buildForecastLimitWarning(limitStatuses);
-      const noteSuffix = warningText ? ` ${warningText}` : '';
-      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から月末予測 ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。${noteSuffix}`);
+      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から月末予測 ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。`);
       panel.appendChild(note);
+
+      const warningText = buildForecastLimitWarning(limitStatuses);
+      if (warningText) {
+        const warningNote = createForecastDetailDiv('forecastGraphNote', warningText);
+        warningNote.style.color = '#a61c00';
+        warningNote.style.fontWeight = '700';
+        panel.appendChild(warningNote);
+      }
       container.appendChild(panel);
     }
 
