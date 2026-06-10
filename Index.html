@@ -495,17 +495,6 @@
       font-size: 14px;
     }
 
-    .forecastFormula {
-      display: block;
-      margin-top: 6px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: #f8f9fa;
-      border: 1px solid var(--line);
-      font-family: Consolas, 'Courier New', monospace;
-      white-space: normal;
-    }
-
     .forecastSummary {
       padding: 12px;
       border: 1px solid var(--line);
@@ -3133,8 +3122,7 @@
           forecast45: round1(employee.forecast45),
           forecast60: round1(employee.forecast60),
           forecast80: round1(employee.forecast80),
-          overallForecast: round1(employee.monthEndForecast),
-          overallStatus: employee.overallStatus
+          overallForecast: round1(employee.monthEndForecast)
         },
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
         agreement36: employee.agreement36,
@@ -4491,6 +4479,10 @@
       return num.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
     }
 
+    function formatForecastDetailHours(value) {
+      return formatHoursAsHHMM(safeNumber(value));
+    }
+
     function createForecastDetailDiv(className, text) {
       const div = document.createElement('div');
       if (className) div.className = className;
@@ -4534,22 +4526,29 @@
       return candidates.reduce((best, item) => item.forecast > best.forecast ? item : best, candidates[0]);
     }
 
-    function appendMonthEndForecastFormula(container, basis, elapsedDays, remainingWorkDays) {
+    function appendMonthEndForecastFormula(container, basis, elapsedDays, remainingWorkDays, fallbackForecast) {
       const actual = safeNumber(basis.actual);
       const forecast = safeNumber(basis.forecast);
       const extra = safeNumber(basis.extra);
       const elapsed = safeNumber(elapsedDays);
       const remaining = safeNumber(remainingWorkDays);
-      const actualText = formatForecastDetailNumber(actual, 2);
-      const forecastText = formatForecastDetailNumber(forecast, 1);
-      const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailNumber(extra, 2)}h` : '';
+      const computedForecast = elapsed > 0
+        ? ceilTo1(actual + (actual / elapsed) * remaining + extra)
+        : ceilTo1(actual + extra);
+      const displayForecast = forecast > 0 ? forecast : (safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : computedForecast);
+      const displayActual = remaining <= 0 && forecast <= 0 && safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : actual;
+      const actualText = formatForecastDetailHours(displayActual);
+      const forecastText = formatForecastDetailHours(displayForecast);
+      const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailHours(extra)}` : '';
 
       let formula;
       if (remaining <= 0 || elapsed <= 0) {
-        formula = `実績 ${actualText}h${extraText} + 追加見込み 0h → 月末予測 ${forecastText}h`;
+        formula = `実績 ${actualText}${extraText} + 追加見込み 0:00 → 月末予測 ${forecastText}`;
       } else {
-        const additionalText = formatForecastDetailNumber((actual / elapsed) * remaining, 2);
-        formula = `実績 ${actualText}h + 追加見込み ${additionalText}h（${actualText}h ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}h`;
+        const additional = (actual / elapsed) * remaining;
+        const additionalText = formatForecastDetailHours(additional);
+        const rateBaseText = formatForecastDetailHours(actual);
+        formula = `実績 ${actualText} + 追加見込み ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}`;
       }
 
       appendForecastDetailLine(container, '根拠式', formula);
@@ -4563,14 +4562,13 @@
       const totalWorkDays = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
       const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
-      const overallForecast = calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue;
+      const overallForecast = safeNumber(row.monthEndForecastValue) || safeNumber(calc.overallForecast);
       const basis = resolveMonthEndForecastBasis(calc, row);
 
       const summary = appendForecastDetailSection(container, '概要');
       const summaryBox = document.createElement('div');
       summaryBox.className = 'forecastSummary';
-      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（${formatForecastDetailNumber(overallForecast, 1)}h）`));
-      summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatForecastDetailHours(overallForecast)}`));
       summary.appendChild(summaryBox);
 
       const days = appendForecastDetailSection(container, '日数の内訳');
@@ -4579,7 +4577,7 @@
 
       const formulaSection = appendForecastDetailSection(container, '計算');
       appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
-      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays);
+      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
     }
 
     function openTextModal(row, field) {
