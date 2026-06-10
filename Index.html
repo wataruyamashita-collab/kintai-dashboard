@@ -418,8 +418,8 @@
 
     table.fixedLayout {
       table-layout: fixed;
-      width: 1825px;
-      min-width: 1825px;
+      width: 1775px;
+      min-width: 1775px;
     }
 
     table.fixedLayout th,
@@ -445,27 +445,32 @@
       vertical-align: middle;
     }
 
-    .monthForecastButton {
+    .monthForecastCellContent {
       display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .monthForecastVisual {
+      display: flex;
+      flex: 1 1 auto;
+      min-width: 0;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 2px;
-      width: 100%;
-      min-width: 112px;
-      padding: 2px 6px;
-      border: 1px solid transparent;
-      border-radius: 8px;
+      gap: 3px;
+      padding: 2px 0;
+      border: 0;
       background: transparent;
       color: inherit;
       cursor: pointer;
       font: inherit;
     }
 
-    .monthForecastButton:hover,
-    .monthForecastButton:focus {
-      background: rgba(255, 255, 255, .62);
-      border-color: #c8d2df;
+    .monthForecastVisual:hover,
+    .monthForecastVisual:focus {
       outline: 2px solid rgba(38, 56, 77, .12);
       outline-offset: 1px;
     }
@@ -507,17 +512,30 @@
       stroke-width: 2;
     }
 
-    .monthForecastScale {
-      color: var(--muted);
-      font-size: 10px;
-      line-height: 1.1;
-      text-align: center;
-      white-space: nowrap;
+    .monthForecastDetailButton {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      min-height: 28px;
+      padding: 3px 8px;
+      border: 1px solid #c8d2df;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #26384d;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1.2;
     }
 
-    .monthForecastScale.medium { color: #8a5d12; }
-    .monthForecastScale.mediumHigh { color: #9a4f06; }
-    .monthForecastScale.high { color: #8f1111; }
+    .monthForecastDetailButton:hover,
+    .monthForecastDetailButton:focus {
+      background: #f5f8fb;
+      border-color: #8fa3ba;
+      outline: 2px solid rgba(38, 56, 77, .14);
+      outline-offset: 1px;
+    }
 
     .forecastCell {
       text-align: center;
@@ -1086,8 +1104,8 @@
     .fixedLayout td:nth-child(5),
     .fixedLayout td:nth-child(6),
     .fixedLayout td:nth-child(9),
-    .fixedLayout td:nth-child(11),
-    .fixedLayout td:nth-child(12) {
+    .fixedLayout td:nth-child(10),
+    .fixedLayout td:nth-child(11) {
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
@@ -1104,12 +1122,12 @@
     .fixedLayout td:nth-child(7),
     .fixedLayout th:nth-child(8),
     .fixedLayout td:nth-child(8),
+    .fixedLayout th:nth-child(12),
+    .fixedLayout td:nth-child(12),
     .fixedLayout th:nth-child(13),
     .fixedLayout td:nth-child(13),
     .fixedLayout th:nth-child(14),
-    .fixedLayout td:nth-child(14),
-    .fixedLayout th:nth-child(15),
-    .fixedLayout td:nth-child(15) {
+    .fixedLayout td:nth-child(14) {
       text-align: center;
     }
 
@@ -1754,8 +1772,7 @@
           <col style="width:105px">
           <col style="width:130px">
           <col style="width:200px">
-          <col style="width:145px">
-          <col style="width:85px">
+          <col style="width:180px">
           <col style="width:95px">
           <col style="width:105px">
           <col style="width:125px">
@@ -1774,7 +1791,6 @@
             <th><span class="compactHeader">超過<br>アラート内容</span></th>
             <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
             <th><span class="compactHeader">月末予測<br>残業時間/グラフ</span></th>
-            <th><span class="compactHeader">予測<br>根拠</span></th>
             <th><span class="compactHeader">45h超過<br>回数</span></th>
             <th><span class="compactHeader">累計有休<br>取得日数</span></th>
             <th><span class="compactHeader">36協定適用<br>事前申請</span></th>
@@ -4665,6 +4681,7 @@
 
     function renderMonthForecastSparkline(row) {
       const context = getForecastCurveContext(row);
+      context.maxHours = 100;
       const width = 120;
       const height = 20;
       const padding = { top: 4, right: 5, bottom: 4, left: 5 };
@@ -4685,28 +4702,34 @@
     function renderMonthForecastGraphCell(td, row) {
       const forecastHours = safeNumber(row.monthEndForecastValue || row.monthEndForecast);
       const displayValue = row.monthEndForecast || formatHoursAsHHMM(forecastHours);
-      const level = getMonthForecastGraphLevel(forecastHours);
 
       td.className = 'monthForecastCell';
 
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'monthForecastButton';
-      button.title = `月末予測 ${displayValue} のグラフと計算根拠を表示`;
-      button.onclick = () => openForecastDetailModal(row);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'monthForecastCellContent';
+
+      const visual = document.createElement('button');
+      visual.type = 'button';
+      visual.className = 'monthForecastVisual';
+      visual.title = `月末予測 ${displayValue} のグラフと計算根拠を表示`;
+      visual.onclick = () => openForecastDetailModal(row);
 
       const value = document.createElement('div');
       value.className = 'monthForecastValue';
       value.textContent = displayValue;
 
-      const scale = document.createElement('div');
-      scale.className = 'monthForecastScale' + (level ? ` ${level}` : '');
-      scale.textContent = level === 'high' ? '80h超過見込み' : (level === 'mediumHigh' ? '60h超過見込み' : (level === 'medium' ? '45h超過見込み' : '80h基準'));
+      const detailButton = document.createElement('button');
+      detailButton.type = 'button';
+      detailButton.className = 'monthForecastDetailButton';
+      detailButton.title = 'クリックして月末予測の計算根拠を表示';
+      detailButton.textContent = '表示';
+      detailButton.onclick = () => openForecastDetailModal(row);
 
-      button.appendChild(value);
-      button.appendChild(renderMonthForecastSparkline(row));
-      button.appendChild(scale);
-      td.appendChild(button);
+      visual.appendChild(value);
+      visual.appendChild(renderMonthForecastSparkline(row));
+      wrapper.appendChild(visual);
+      wrapper.appendChild(detailButton);
+      td.appendChild(wrapper);
     }
 
     function renderRows(rows) {
@@ -4754,20 +4777,6 @@
 
           if (index === 8) {
             renderMonthForecastGraphCell(td, row);
-            tr.appendChild(td);
-            return;
-          }
-
-          if (index === 9) {
-            td.className = 'forecastCell';
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'forecastDetailButton';
-            button.title = 'クリックして月末予測の計算根拠を表示';
-            button.textContent = '表示';
-            button.onclick = () => openForecastDetailModal(row);
-
-            td.appendChild(button);
             tr.appendChild(td);
             return;
           }
