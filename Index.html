@@ -1701,15 +1701,6 @@
   </div>
 
   <div id="main" class="tabPanel" style="display:none;">
-    <div class="summary">
-      <div class="summaryCard"><div class="label">表示人数</div><div class="value" id="sumTotal">0</div></div>
-      <div class="summaryCard"><div class="label">高リスク</div><div class="value" id="sumHigh">0</div></div>
-      <div class="summaryCard"><div class="label">中高リスク</div><div class="value" id="sumMediumHigh">0</div></div>
-      <div class="summaryCard"><div class="label">中リスク</div><div class="value" id="sumMedium">0</div></div>
-      <div class="summaryCard"><div class="label">リスクなし</div><div class="value" id="sumLow">0</div></div>
-      <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
-    </div>
-
     <div id="detailAreaShell" class="detailAreaShell">
       <div id="detailAreaBody" class="detailAreaBody">
         <div class="insightStrip" aria-label="表示状況とリスク凡例">
@@ -1751,6 +1742,15 @@
         </select>
       </label>
       <button type="button" class="clearButton" onclick="clearFilters()">絞り込み解除</button>
+    </div>
+
+    <div class="summary">
+      <div class="summaryCard"><div class="label">表示人数</div><div class="value" id="sumTotal">0</div></div>
+      <div class="summaryCard"><div class="label">高リスク</div><div class="value" id="sumHigh">0</div></div>
+      <div class="summaryCard"><div class="label">中高リスク</div><div class="value" id="sumMediumHigh">0</div></div>
+      <div class="summaryCard"><div class="label">中リスク</div><div class="value" id="sumMedium">0</div></div>
+      <div class="summaryCard"><div class="label">リスクなし</div><div class="value" id="sumLow">0</div></div>
+      <div class="summaryCard"><div class="label">未入力あり</div><div class="value" id="sumMissing">0</div></div>
     </div>
 
     <div class="definition" id="definitionBox">
@@ -4536,6 +4536,7 @@
         return true;
       });
       updateFilterStatus(rows.length);
+      updateSummary(createSummaryClient(rows));
       renderRows(rows);
     }
 
