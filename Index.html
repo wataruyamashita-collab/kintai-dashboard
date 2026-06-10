@@ -4401,14 +4401,14 @@
         .disableAuthUser(email);
     }
 
-    function updateSummary(summary) {
+    function updateSummary(summary, options) {
       document.getElementById('sumTotal').textContent = summary.total || 0;
       document.getElementById('sumHigh').textContent = summary.high || 0;
       document.getElementById('sumMediumHigh').textContent = summary.mediumHigh || 0;
       document.getElementById('sumMedium').textContent = summary.medium || 0;
       document.getElementById('sumLow').textContent = summary.low || 0;
       document.getElementById('sumMissing').textContent = summary.missing || 0;
-      updateRiskFilterAvailability(summary);
+      if (!options || options.updateRiskAvailability !== false) updateRiskFilterAvailability(summary);
     }
 
     function updateRiskFilterAvailability(summary) {
@@ -4524,19 +4524,23 @@
 
       const keyword = document.getElementById('keyword').value.trim().toLowerCase();
       const department = getEffectiveDepartmentFilter();
-      const risk = document.getElementById('riskFilter').value;
       const missing = document.getElementById('missingFilter').value;
+      const riskFilter = document.getElementById('riskFilter');
 
-      const rows = currentRows.filter(row => {
+      const baseRows = currentRows.filter(row => {
         const text = [row.departmentGroup, row.department, row.employeeCode, row.employeeName].join(' ').toLowerCase();
         if (keyword && !text.includes(keyword)) return false;
         if (department && row.department !== department) return false;
-        if (risk && row.riskLevel !== risk) return false;
         if (missing === 'missing' && (!row.missingItems || row.missingItems.length === 0)) return false;
         return true;
       });
+
+      updateRiskFilterAvailability(createSummaryClient(baseRows));
+      const risk = riskFilter ? riskFilter.value : '';
+      const rows = risk ? baseRows.filter(row => row.riskLevel === risk) : baseRows;
+
       updateFilterStatus(rows.length);
-      updateSummary(createSummaryClient(rows));
+      updateSummary(createSummaryClient(rows), { updateRiskAvailability: false });
       renderRows(rows);
     }
 
