@@ -1062,6 +1062,12 @@
       box-shadow: 0 0 0 3px rgba(31, 78, 121, .10);
     }
 
+    .legendChip:disabled {
+      cursor: not-allowed;
+      opacity: .42;
+      box-shadow: none;
+    }
+
     .toolbar label {
       display: inline-flex;
       flex-direction: column;
@@ -4174,6 +4180,41 @@
       document.getElementById('sumMedium').textContent = summary.medium || 0;
       document.getElementById('sumLow').textContent = summary.low || 0;
       document.getElementById('sumMissing').textContent = summary.missing || 0;
+      updateRiskFilterAvailability(summary);
+    }
+
+    function updateRiskFilterAvailability(summary) {
+      const counts = {
+        high: Number(summary && summary.high || 0),
+        mediumHigh: Number(summary && summary.mediumHigh || 0),
+        medium: Number(summary && summary.medium || 0),
+        low: Number(summary && summary.low || 0)
+      };
+      const labels = {
+        high: '高リスク',
+        mediumHigh: '中高リスク',
+        medium: '中リスク',
+        low: 'リスクなし'
+      };
+
+      document.querySelectorAll('.legendChip').forEach(chip => {
+        const risk = chip.getAttribute('data-risk');
+        const disabled = risk && counts[risk] <= 0;
+        chip.disabled = Boolean(disabled);
+        chip.title = disabled ? `${labels[risk] || 'このリスク'}の対象者はいません。` : '';
+      });
+
+      const riskFilter = document.getElementById('riskFilter');
+      if (!riskFilter) return;
+
+      Array.from(riskFilter.options).forEach(option => {
+        if (!option.value) return;
+        option.disabled = counts[option.value] <= 0;
+      });
+
+      if (riskFilter.value && counts[riskFilter.value] <= 0) {
+        riskFilter.value = '';
+      }
     }
 
     function setupDepartmentFilter(departments) {
@@ -4271,8 +4312,14 @@
     }
 
     function setRiskFilter(risk) {
+      const chip = document.querySelector(`.legendChip[data-risk="${risk}"]`);
+      if (chip && chip.disabled) return;
+
       const riskFilter = document.getElementById('riskFilter');
       if (!riskFilter) return;
+      const option = Array.from(riskFilter.options).find(item => item.value === risk);
+      if (option && option.disabled) return;
+
       riskFilter.value = riskFilter.value === risk ? '' : risk;
       applyFilters();
     }
