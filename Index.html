@@ -4571,14 +4571,17 @@
         ? formatForecastDetailNumber((safeActual / elapsed) * remaining, 2)
         : '0';
       const extraText = safeExtra > 0 ? ` + 予定休日労働 ${formatForecastDetailNumber(safeExtra, 2)}h` : '';
-      const forecastText = formatForecastDetailNumber(safeForecast, 1);
+      const computedForecast = elapsed > 0
+        ? ceilTo1(safeActual + (safeActual / elapsed) * remaining + safeExtra)
+        : ceilTo1(safeActual + safeExtra);
+      const forecastText = formatForecastDetailNumber(computedForecast || safeForecast, 1);
       let calculation;
       if (remaining <= 0) {
-        calculation = `${actualText}h${extraText} = ${forecastText}h（残り日数0日のため、追加見込みは0h）`;
+        calculation = `実績 ${actualText}h、追加見込み 0h → 予測 ${forecastText}h（残り日数0日）`;
       } else if (elapsed > 0) {
-        calculation = `${actualText}h + 追加${futureWorkText}h = ${forecastText}h（追加 = ${actualText}h ÷ ${elapsedText}日 × ${remainingText}日${extraText}）`;
+        calculation = `実績 ${actualText}h + 追加 ${futureWorkText}h（${actualText}h ÷ ${elapsedText}日 × ${remainingText}日${extraText}）→ 予測 ${forecastText}h`;
       } else {
-        calculation = `${actualText}h${extraText} = ${forecastText}h`;
+        calculation = `実績 ${actualText}h${extraText} → 予測 ${forecastText}h`;
       }
       return {
         label,
@@ -4602,15 +4605,12 @@
       const summaryBox = document.createElement('div');
       summaryBox.className = 'forecastSummary';
       summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（${formatForecastDetailNumber(overallForecast, 1)}h）`));
-      summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日 ／ 残り ${formatForecastDetailNumber(remainingWorkDays, 1)}日 ／ 未来有休 ${formatForecastDetailNumber(futurePaidLeave, 1)}日`));
-      summaryBox.appendChild(createForecastDetailDiv('', `採用：45h・60h・80h予測の最大値`));
-      summaryBox.appendChild(createForecastDetailDiv('', `判定：${calc.overallStatus || row.overallStatus || '問題なし'}`));
+      summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日 ／ 未来有休 ${formatForecastDetailNumber(futurePaidLeave, 1)}日`));
       summary.appendChild(summaryBox);
 
       const days = appendForecastDetailSection(container, '日数の内訳');
       appendForecastDetailLine(days, '営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
       appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
-      appendForecastDetailLine(days, '残り日数', `${formatForecastDetailNumber(remainingWorkDays, 1)}日（未来有休 ${formatForecastDetailNumber(futurePaidLeave, 1)}日を控除）`);
 
       const formulaSection = appendForecastDetailSection(container, '計算');
       appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
@@ -4644,9 +4644,6 @@
 
       appendForecastDetailTable(formulaSection, rows);
 
-      const note = appendForecastDetailSection(container, '補足');
-      appendForecastDetailLine(note, '端数処理', '予測値は小数第1位で切り上げます。');
-      appendForecastDetailLine(note, '残り0日の場合', '掛け算の部分だけが0hです。月末予測は現時点の実績時間をそのまま含みます。');
     }
 
     function openTextModal(row, field) {
