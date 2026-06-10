@@ -477,7 +477,7 @@
 
     .monthForecastValue {
       color: #0f172a;
-      font-weight: 800;
+      font-weight: 700;
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
       text-align: center;
@@ -4754,34 +4754,34 @@
         tr.className = row.riskLevel || '';
 
         const cells = [
-          resolveDisplayRowNo(row, index),
-          row.department,
-          row.employeeCode,
-          row.employeeName,
-          formatOvertimeDisplay(row.estimatedOtDisplay, row.estimatedOt),
-          formatOvertimeDisplay(row.fixedOtDisplay, row.fixedOt),
-          row.actualAlert,
-          row.forecastAlert,
-          row.monthEndForecast,
-          'forecastDetail',
-          row.over45Count,
-          row.paidLeaveTotal,
-          row.agreement36,
-          row.specialReason,
-          row.healthMeasure,
-          row.note || ''
+          { value: resolveDisplayRowNo(row, index), type: 'text' },
+          { value: row.department, type: 'text' },
+          { value: row.employeeCode, type: 'text' },
+          { value: row.employeeName, type: 'text' },
+          { value: formatOvertimeDisplay(row.estimatedOtDisplay, row.estimatedOt), type: 'text' },
+          { value: formatOvertimeDisplay(row.fixedOtDisplay, row.fixedOt), type: 'text' },
+          { value: row.actualAlert, type: 'alert' },
+          { value: row.forecastAlert, type: 'alert' },
+          { value: row.monthEndForecast, type: 'monthForecast' },
+          { value: row.over45Count, type: 'text' },
+          { value: row.paidLeaveTotal, type: 'text' },
+          { value: row.agreement36, type: 'agreement' },
+          { value: row.specialReason, type: 'manual', field: 'specialReason' },
+          { value: row.healthMeasure, type: 'manual', field: 'healthMeasure' },
+          { value: row.note || '', type: 'manual', field: 'note' }
         ];
 
-        cells.forEach((cell, index) => {
+        cells.forEach((cellDef, index) => {
           const td = document.createElement('td');
+          const cell = cellDef.value;
 
-          if (index === 8) {
+          if (cellDef.type === 'monthForecast') {
             renderMonthForecastGraphCell(td, row);
             tr.appendChild(td);
             return;
           }
 
-          if (index === 6 || index === 7) {
+          if (cellDef.type === 'alert') {
             const span = document.createElement('span');
             const displayCell = normalizeAlertDisplayLabel(cell);
             if (displayCell) {
@@ -4796,7 +4796,7 @@
             return;
           }
 
-          if (index === 12) {
+          if (cellDef.type === 'agreement') {
             const select = document.createElement('select');
             select.className = 'agreementSelect';
             select.disabled = !editable;
@@ -4820,10 +4820,9 @@
             }
             td.appendChild(select);
           }
-          else if (index === 13 || index === 14 || index === 15) {
-            const fieldMap = { 13: 'specialReason', 14: 'healthMeasure', 15: 'note' };
-            const field = fieldMap[index];
-            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 15 ? ' noteCell' : '');
+          else if (cellDef.type === 'manual') {
+            const field = cellDef.field;
+            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (field === 'note' ? ' noteCell' : '');
             td.textContent = cell ? '入力済み' : (editable ? 'クリック' : '未入力');
 
             if (editable) {
