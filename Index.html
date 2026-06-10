@@ -418,8 +418,8 @@
 
     table.fixedLayout {
       table-layout: fixed;
-      width: 1710px;
-      min-width: 1710px;
+      width: 1795px;
+      min-width: 1795px;
     }
 
     table.fixedLayout th,
@@ -444,16 +444,15 @@
 
     .forecastDetailButton {
       display: inline-flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       width: 100%;
       min-height: 34px;
       padding: 4px 6px;
-      border: 1px solid #b6d7a8;
+      border: 1px solid #c8d2df;
       border-radius: 8px;
-      background: #f3f8ef;
-      color: #274e13;
+      background: #ffffff;
+      color: #26384d;
       cursor: pointer;
       font-weight: 700;
       line-height: 1.25;
@@ -461,15 +460,10 @@
 
     .forecastDetailButton:hover,
     .forecastDetailButton:focus {
-      background: #e2f0d9;
-      outline: 2px solid rgba(39, 78, 19, .18);
+      background: #f5f8fb;
+      border-color: #8fa3ba;
+      outline: 2px solid rgba(38, 56, 77, .14);
       outline-offset: 1px;
-    }
-
-    .forecastDetailHint {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 600;
     }
 
     .forecastDetailContent {
@@ -493,17 +487,6 @@
     .forecastDetailSection h4 {
       margin: 0 0 8px;
       font-size: 14px;
-    }
-
-    .forecastFormula {
-      display: block;
-      margin-top: 6px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: #f8f9fa;
-      border: 1px solid var(--line);
-      font-family: Consolas, 'Courier New', monospace;
-      white-space: normal;
     }
 
     .forecastSummary {
@@ -891,9 +874,9 @@
     .fixedLayout td:nth-child(5),
     .fixedLayout td:nth-child(6),
     .fixedLayout td:nth-child(9),
-    .fixedLayout td:nth-child(10),
-    .fixedLayout td:nth-child(11) {
-      text-align: right;
+    .fixedLayout td:nth-child(11),
+    .fixedLayout td:nth-child(12) {
+      text-align: center;
       font-variant-numeric: tabular-nums;
     }
 
@@ -918,9 +901,9 @@
       text-align: center;
     }
 
-    tr.high td { background: #ffd6d6; font-weight: 700; }
-    tr.mediumHigh td { background: #fff7ed; font-weight: 700; }
-    tr.medium td { background: #ffffff; }
+    tr.high td { background: #fff1f1; font-weight: 700; }
+    tr.mediumHigh td { background: #fff8ef; font-weight: 700; }
+    tr.medium td { background: #fffdf5; }
     tr.low td { background: #ffffff; }
 
     tr.high td:first-child { box-shadow: inset 10px 0 0 #b00020; font-weight: 700; }
@@ -946,8 +929,8 @@
       background: #dfe8f2;
     }
 
-    tr.high td:nth-child(-n+4) { background: #ffc2c2; font-weight: 700; }
-    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; font-weight: 700; }
+    tr.high td:nth-child(-n+4) { background: #ffe7e7; font-weight: 700; }
+    tr.mediumHigh td:nth-child(-n+4) { background: #fff8ef; font-weight: 700; }
 
     tr.high td *,
     tr.mediumHigh td * {
@@ -958,7 +941,7 @@
     tr.mediumHigh .riskBadge.mediumHigh {
       font-weight: 800;
     }
-    tr.medium td:nth-child(-n+4) { background: #ffffff; }
+    tr.medium td:nth-child(-n+4) { background: #fffdf5; }
     tr.low td:nth-child(-n+4) { background: #ffffff; }
 
     .riskBadge,
@@ -1077,6 +1060,12 @@
     .legendChip.active {
       border-color: #1f4e79;
       box-shadow: 0 0 0 3px rgba(31, 78, 121, .10);
+    }
+
+    .legendChip:disabled {
+      cursor: not-allowed;
+      opacity: .42;
+      box-shadow: none;
     }
 
     .toolbar label {
@@ -1554,6 +1543,7 @@
           <col style="width:130px">
           <col style="width:200px">
           <col style="width:115px">
+          <col style="width:85px">
           <col style="width:95px">
           <col style="width:105px">
           <col style="width:125px">
@@ -1572,6 +1562,7 @@
             <th><span class="compactHeader">超過<br>アラート内容</span></th>
             <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
             <th><span class="compactHeader">月末予測<br>残業時間</span></th>
+            <th><span class="compactHeader">予測<br>根拠</span></th>
             <th><span class="compactHeader">45h超過<br>回数</span></th>
             <th><span class="compactHeader">累計有休<br>取得日数</span></th>
             <th><span class="compactHeader">36協定適用<br>事前申請</span></th>
@@ -3133,8 +3124,7 @@
           forecast45: round1(employee.forecast45),
           forecast60: round1(employee.forecast60),
           forecast80: round1(employee.forecast80),
-          overallForecast: round1(employee.monthEndForecast),
-          overallStatus: employee.overallStatus
+          overallForecast: round1(employee.monthEndForecast)
         },
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
         agreement36: employee.agreement36,
@@ -4190,6 +4180,41 @@
       document.getElementById('sumMedium').textContent = summary.medium || 0;
       document.getElementById('sumLow').textContent = summary.low || 0;
       document.getElementById('sumMissing').textContent = summary.missing || 0;
+      updateRiskFilterAvailability(summary);
+    }
+
+    function updateRiskFilterAvailability(summary) {
+      const counts = {
+        high: Number(summary && summary.high || 0),
+        mediumHigh: Number(summary && summary.mediumHigh || 0),
+        medium: Number(summary && summary.medium || 0),
+        low: Number(summary && summary.low || 0)
+      };
+      const labels = {
+        high: '高リスク',
+        mediumHigh: '中高リスク',
+        medium: '中リスク',
+        low: 'リスクなし'
+      };
+
+      document.querySelectorAll('.legendChip').forEach(chip => {
+        const risk = chip.getAttribute('data-risk');
+        const disabled = risk && counts[risk] <= 0;
+        chip.disabled = Boolean(disabled);
+        chip.title = disabled ? `${labels[risk] || 'このリスク'}の対象者はいません。` : '';
+      });
+
+      const riskFilter = document.getElementById('riskFilter');
+      if (!riskFilter) return;
+
+      Array.from(riskFilter.options).forEach(option => {
+        if (!option.value) return;
+        option.disabled = counts[option.value] <= 0;
+      });
+
+      if (riskFilter.value && counts[riskFilter.value] <= 0) {
+        riskFilter.value = '';
+      }
     }
 
     function setupDepartmentFilter(departments) {
@@ -4287,8 +4312,14 @@
     }
 
     function setRiskFilter(risk) {
+      const chip = document.querySelector(`.legendChip[data-risk="${risk}"]`);
+      if (chip && chip.disabled) return;
+
       const riskFilter = document.getElementById('riskFilter');
       if (!riskFilter) return;
+      const option = Array.from(riskFilter.options).find(item => item.value === risk);
+      if (option && option.disabled) return;
+
       riskFilter.value = riskFilter.value === risk ? '' : risk;
       applyFilters();
     }
@@ -4329,7 +4360,7 @@
       if (!rows.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 15;
+        td.colSpan = 16;
         td.className = 'emptyState';
         td.textContent = '表示対象データはありません。';
         tr.appendChild(td);
@@ -4353,6 +4384,7 @@
           row.actualAlert,
           row.forecastAlert,
           row.monthEndForecast,
+          'forecastDetail',
           row.over45Count,
           row.paidLeaveTotal,
           row.agreement36,
@@ -4364,22 +4396,14 @@
         cells.forEach((cell, index) => {
           const td = document.createElement('td');
 
-          if (index === 8) {
+          if (index === 9) {
             td.className = 'forecastCell';
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'forecastDetailButton';
             button.title = 'クリックして月末予測の計算根拠を表示';
+            button.textContent = '表示';
             button.onclick = () => openForecastDetailModal(row);
-
-            const valueSpan = document.createElement('span');
-            valueSpan.textContent = cell == null ? '' : cell;
-            button.appendChild(valueSpan);
-
-            const hintSpan = document.createElement('span');
-            hintSpan.className = 'forecastDetailHint';
-            hintSpan.textContent = '根拠を表示';
-            button.appendChild(hintSpan);
 
             td.appendChild(button);
             tr.appendChild(td);
@@ -4401,7 +4425,7 @@
             return;
           }
 
-          if (index === 11) {
+          if (index === 12) {
             const select = document.createElement('select');
             select.className = 'agreementSelect';
             select.disabled = !editable;
@@ -4425,10 +4449,10 @@
             }
             td.appendChild(select);
           }
-          else if (index === 12 || index === 13 || index === 14) {
-            const fieldMap = { 12: 'specialReason', 13: 'healthMeasure', 14: 'note' };
+          else if (index === 13 || index === 14 || index === 15) {
+            const fieldMap = { 13: 'specialReason', 14: 'healthMeasure', 15: 'note' };
             const field = fieldMap[index];
-            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 14 ? ' noteCell' : '');
+            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 15 ? ' noteCell' : '');
             td.textContent = cell ? '入力済み' : (editable ? 'クリック' : '未入力');
 
             if (editable) {
@@ -4489,6 +4513,10 @@
       const num = Number(value);
       if (!Number.isFinite(num)) return '0';
       return num.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    function formatForecastDetailHours(value) {
+      return formatHoursAsHHMM(safeNumber(value));
     }
 
     function createForecastDetailDiv(className, text) {
@@ -4572,6 +4600,8 @@
       summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（${formatForecastDetailNumber(overallForecast, 1)}h）`));
       summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
       summary.appendChild(summaryBox);
+
+      appendForecastGraph(container, calc, row);
 
       const days = appendForecastDetailSection(container, '日数の内訳');
       appendForecastDetailLine(days, '営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
