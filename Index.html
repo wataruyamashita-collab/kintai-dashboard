@@ -449,10 +449,10 @@
       width: 100%;
       min-height: 34px;
       padding: 4px 6px;
-      border: 1px solid #b6d7a8;
+      border: 1px solid #c8d2df;
       border-radius: 8px;
-      background: #f3f8ef;
-      color: #274e13;
+      background: #ffffff;
+      color: #26384d;
       cursor: pointer;
       font-weight: 700;
       line-height: 1.25;
@@ -460,8 +460,9 @@
 
     .forecastDetailButton:hover,
     .forecastDetailButton:focus {
-      background: #e2f0d9;
-      outline: 2px solid rgba(39, 78, 19, .18);
+      background: #f5f8fb;
+      border-color: #8fa3ba;
+      outline: 2px solid rgba(38, 56, 77, .14);
       outline-offset: 1px;
     }
 
@@ -873,9 +874,9 @@
     .fixedLayout td:nth-child(5),
     .fixedLayout td:nth-child(6),
     .fixedLayout td:nth-child(9),
-    .fixedLayout td:nth-child(10),
-    .fixedLayout td:nth-child(11) {
-      text-align: right;
+    .fixedLayout td:nth-child(11),
+    .fixedLayout td:nth-child(12) {
+      text-align: center;
       font-variant-numeric: tabular-nums;
     }
 
@@ -900,9 +901,9 @@
       text-align: center;
     }
 
-    tr.high td { background: #ffd6d6; font-weight: 700; }
-    tr.mediumHigh td { background: #fff7ed; font-weight: 700; }
-    tr.medium td { background: #ffffff; }
+    tr.high td { background: #fff1f1; font-weight: 700; }
+    tr.mediumHigh td { background: #fff8ef; font-weight: 700; }
+    tr.medium td { background: #fffdf5; }
     tr.low td { background: #ffffff; }
 
     tr.high td:first-child { box-shadow: inset 10px 0 0 #b00020; font-weight: 700; }
@@ -928,8 +929,8 @@
       background: #dfe8f2;
     }
 
-    tr.high td:nth-child(-n+4) { background: #ffc2c2; font-weight: 700; }
-    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; font-weight: 700; }
+    tr.high td:nth-child(-n+4) { background: #ffe7e7; font-weight: 700; }
+    tr.mediumHigh td:nth-child(-n+4) { background: #fff8ef; font-weight: 700; }
 
     tr.high td *,
     tr.mediumHigh td * {
@@ -940,7 +941,7 @@
     tr.mediumHigh .riskBadge.mediumHigh {
       font-weight: 800;
     }
-    tr.medium td:nth-child(-n+4) { background: #ffffff; }
+    tr.medium td:nth-child(-n+4) { background: #fffdf5; }
     tr.low td:nth-child(-n+4) { background: #ffffff; }
 
     .riskBadge,
