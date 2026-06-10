@@ -321,11 +321,14 @@
 
     .modalBox {
       width: min(720px, 96vw);
+      max-height: calc(100vh - 48px);
       background: #fff;
       border-radius: 14px;
       border: 1px solid var(--line);
       box-shadow: 0 16px 40px rgba(0,0,0,.22);
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .modalHeader {
@@ -337,6 +340,7 @@
 
     .modalBody {
       padding: 18px;
+      overflow-y: auto;
     }
 
     .modalMeta {
@@ -405,6 +409,7 @@
       justify-content: flex-end;
       gap: 10px;
       background: #fafafa;
+      flex-shrink: 0;
     }
 
     .modalFooter button {
@@ -413,8 +418,8 @@
 
     table.fixedLayout {
       table-layout: fixed;
-      width: 1710px;
-      min-width: 1710px;
+      width: 1795px;
+      min-width: 1795px;
     }
 
     table.fixedLayout th,
@@ -431,6 +436,128 @@
       color: #1f4e79;
       text-decoration: underline;
       font-weight: 600;
+    }
+
+    .forecastCell {
+      text-align: center;
+    }
+
+    .forecastDetailButton {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 34px;
+      padding: 4px 6px;
+      border: 1px solid #c8d2df;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #26384d;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .forecastDetailButton:hover,
+    .forecastDetailButton:focus {
+      background: #f5f8fb;
+      border-color: #8fa3ba;
+      outline: 2px solid rgba(38, 56, 77, .14);
+      outline-offset: 1px;
+    }
+
+    .forecastDetailContent {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .forecastDetailSection {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .forecastDetailSection:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .forecastDetailSection h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .forecastSummary {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+
+    .forecastSummaryMain {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+
+    .forecastGraph {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .forecastGraphRow {
+      display: grid;
+      grid-template-columns: 72px minmax(160px, 1fr) 96px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .forecastGraphLabel {
+      color: #26384d;
+      font-weight: 700;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .forecastGraphTrack {
+      position: relative;
+      height: 12px;
+      overflow: hidden;
+      border: 1px solid #d7e0ea;
+      border-radius: 999px;
+      background: #eef3f8;
+    }
+
+    .forecastGraphFill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: 999px;
+      background: #4f789f;
+    }
+
+    .forecastGraphFill.warn {
+      background: #c8872c;
+    }
+
+    .forecastGraphFill.danger {
+      background: #b94a48;
+    }
+
+    .forecastGraphValue {
+      color: #26384d;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .forecastGraphNote {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
     }
 
     .agreementSelect {
@@ -805,9 +932,9 @@
     .fixedLayout td:nth-child(5),
     .fixedLayout td:nth-child(6),
     .fixedLayout td:nth-child(9),
-    .fixedLayout td:nth-child(10),
-    .fixedLayout td:nth-child(11) {
-      text-align: right;
+    .fixedLayout td:nth-child(11),
+    .fixedLayout td:nth-child(12) {
+      text-align: center;
       font-variant-numeric: tabular-nums;
     }
 
@@ -832,9 +959,9 @@
       text-align: center;
     }
 
-    tr.high td { background: #ffd6d6; font-weight: 700; }
-    tr.mediumHigh td { background: #fff7ed; font-weight: 700; }
-    tr.medium td { background: #ffffff; }
+    tr.high td { background: #fff1f1; font-weight: 700; }
+    tr.mediumHigh td { background: #fff8ef; font-weight: 700; }
+    tr.medium td { background: #fffdf5; }
     tr.low td { background: #ffffff; }
 
     tr.high td:first-child { box-shadow: inset 10px 0 0 #b00020; font-weight: 700; }
@@ -860,8 +987,8 @@
       background: #dfe8f2;
     }
 
-    tr.high td:nth-child(-n+4) { background: #ffc2c2; font-weight: 700; }
-    tr.mediumHigh td:nth-child(-n+4) { background: #fff7ed; font-weight: 700; }
+    tr.high td:nth-child(-n+4) { background: #ffe7e7; font-weight: 700; }
+    tr.mediumHigh td:nth-child(-n+4) { background: #fff8ef; font-weight: 700; }
 
     tr.high td *,
     tr.mediumHigh td * {
@@ -872,7 +999,7 @@
     tr.mediumHigh .riskBadge.mediumHigh {
       font-weight: 800;
     }
-    tr.medium td:nth-child(-n+4) { background: #ffffff; }
+    tr.medium td:nth-child(-n+4) { background: #fffdf5; }
     tr.low td:nth-child(-n+4) { background: #ffffff; }
 
     .riskBadge,
@@ -991,6 +1118,12 @@
     .legendChip.active {
       border-color: #1f4e79;
       box-shadow: 0 0 0 3px rgba(31, 78, 121, .10);
+    }
+
+    .legendChip:disabled {
+      cursor: not-allowed;
+      opacity: .42;
+      box-shadow: none;
     }
 
     .toolbar label {
@@ -1468,6 +1601,7 @@
           <col style="width:130px">
           <col style="width:200px">
           <col style="width:115px">
+          <col style="width:85px">
           <col style="width:95px">
           <col style="width:105px">
           <col style="width:125px">
@@ -1486,6 +1620,7 @@
             <th><span class="compactHeader">超過<br>アラート内容</span></th>
             <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
             <th><span class="compactHeader">月末予測<br>残業時間</span></th>
+            <th><span class="compactHeader">予測<br>根拠</span></th>
             <th><span class="compactHeader">45h超過<br>回数</span></th>
             <th><span class="compactHeader">累計有休<br>取得日数</span></th>
             <th><span class="compactHeader">36協定適用<br>事前申請</span></th>
@@ -1515,6 +1650,19 @@
         <button type="button" id="modalExportButton" onclick="exportTextModalContent()">出力</button>
         <button type="button" id="modalCancelButton" onclick="closeTextModal()">キャンセル</button>
         <button type="button" class="save" id="modalSaveButton" onclick="saveTextModal()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="forecastDetailModal" onclick="closeForecastDetailModalByOverlay(event)">
+    <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="forecastDetailTitle">
+      <div class="modalHeader" id="forecastDetailTitle">月末予測の計算根拠</div>
+      <div class="modalBody">
+        <div class="modalMeta" id="forecastDetailMeta"></div>
+        <div class="forecastDetailContent" id="forecastDetailBody"></div>
+      </div>
+      <div class="modalFooter">
+        <button type="button" id="forecastDetailCloseButton" onclick="closeForecastDetailModal()">閉じる</button>
       </div>
     </div>
   </div>
@@ -2779,6 +2927,7 @@
 
         const totalWorkDays = targetWorkingDays;
         const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays);
+        employee.forecastRemainingWorkDays = remainingWorkDays;
         const overtimeForecast = calculateOvertimeForecast({
           employeeId: employee.employeeCode,
           employeeName: employee.employeeName,
@@ -2964,6 +3113,7 @@
         legalHolidayWork: 0,
         paidLeaveCumulative: 0,
         targetMonthPaidLeave: 0,
+        forecastRemainingWorkDays: 0,
         attendanceDaysTotal: 0,
         over45Count: 0,
         elapsedWorkingDates: {},
@@ -3013,6 +3163,22 @@
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
         targetMonthPaidLeave: round1(employee.targetMonthPaidLeave),
+        forecastRemainingWorkDays: round2(employee.forecastRemainingWorkDays),
+        forecastCalculation: {
+          totalWorkDays: round2(targetWorkingDays),
+          elapsedDays: round2(elapsedDays),
+          attendanceDaysTotal: round2(employee.attendanceDaysTotal),
+          targetMonthPaidLeave: round2(employee.targetMonthPaidLeave),
+          remainingWorkDays: round2(employee.forecastRemainingWorkDays),
+          statutoryOvertimeActual: round2(employee.statutoryOt),
+          overtimeFor60Actual: round2(employee.overtimeFor60Actual),
+          overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
+          plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
+          forecast45: round1(employee.forecast45),
+          forecast60: round1(employee.forecast60),
+          forecast80: round1(employee.forecast80),
+          overallForecast: round1(employee.monthEndForecast)
+        },
         attendanceDaysTotal: round2(employee.attendanceDaysTotal),
         agreement36: employee.agreement36,
         specialReason: employee.specialReason,
@@ -4067,6 +4233,41 @@
       document.getElementById('sumMedium').textContent = summary.medium || 0;
       document.getElementById('sumLow').textContent = summary.low || 0;
       document.getElementById('sumMissing').textContent = summary.missing || 0;
+      updateRiskFilterAvailability(summary);
+    }
+
+    function updateRiskFilterAvailability(summary) {
+      const counts = {
+        high: Number(summary && summary.high || 0),
+        mediumHigh: Number(summary && summary.mediumHigh || 0),
+        medium: Number(summary && summary.medium || 0),
+        low: Number(summary && summary.low || 0)
+      };
+      const labels = {
+        high: '高リスク',
+        mediumHigh: '中高リスク',
+        medium: '中リスク',
+        low: 'リスクなし'
+      };
+
+      document.querySelectorAll('.legendChip').forEach(chip => {
+        const risk = chip.getAttribute('data-risk');
+        const disabled = risk && counts[risk] <= 0;
+        chip.disabled = Boolean(disabled);
+        chip.title = disabled ? `${labels[risk] || 'このリスク'}の対象者はいません。` : '';
+      });
+
+      const riskFilter = document.getElementById('riskFilter');
+      if (!riskFilter) return;
+
+      Array.from(riskFilter.options).forEach(option => {
+        if (!option.value) return;
+        option.disabled = counts[option.value] <= 0;
+      });
+
+      if (riskFilter.value && counts[riskFilter.value] <= 0) {
+        riskFilter.value = '';
+      }
     }
 
     function setupDepartmentFilter(departments) {
@@ -4164,8 +4365,14 @@
     }
 
     function setRiskFilter(risk) {
+      const chip = document.querySelector(`.legendChip[data-risk="${risk}"]`);
+      if (chip && chip.disabled) return;
+
       const riskFilter = document.getElementById('riskFilter');
       if (!riskFilter) return;
+      const option = Array.from(riskFilter.options).find(item => item.value === risk);
+      if (option && option.disabled) return;
+
       riskFilter.value = riskFilter.value === risk ? '' : risk;
       applyFilters();
     }
@@ -4206,7 +4413,7 @@
       if (!rows.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 15;
+        td.colSpan = 16;
         td.className = 'emptyState';
         td.textContent = '表示対象データはありません。';
         tr.appendChild(td);
@@ -4230,6 +4437,7 @@
           row.actualAlert,
           row.forecastAlert,
           row.monthEndForecast,
+          'forecastDetail',
           row.over45Count,
           row.paidLeaveTotal,
           row.agreement36,
@@ -4240,6 +4448,20 @@
 
         cells.forEach((cell, index) => {
           const td = document.createElement('td');
+
+          if (index === 9) {
+            td.className = 'forecastCell';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'forecastDetailButton';
+            button.title = 'クリックして月末予測の計算根拠を表示';
+            button.textContent = '表示';
+            button.onclick = () => openForecastDetailModal(row);
+
+            td.appendChild(button);
+            tr.appendChild(td);
+            return;
+          }
 
           if (index === 6 || index === 7) {
             const span = document.createElement('span');
@@ -4256,7 +4478,7 @@
             return;
           }
 
-          if (index === 11) {
+          if (index === 12) {
             const select = document.createElement('select');
             select.className = 'agreementSelect';
             select.disabled = !editable;
@@ -4280,10 +4502,10 @@
             }
             td.appendChild(select);
           }
-          else if (index === 12 || index === 13 || index === 14) {
-            const fieldMap = { 12: 'specialReason', 13: 'healthMeasure', 14: 'note' };
+          else if (index === 13 || index === 14 || index === 15) {
+            const fieldMap = { 13: 'specialReason', 14: 'healthMeasure', 15: 'note' };
             const field = fieldMap[index];
-            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 14 ? ' noteCell' : '');
+            td.className = 'editableCell ' + (cell ? 'saved' : 'empty') + (index === 15 ? ' noteCell' : '');
             td.textContent = cell ? '入力済み' : (editable ? 'クリック' : '未入力');
 
             if (editable) {
@@ -4299,6 +4521,226 @@
         });
         tbody.appendChild(tr);
       });
+    }
+
+    function openForecastDetailModal(row) {
+      if (!row) return;
+
+      const meta = document.getElementById('forecastDetailMeta');
+      const body = document.getElementById('forecastDetailBody');
+      if (!meta || !body) return;
+
+      meta.textContent = `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
+      renderForecastDetailBody(row, body);
+      document.getElementById('forecastDetailModal').style.display = 'flex';
+    }
+
+    function closeForecastDetailModal() {
+      document.getElementById('forecastDetailModal').style.display = 'none';
+    }
+
+    function closeForecastDetailModalByOverlay(event) {
+      if (event.target && event.target.id === 'forecastDetailModal') closeForecastDetailModal();
+    }
+
+    function appendForecastDetailLine(container, label, value) {
+      const div = document.createElement('div');
+      const strong = document.createElement('strong');
+      strong.textContent = label + '：';
+      div.appendChild(strong);
+      div.appendChild(document.createTextNode(value));
+      container.appendChild(div);
+    }
+
+    function appendForecastDetailSection(container, title) {
+      const section = document.createElement('div');
+      section.className = 'forecastDetailSection';
+      const heading = document.createElement('h4');
+      heading.textContent = title;
+      section.appendChild(heading);
+      container.appendChild(section);
+      return section;
+    }
+
+    function formatForecastDetailNumber(value, digits) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return '0';
+      return num.toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    function formatForecastDetailHours(value) {
+      return formatHoursAsHHMM(safeNumber(value));
+    }
+
+    function createForecastDetailDiv(className, text) {
+      const div = document.createElement('div');
+      if (className) div.className = className;
+      div.textContent = text;
+      return div;
+    }
+
+    function getForecastGraphItems(calc, row) {
+      return [
+        {
+          label: '45h基準',
+          limit: 45,
+          value: calc.forecast45 !== undefined ? calc.forecast45 : row.forecast45
+        },
+        {
+          label: '60h基準',
+          limit: 60,
+          value: calc.forecast60 !== undefined ? calc.forecast60 : row.forecast60
+        },
+        {
+          label: '80h基準',
+          limit: 80,
+          value: calc.forecast80 !== undefined ? calc.forecast80 : row.forecast80
+        }
+      ]
+        .map(item => ({
+          label: item.label,
+          limit: item.limit,
+          value: safeNumber(item.value)
+        }))
+        .filter(item => item.value > 0);
+    }
+
+    function appendForecastGraph(container, calc, row) {
+      const items = getForecastGraphItems(calc, row);
+      const section = appendForecastDetailSection(container, '予測グラフ');
+
+      if (items.length === 0) {
+        section.appendChild(createForecastDetailDiv('', '表示できる予測データがありません。'));
+        return;
+      }
+
+      const graph = document.createElement('div');
+      graph.className = 'forecastGraph';
+
+      items.forEach(item => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'forecastGraphRow';
+
+        const label = document.createElement('div');
+        label.className = 'forecastGraphLabel';
+        label.textContent = item.label;
+
+        const track = document.createElement('div');
+        track.className = 'forecastGraphTrack';
+        track.setAttribute('aria-label', `${item.label} ${formatForecastDetailHours(item.value)} / ${formatForecastDetailHours(item.limit)}`);
+
+        const fill = document.createElement('div');
+        const ratio = item.limit > 0 ? item.value / item.limit : 0;
+        fill.className = 'forecastGraphFill';
+        if (ratio >= 1) fill.classList.add('danger');
+        else if (ratio >= 0.8) fill.classList.add('warn');
+        fill.style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
+        track.appendChild(fill);
+
+        const value = document.createElement('div');
+        value.className = 'forecastGraphValue';
+        value.textContent = `${formatForecastDetailHours(item.value)} / ${formatForecastDetailHours(item.limit)}`;
+
+        rowEl.appendChild(label);
+        rowEl.appendChild(track);
+        rowEl.appendChild(value);
+        graph.appendChild(rowEl);
+      });
+
+      section.appendChild(graph);
+      section.appendChild(createForecastDetailDiv('forecastGraphNote', '各基準の月末予測を上限時間に対する割合で表示しています。'));
+    }
+
+    function resolveMonthEndForecastBasis(calc, row) {
+      const candidates = [
+        {
+          actual: calc.statutoryOvertimeActual !== undefined ? calc.statutoryOvertimeActual : row.statutoryOt,
+          forecast: calc.forecast45 !== undefined ? calc.forecast45 : row.forecast45,
+          extra: 0
+        },
+        {
+          actual: calc.overtimeFor60Actual !== undefined ? calc.overtimeFor60Actual : row.overtimeFor60Actual,
+          forecast: calc.forecast60 !== undefined ? calc.forecast60 : row.forecast60,
+          extra: 0
+        },
+        {
+          actual: calc.overtimeAndHolidayActual !== undefined ? calc.overtimeAndHolidayActual : row.overtimeAndHolidayActual,
+          forecast: calc.forecast80 !== undefined ? calc.forecast80 : row.forecast80,
+          extra: calc.plannedHolidayWorkHours !== undefined ? calc.plannedHolidayWorkHours : row.plannedHolidayWorkHours
+        }
+      ]
+        .map(item => ({
+          actual: safeNumber(item.actual),
+          forecast: safeNumber(item.forecast),
+          extra: safeNumber(item.extra)
+        }))
+        .filter(item => item.actual > 0 || item.forecast > 0 || item.extra > 0);
+
+      if (candidates.length === 0) {
+        return {
+          actual: 0,
+          forecast: safeNumber(calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue),
+          extra: 0
+        };
+      }
+
+      return candidates.reduce((best, item) => item.forecast > best.forecast ? item : best, candidates[0]);
+    }
+
+    function appendMonthEndForecastFormula(container, basis, elapsedDays, remainingWorkDays, fallbackForecast) {
+      const actual = safeNumber(basis.actual);
+      const forecast = safeNumber(basis.forecast);
+      const extra = safeNumber(basis.extra);
+      const elapsed = safeNumber(elapsedDays);
+      const remaining = safeNumber(remainingWorkDays);
+      const computedForecast = elapsed > 0
+        ? ceilTo1(actual + (actual / elapsed) * remaining + extra)
+        : ceilTo1(actual + extra);
+      const displayForecast = forecast > 0 ? forecast : (safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : computedForecast);
+      const displayActual = remaining <= 0 && forecast <= 0 && safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : actual;
+      const actualText = formatForecastDetailHours(displayActual);
+      const forecastText = formatForecastDetailHours(displayForecast);
+      const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailHours(extra)}` : '';
+
+      let formula;
+      if (remaining <= 0 || elapsed <= 0) {
+        formula = `実績 ${actualText}${extraText} + 追加見込み 0:00 → 月末予測 ${forecastText}`;
+      } else {
+        const additional = (actual / elapsed) * remaining;
+        const additionalText = formatForecastDetailHours(additional);
+        const rateBaseText = formatForecastDetailHours(actual);
+        formula = `実績 ${actualText} + 追加見込み ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}`;
+      }
+
+      appendForecastDetailLine(container, '根拠式', formula);
+    }
+
+    function renderForecastDetailBody(row, container) {
+      container.innerHTML = '';
+      const calc = row.forecastCalculation || {};
+      const elapsedDays = safeNumber(calc.elapsedDays !== undefined ? calc.elapsedDays : row.elapsedDays);
+      const remainingWorkDays = safeNumber(calc.remainingWorkDays !== undefined ? calc.remainingWorkDays : row.forecastRemainingWorkDays);
+      const totalWorkDays = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
+      const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
+      const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
+      const overallForecast = safeNumber(row.monthEndForecastValue) || safeNumber(calc.overallForecast);
+      const basis = resolveMonthEndForecastBasis(calc, row);
+
+      const summary = appendForecastDetailSection(container, '概要');
+      const summaryBox = document.createElement('div');
+      summaryBox.className = 'forecastSummary';
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatForecastDetailHours(overallForecast)}`));
+      summary.appendChild(summaryBox);
+
+      appendForecastGraph(container, calc, row);
+
+      const days = appendForecastDetailSection(container, '日数の内訳');
+      appendForecastDetailLine(days, '営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
+      appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
+
+      const formulaSection = appendForecastDetailSection(container, '計算');
+      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
+      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
     }
 
     function openTextModal(row, field) {
