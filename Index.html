@@ -2157,34 +2157,42 @@
     }
 
     function extractLaborDaysFromCalendarText(text) {
-      const values = [];
-      const regex = /(?:^|\s)労\s*([0-9]{1,2})(?=\s|$)/g;
-      let match;
+      const values = new Array(12);
+      const monthMatches = Array.from(text.matchAll(/(?:^|[^0-9])([1-9]|1[0-2])\s*月/g));
 
-      while ((match = regex.exec(text)) !== null) {
-        const value = Number(match[1]);
+      monthMatches.forEach((monthMatch, index) => {
+        const month = Number(monthMatch[1]);
+        const segmentStart = monthMatch.index + monthMatch[0].length;
+        const segmentEnd = index + 1 < monthMatches.length ? monthMatches[index + 1].index : text.length;
+        const segment = text.slice(segmentStart, segmentEnd);
+        const laborMatch = segment.match(/労\s*([0-9]{1,2})(?=\s|$)/);
+        const value = laborMatch ? Number(laborMatch[1]) : 0;
         if (Number.isInteger(value) && value > 0 && value <= 31) {
-          values.push(value);
+          values[month - 1] = value;
         }
-      }
+      });
 
-      return values.slice(0, 12);
+      return values.every(value => Number.isInteger(value)) ? values : [];
     }
 
     function extractLaborDaysFromMonthlyHours(text) {
-      const values = [];
-      const regex = /時\s*([0-9]{2,3}(?:\.[0-9]+)?)/g;
-      let match;
+      const values = new Array(12);
+      const monthMatches = Array.from(text.matchAll(/(?:^|[^0-9])([1-9]|1[0-2])\s*月/g));
 
-      while ((match = regex.exec(text)) !== null) {
-        const hours = Number(match[1]);
+      monthMatches.forEach((monthMatch, index) => {
+        const month = Number(monthMatch[1]);
+        const segmentStart = monthMatch.index + monthMatch[0].length;
+        const segmentEnd = index + 1 < monthMatches.length ? monthMatches[index + 1].index : text.length;
+        const segment = text.slice(segmentStart, segmentEnd);
+        const hoursMatch = segment.match(/時\s*([0-9]{2,3}(?:\.[0-9]+)?)/);
+        const hours = hoursMatch ? Number(hoursMatch[1]) : 0;
         if (Number.isFinite(hours) && hours > 0) {
           const days = Math.round(hours / 7.5);
-          if (days > 0 && days <= 31) values.push(days);
+          if (days > 0 && days <= 31) values[month - 1] = days;
         }
-      }
+      });
 
-      return values.slice(0, 12);
+      return values.every(value => Number.isInteger(value)) ? values : [];
     }
 
     function extractExpectedTotalLaborDays(text) {
@@ -2643,7 +2651,20 @@
           setImportProgress(25, 'CSV読込完了', 'CSV形式の内容を確認しています。');
           await waitForUi();
 
-          const csvText = String(event.target.result || '').replace(/^\uFEFF/, '');
+          const buffer = event.target.result;
+          const bytes = new Uint8Array(buffer || []);
+          let csvText = '';
+          try {
+            if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+              csvText = new TextDecoder('utf-8').decode(buffer);
+            } else {
+              const utf8Text = new TextDecoder('utf-8').decode(buffer);
+              csvText = utf8Text.includes('�') ? new TextDecoder('shift_jis').decode(buffer) : utf8Text;
+            }
+          } catch (error) {
+            csvText = new TextDecoder('shift_jis').decode(buffer);
+          }
+          csvText = String(csvText || '').replace(/^\uFEFF/, '');
 
           setImportProgress(35, 'CSV形式を確認中', '区切り文字と見出し行を確認しています。');
           await waitForUi();
@@ -2699,7 +2720,7 @@
         showError(new Error('CSVファイルの読み込みに失敗しました。'));
       };
 
-      reader.readAsText(file, 'shift-jis');
+      reader.readAsArrayBuffer(file);
     }
 
     function getRowsForTargetMonth(targetMonth) {
@@ -2912,7 +2933,7 @@
       if (paidLeaveDays === 1) {
         base = endHours - startHours - breakHours;
       } else if (paidLeaveDays === 0.5) {
-        base = endHours - startHours - breakHours - 3.75;
+        base = endHours - startHours - breakHours - (toHours(row[FIELD.RAW_J_SCHEDULED_HOURS]) / 2);
       } else {
         base = endHours - startHours - breakHours - scheduled;
       }
@@ -3417,7 +3438,7 @@
       function forecastByWorkDays(actual, extraFutureHours) {
         const safeActual = safeNumber(actual);
         const extra = safeNumber(extraFutureHours);
-        if (elapsedWorkDays <= 0) return ceilTo1(safeActual + extra);
+        if (elapsedWorkDays < 3) return ceilTo1(safeActual);
         return ceilTo1(safeActual + (safeActual / elapsedWorkDays) * remainingWorkDays + extra);
       }
 
@@ -3435,8 +3456,8 @@
       let forecast80;
 
       if (useStrict80Formula && totalWorkingHoursActual > 0 && calendarDays > 0) {
-        const forecastTotalWorkingHours = elapsedWorkDays <= 0
-          ? totalWorkingHoursActual + plannedHolidayWorkHours
+        const forecastTotalWorkingHours = elapsedWorkDays < 3
+          ? totalWorkingHoursActual
           : totalWorkingHoursActual + (totalWorkingHoursActual / elapsedWorkDays) * remainingWorkDays + plannedHolidayWorkHours;
         const statutoryMonthlyHours = (calendarDays / 7) * 40;
         forecast80 = ceilTo1(Math.max(0, forecastTotalWorkingHours - statutoryMonthlyHours));
@@ -4439,10 +4460,6 @@
         if (!option.value) return;
         option.disabled = counts[option.value] <= 0;
       });
-
-      if (riskFilter.value && counts[riskFilter.value] <= 0) {
-        riskFilter.value = '';
-      }
     }
 
     function setupDepartmentFilter(departments) {
@@ -4723,17 +4740,9 @@
       value.className = 'monthForecastValue';
       value.textContent = displayValue;
 
-      const detailButton = document.createElement('button');
-      detailButton.type = 'button';
-      detailButton.className = 'monthForecastDetailButton';
-      detailButton.title = 'クリックして月末予測の計算根拠を表示';
-      detailButton.textContent = '表示';
-      detailButton.onclick = () => openForecastDetailModal(row);
-
       visual.appendChild(value);
       visual.appendChild(renderMonthForecastSparkline(row));
       wrapper.appendChild(visual);
-      wrapper.appendChild(detailButton);
       td.appendChild(wrapper);
     }
 
@@ -5544,7 +5553,7 @@
         scheduled: findIndex(['所定労働時間'], SOURCE_COLUMN_J_INDEX),
         breakHours: findIndex(['休憩時間'], SOURCE_COLUMN_K_INDEX),
         paidLeaveDays: findIndex(['年次有休取得日数(時間単位休を除く)', '年次有休取得日数'], SOURCE_COLUMN_N_INDEX),
-        deductHours: findIndex(['法定休日労働時間'], SOURCE_COLUMN_P_INDEX),
+        deductHours: findIndex(['不就業時間', '控除時間'], -1),
         startTime: findIndex(['出社時刻', '出社時刻（ボタン）'], SOURCE_COLUMN_S_INDEX),
         endTime: findIndex(['退社時刻', '退社時刻（ボタン）'], SOURCE_COLUMN_T_INDEX)
       };
