@@ -615,10 +615,28 @@
       stroke-dasharray: 5 5;
     }
 
+    .forecastCurveLimit60 {
+      stroke: #d97917;
+      stroke-width: 1.5;
+      stroke-dasharray: 5 5;
+    }
+
     .forecastCurveLimit80 {
       stroke: #b91c1c;
       stroke-width: 1.5;
       stroke-dasharray: 5 5;
+    }
+
+    .forecastCurveCrossLine {
+      stroke: #8fa3ba;
+      stroke-width: 1;
+      stroke-dasharray: 3 4;
+    }
+
+    .forecastCurveCrossLabel {
+      fill: #26384d;
+      font-size: 11px;
+      font-weight: 700;
     }
 
     .forecastCurveActual {
@@ -677,6 +695,11 @@
 
     .forecastCurveLegendSwatch.limit45 {
       border-top-color: #c5972f;
+      border-top-style: dashed;
+    }
+
+    .forecastCurveLegendSwatch.limit60 {
+      border-top-color: #d97917;
       border-top-style: dashed;
     }
 
@@ -4845,14 +4868,48 @@
       return elapsed + (total - elapsed) * ratio;
     }
 
+    function getForecastLimitDefinitions() {
+      return [
+        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45h' },
+        { value: 60, className: 'forecastCurveLimit60', legendClass: 'limit60', label: '60h' },
+        { value: 80, className: 'forecastCurveLimit80', legendClass: 'limit80', label: '80h' }
+      ];
+    }
+
+    function getForecastLimitStatuses(context) {
+      return getForecastLimitDefinitions().map(limit => {
+        const crossingDay = getForecastThresholdCrossing(context, limit.value);
+        const exceeded = safeNumber(context.actual) >= limit.value;
+        return { ...limit, crossingDay, exceeded };
+      });
+    }
+
+    function buildForecastLimitWarning(statuses) {
+      const crossings = statuses
+        .filter(status => status.crossingDay)
+        .map(status => `約${Math.ceil(status.crossingDay)}日目に${status.value}時間`);
+      const exceeded = statuses
+        .filter(status => status.exceeded)
+        .map(status => `${status.value}時間`);
+
+      if (!crossings.length && !exceeded.length) return '';
+
+      const crossingText = crossings.length
+        ? `【警告】このペースが続くと、${crossings.join('、')}に到達する見込みです。`
+        : '';
+      const exceededText = exceeded.length
+        ? `${crossingText ? ' ' : '【警告】'}${exceeded.join('、')}は既に超過済みです。`
+        : '';
+      return `${crossingText}${exceededText}`;
+    }
+
     function appendForecastCurveLegend(container) {
       const legend = document.createElement('div');
       legend.className = 'forecastCurveLegend';
       [
         { label: '実績', className: '' },
         { label: '予測', className: 'forecast' },
-        { label: '45h上限', className: 'limit45' },
-        { label: '80h上限', className: 'limit80' }
+        ...getForecastLimitDefinitions().map(limit => ({ label: `${limit.label}上限`, className: limit.legendClass }))
       ].forEach(item => {
         const entry = document.createElement('span');
         entry.className = 'forecastCurveLegendItem';
@@ -4873,9 +4930,10 @@
       const height = 260;
       const padding = { top: 18, right: 18, bottom: 34, left: 48 };
       const points = getForecastCurvePoints(context, width, height, padding);
+      const limitStatuses = getForecastLimitStatuses(context);
       const svg = createSvgElement('svg', { class: 'forecastCurveSvg', viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': '月末予測の詳細曲線グラフ' });
 
-      [0, 45, 80, context.maxHours].filter((value, index, values) => values.indexOf(value) === index).forEach(value => {
+      [0, 45, 60, 80, context.maxHours].filter((value, index, values) => values.indexOf(value) === index).forEach(value => {
         const y = points.yForHours(value);
         svg.appendChild(createSvgElement('line', { class: 'forecastCurveGrid', x1: padding.left, y1: y, x2: width - padding.right, y2: y }));
         const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x: padding.left - 8, y: y + 4, 'text-anchor': 'end' });
@@ -4891,10 +4949,7 @@
         svg.appendChild(label);
       });
 
-      [
-        { value: 45, className: 'forecastCurveLimit45', label: '45h' },
-        { value: 80, className: 'forecastCurveLimit80', label: '80h' }
-      ].forEach(limit => {
+      limitStatuses.forEach(limit => {
         const y = points.yForHours(limit.value);
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y }));
         const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x: width - padding.right - 4, y: y - 5, 'text-anchor': 'end' });
@@ -4907,21 +4962,28 @@
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4 }));
 
-      [45, 80].forEach(limit => {
-        const crossingDay = getForecastThresholdCrossing(context, limit);
-        if (!crossingDay) return;
-        const x = points.xForDay(crossingDay);
-        const y = points.yForHours(limit);
+      limitStatuses.forEach(limit => {
+        if (!limit.crossingDay) return;
+        const x = points.xForDay(limit.crossingDay);
+        const y = points.yForHours(limit.value);
+        svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom }));
+
+        const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 14, 'text-anchor': 'middle' });
+        crossingLabel.textContent = `${Math.ceil(limit.crossingDay)}日`;
+        svg.appendChild(crossingLabel);
+
         const warning = createSvgElement('circle', { class: 'forecastCurveWarning', cx: x, cy: y, r: 5, tabindex: '0' });
         const title = createSvgElement('title', {});
-        title.textContent = `${Math.ceil(crossingDay)}日時点：予測 ${formatHoursAsHHMM(limit)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、月末予測 ${formatForecastDetailHours(context.forecast)}）`;
+        title.textContent = `${Math.ceil(limit.crossingDay)}日時点：予測 ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、月末予測 ${formatForecastDetailHours(context.forecast)}）`;
         warning.appendChild(title);
         svg.appendChild(warning);
       });
 
       panel.appendChild(svg);
       appendForecastCurveLegend(panel);
-      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から月末予測 ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。`);
+      const warningText = buildForecastLimitWarning(limitStatuses);
+      const noteSuffix = warningText ? ` ${warningText}` : '';
+      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から月末予測 ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。${noteSuffix}`);
       panel.appendChild(note);
       container.appendChild(panel);
     }
