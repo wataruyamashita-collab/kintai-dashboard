@@ -1914,9 +1914,6 @@ function mergeManualInputsToRows_(rows, targetMonth) {
   const normalizedMonth = normalizeTargetMonth_(targetMonth);
   if (!normalizedMonth || !Array.isArray(rows)) return rows || [];
 
-  const currentMonth = Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, 'yyyy/MM');
-  if (normalizedMonth !== currentMonth) return rows;
-
   const manualMap = {};
   loadManualInputsAllForMonth_(normalizedMonth).forEach(record => {
     manualMap[record.key] = record;
