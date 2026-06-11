@@ -601,13 +601,51 @@
       font-weight: 700;
     }
 
+    .forecastDetailLine {
+      margin-top: 6px;
+    }
+
+    .forecastProposal {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid #f6c66a;
+      border-left: 5px solid #d97706;
+      border-radius: 10px;
+      background: #fff7e6;
+      line-height: 1.8;
+    }
+
+    .forecastProposal strong {
+      color: #8a4b00;
+    }
+
+    .forecastProposal .proposalLine {
+      display: block;
+      margin-top: 2px;
+      padding-left: 1em;
+      text-indent: -1em;
+    }
+
     .forecastCurveWarning.blink45 {
+      animation: forecastCurveBlink45 1s ease-in-out infinite;
+    }
+
+    .forecastCurveWarningHalo.blink45 {
+      animation: forecastCurveBlink45Halo 1s ease-in-out infinite;
+    }
+
+    .forecastCurveWarningLabel.blink45 {
       animation: forecastCurveBlink45 1s ease-in-out infinite;
     }
 
     @keyframes forecastCurveBlink45 {
       0%, 100% { opacity: 1; }
-      50% { opacity: .25; }
+      50% { opacity: .35; }
+    }
+
+    @keyframes forecastCurveBlink45Halo {
+      0%, 100% { opacity: .25; stroke-width: 4; }
+      50% { opacity: .95; stroke-width: 8; }
     }
 
     .agreementSelect {
@@ -1470,7 +1508,7 @@
 
       <div class="options">
         <label><input type="checkbox" id="showAllEmployees"> 詳細設定：全社員を表示する</label>
-        <label><input type="checkbox" id="usePastAverage"> 参考設定：本人の過去月平均で月末予測を補正する</label>
+        <label><input type="checkbox" id="usePastAverage"> 参考設定：本人の過去月平均で月末残業予測を補正する</label>
         <span class="sub">※既存シートに合わせる場合は、補正なしで運用してください。過去月実績がない場合、固定値補正は使いません。</span>
       </div>
 
@@ -1633,8 +1671,8 @@
 
     <div class="definition" id="definitionBox">
       <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
-      <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。<br>
-      <strong>月末予測残業時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。
+      <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。<br>
+      <strong>月末残業予測時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。
     </div>
 
     <div class="tableHint">横スクロールできます。左4列は固定表示です。</div>
@@ -1668,7 +1706,7 @@
             <th><span class="compactHeader">確定<br>残業時間</span></th>
             <th><span class="compactHeader">超過<br>アラート内容</span></th>
             <th><span class="compactHeader">超過見込み<br>アラート内容</span></th>
-            <th><span class="compactHeader">月末予測<br>残業時間/グラフ</span></th>
+            <th><span class="compactHeader">月末残業予測<br>/グラフ</span></th>
             <th><span class="compactHeader">45h超過<br>回数</span></th>
             <th><span class="compactHeader">累計有休<br>取得日数</span></th>
             <th><span class="compactHeader">36協定適用<br>事前申請</span></th>
@@ -1704,7 +1742,7 @@
 
   <div class="modalOverlay" id="forecastDetailModal" onclick="closeForecastDetailModalByOverlay(event)">
     <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="forecastDetailTitle">
-      <div class="modalHeader" id="forecastDetailTitle">月末予測の計算根拠</div>
+      <div class="modalHeader" id="forecastDetailTitle">月末残業予測の計算根拠</div>
       <div class="modalBody">
         <div class="modalMeta" id="forecastDetailMeta"></div>
         <div class="forecastDetailContent" id="forecastDetailBody"></div>
@@ -1725,7 +1763,7 @@
       '日付',
       '所定労働時間',
       '法定時間内残業',
-      '法定時間外残業',
+      '残業時間',
       '年次有休取得日数(時間単位休を除く)',
       '所定休日労働時間',
       '法定休日労働時間',
@@ -2746,7 +2784,7 @@
           cutoffDate: currentSnapshotPayload.cutoffDate,
           uploadedAt: '未保存',
           sourceRows: cachedRows.length,
-          over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。'
+          over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。'
         },
         rows,
         summary,
@@ -3066,7 +3104,7 @@
 
         checkFiniteNumber(errors, row.estimatedOt, `${label} 概算残業時間`);
         checkFiniteNumber(errors, row.fixedOt, `${label} 確定残業時間`);
-        checkFiniteNumber(errors, row.monthEndForecastValue, `${label} 月末予測残業時間`);
+        checkFiniteNumber(errors, row.monthEndForecastValue, `${label} 月末残業予測時間`);
         checkFiniteNumber(errors, row.over45Count, `${label} 45h超過回数`);
         checkFiniteNumber(errors, row.paidLeaveTotal, `${label} 累計有休取得日数`);
         checkFiniteNumber(errors, row.elapsedDays, `${label} 経過日数`);
@@ -3077,13 +3115,13 @@
         if (Math.abs(Number(row.estimatedOt || 0) - Number(row.fixedOt || 0)) <= tolerance) {
           estimatedEqualsConfirmedCount += 1;
         }
-        if (Number(row.monthEndForecastValue) < 0) errors.push(`${label} 月末予測残業時間がマイナスです。`);
+        if (Number(row.monthEndForecastValue) < 0) errors.push(`${label} 月末残業予測時間がマイナスです。`);
         if (Number(row.elapsedDays) < 0) errors.push(`${label} 経過日数がマイナスです。`);
         if (Number(row.targetWorkingDays) <= 0) errors.push(`${label} 所定日数が0以下です。`);
 
         const hhmmValue = parseHHMMToHours(row.monthEndForecast);
         if (Math.abs(hhmmValue - Number(row.monthEndForecastValue || 0)) > tolerance) {
-          errors.push(`${label} 月末予測の表示値と数値が一致しません。表示=${row.monthEndForecast} 数値=${row.monthEndForecastValue}`);
+          errors.push(`${label} 月末残業予測の表示値と数値が一致しません。表示=${row.monthEndForecast} 数値=${row.monthEndForecastValue}`);
         }
       });
 
@@ -4620,7 +4658,7 @@
         class: 'monthForecastSparkline',
         viewBox: `0 0 ${width} ${height}`,
         role: 'img',
-        'aria-label': `月末予測推移 ${formatHoursAsHHMM(context.forecast)}`
+        'aria-label': `月末残業予測推移 ${formatHoursAsHHMM(context.forecast)}`
       });
       svg.appendChild(createSvgElement('path', { class: 'sparkActual', d: createSmoothPath(points.actualPoints) }));
       svg.appendChild(createSvgElement('path', { class: 'sparkForecast', d: createSmoothPath(points.forecastPoints) }));
@@ -4634,7 +4672,7 @@
       const displayValue = row.monthEndForecast || formatHoursAsHHMM(forecastHours);
 
       td.className = 'monthForecastCell';
-      td.title = `月末予測 ${displayValue} のグラフと計算根拠を表示`;
+      td.title = `月末残業予測 ${displayValue} のグラフと計算根拠を表示`;
       td.onclick = () => openForecastDetailModal(row);
 
       const wrapper = document.createElement('div');
@@ -4643,7 +4681,7 @@
       const visual = document.createElement('button');
       visual.type = 'button';
       visual.className = 'monthForecastVisual';
-      visual.title = `月末予測 ${displayValue} のグラフと計算根拠を表示`;
+      visual.title = `月末残業予測 ${displayValue} のグラフと計算根拠を表示`;
       visual.onclick = event => {
         event.preventDefault();
         event.stopPropagation();
@@ -4804,15 +4842,31 @@
       const calc = row && row.forecastCalculation ? row.forecastCalculation : {};
       const monthSource = (row && (row.month || row.targetMonth)) || calc.targetMonth || getActiveTargetMonthForManualInput();
       const parsed = parseYearMonth(monthSource);
-      return parsed && parsed.month ? `${parsed.month}月末予測` : '月末予測';
+      return parsed && parsed.month ? `${parsed.month}月末残業予測` : '月末残業予測';
     }
 
     function appendForecastDetailLine(container, label, value) {
       const div = document.createElement('div');
+      div.className = 'forecastDetailLine';
       const strong = document.createElement('strong');
       strong.textContent = label + '：';
       div.appendChild(strong);
       div.appendChild(document.createTextNode(value));
+      container.appendChild(div);
+    }
+
+    function appendForecastDetailBlock(container, label, lines, className) {
+      const div = document.createElement('div');
+      div.className = 'forecastDetailLine' + (className ? ` ${className}` : '');
+      const strong = document.createElement('strong');
+      strong.textContent = label + '：';
+      div.appendChild(strong);
+      (Array.isArray(lines) ? lines : [lines]).forEach((line, index) => {
+        const span = document.createElement('span');
+        span.className = 'proposalLine';
+        span.textContent = index === 0 ? String(line || '') : `・${String(line || '')}`;
+        div.appendChild(span);
+      });
       container.appendChild(div);
     }
 
@@ -4841,6 +4895,14 @@
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       return `${hours}時間${minutes}分`;
+    }
+
+    function formatClockTimeFromHours(value) {
+      const totalMinutes = Math.round(safeNumber(value) * 60);
+      const normalizedMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const hours = Math.floor(normalizedMinutes / 60);
+      const minutes = normalizedMinutes % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
     function createForecastDetailDiv(className, text) {
@@ -4942,7 +5004,7 @@
       const padding = { top: 18, right: 18, bottom: 34, left: 48 };
       const points = getForecastCurvePoints(context, width, height, padding);
       const limitStatuses = getForecastLimitStatuses(context);
-      const svg = createSvgElement('svg', { class: 'forecastCurveSvg', viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': '月末予測の詳細曲線グラフ', width: '100%', height: height });
+      const svg = createSvgElement('svg', { class: 'forecastCurveSvg', viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': '月末残業予測の詳細曲線グラフ', width: '100%', height: height });
       svg.style.display = 'block';
       svg.style.width = '100%';
       svg.style.height = `${height}px`;
@@ -4990,17 +5052,27 @@
         crossingLabel.textContent = `${Math.ceil(limit.crossingDay)}日`;
         svg.appendChild(crossingLabel);
 
-        const warningClass = limit.value === 45 ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
-        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: 5, tabindex: '0', fill: '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
+        const is45Limit = limit.value === 45;
+        if (is45Limit) {
+          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 12, fill: '#f59e0b', 'fill-opacity': .22, stroke: '#f59e0b', 'stroke-width': 5 }));
+        }
+        const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
+        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 7 : 5, tabindex: '0', fill: is45Limit ? '#dc2626' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
-        title.textContent = `${Math.ceil(limit.crossingDay)}日時点：予測 ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、月末予測 ${formatForecastDetailHours(context.forecast)}）`;
+        title.textContent = `${Math.ceil(limit.crossingDay)}日時点：予測 ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、月末残業予測 ${formatForecastDetailHours(context.forecast)}）`;
         warning.appendChild(title);
         svg.appendChild(warning);
+
+        if (is45Limit) {
+          const warningLabel = createSvgElement('text', { class: 'forecastCurveWarningLabel blink45', x: Math.min(width - padding.right - 8, x + 8), y: Math.max(padding.top + 12, y - 12), fill: '#b91c1c', 'font-size': 12, 'font-weight': 800, 'text-anchor': 'start' });
+          warningLabel.textContent = '45h到達';
+          svg.appendChild(warningLabel);
+        }
       });
 
       panel.appendChild(svg);
       appendForecastCurveLegend(panel);
-      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から月末予測 ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。`);
+      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から月末残業予測 ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。`);
       note.style.marginTop = '8px';
       note.style.color = '#666666';
       note.style.fontSize = '12px';
@@ -5064,12 +5136,12 @@
 
       let formula;
       if (remaining <= 0 || elapsed <= 0) {
-        formula = `実績 ${actualText}${extraText} + 見込み時間 0:00 → 月末予測 ${forecastText}`;
+        formula = `実績 ${actualText}${extraText} + 見込み時間 0:00 → 月末残業予測 ${forecastText}`;
       } else {
         const additional = (actual / elapsed) * remaining;
         const additionalText = formatForecastDetailHours(additional);
         const rateBaseText = formatForecastDetailHours(actual);
-        formula = `実績 ${actualText} + 見込み時間 ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}`;
+        formula = `実績 ${actualText} + 見込み時間 ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末残業予測 ${forecastText}`;
       }
 
       appendForecastDetailLine(container, '根拠', formula);
@@ -5079,23 +5151,32 @@
       const remaining = safeNumber(remainingWorkDays);
       const remainingTo45 = safeNumber(row.remainingTo45);
       const dailyLimitTo45 = safeNumber(row.dailyLimitTo45);
-      const dailyPaceTo45 = dailyLimitTo45 > 0 ? dailyLimitTo45 : remainingTo45 / remaining;
+      const dailyPaceTo45 = dailyLimitTo45 > 0 ? dailyLimitTo45 : remaining > 0 ? remainingTo45 / remaining : 0;
+      const leaveByTime = formatClockTimeFromHours(ORDINARY_OVERTIME_START_HOUR + Math.max(0, dailyPaceTo45));
 
       if (remaining <= 0) {
-        appendForecastDetailLine(container, '提案', '残り営業日がないため、45時間に達しないためのペース配分は不要です。');
+        appendForecastDetailBlock(container, '提案', [
+          '残り営業日がないため、45時間に達しないためのペース配分は不要です。',
+          '以降の勤務が発生する場合は、実績増加を最小限に抑える前提で確認してください。'
+        ], 'forecastProposal');
         return;
       }
 
       if (remainingTo45 <= 0) {
-        appendForecastDetailLine(container, '提案', '45時間に達しないための残り枠はありません。以降の実績増加を抑えるペース配分の参考として確認してください。');
+        appendForecastDetailBlock(container, '提案', [
+          '45時間に達しないための残り枠はありません。',
+          '以降の実績増加を抑えるペース配分の参考として確認してください。'
+        ], 'forecastProposal');
         return;
       }
 
-      appendForecastDetailLine(
-        container,
-        '提案',
-        `45時間に達しない目安は、残り ${formatForecastDetailNumber(remaining, 1)}日で法定時間外残業を1日あたり ${formatForecastDetailHours(dailyPaceTo45)} 以内のペースにすることです。残業を禁止する趣旨ではなく、45時間に達しないペース配分の参考です（残り枠 ${formatForecastDetailHours(remainingTo45)} ÷ 残り日数 ${formatForecastDetailNumber(remaining, 1)}日）。`
-      );
+      appendForecastDetailBlock(container, '提案', [
+        '45時間に達しないための目安です。',
+        `残り営業日：${formatForecastDetailNumber(remaining, 1)}日`,
+        `1日あたりの残業時間：${formatForecastDetailHours(dailyPaceTo45)}以内`,
+        `退社目安：${leaveByTime}まで（${formatClockTimeFromHours(ORDINARY_OVERTIME_START_HOUR)}以降の残業を${formatForecastDetailHours(dailyPaceTo45)}以内にする場合）`,
+        '残業を禁止する趣旨ではなく、45時間に達しないペース配分の参考です。'
+      ], 'forecastProposal');
     }
 
     function renderForecastDetailBody(row, container) {
@@ -5107,12 +5188,11 @@
       const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
       const overallForecast = calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue;
-      const basis = resolveMonthEndForecastBasis(calc, row);
 
       const summary = appendForecastDetailSection(container, '概要');
       const summaryBox = document.createElement('div');
       summaryBox.className = 'forecastSummary';
-      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${formatHoursAsJapanese(overallForecast)}`));
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末残業予測：${formatHoursAsJapanese(overallForecast)}`));
       summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
       summary.appendChild(summaryBox);
 
@@ -5127,8 +5207,6 @@
         appendForecastDetailLine(formulaSection, 'グラフ', `グラフを表示できませんでした：${(error && error.message) ? error.message : String(error)}`);
       }
       appendForecastPaceProposal(formulaSection, row, remainingWorkDays);
-      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
-      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
     }
 
     function openTextModal(row, field) {
