@@ -1814,7 +1814,7 @@
       });
 
       google.script.run
-        .withSuccessHandler(renderApp)
+        .withSuccessHandler(data => safeRenderApp(data))
         .withFailureHandler(showError)
         .getInitialData();
     });
@@ -3511,7 +3511,16 @@
       applyTabVisibility();
     }
 
+    function safeRenderApp(data) {
+      try {
+        renderApp(data);
+      } catch (error) {
+        showError(error);
+      }
+    }
+
     function renderApp(data) {
+      data = data || {};
       lastRenderedHasSnapshot = Boolean(data && data.hasSnapshot);
       currentUser = data.user;
       applyRoleSwitchHeaderAccess(currentUser);
@@ -3546,22 +3555,43 @@
 
       setupTabsForCurrentUser(data.hasSnapshot);
 
-      if (data.user.role === 'admin') {
-        loadAuthUsersForAdmin();
-        loadCompanyCalendarToForm(true);
-      }
-
       if (!data.hasSnapshot) {
         setupDisplayMonthFilter(availableSnapshotMonths, '');
         document.getElementById('main').style.display = 'none';
         applyRoleLayoutVisibility();
         showMessage('保存済みデータがありません。管理者が勤怠データをアップロードしてください。');
         document.getElementById('metaText').textContent = '保存済みデータなし';
+        loadAdminStartupDataIfNeeded();
         return;
       }
 
       renderAnalysisResult(data);
       document.getElementById('message').style.display = 'none';
+      loadAdminStartupDataIfNeeded();
+    }
+
+    function loadAdminStartupDataIfNeeded() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+
+      try {
+        loadAuthUsersForAdmin();
+      } catch (error) {
+        const el = document.getElementById('authStatus');
+        if (el) {
+          el.className = 'cacheStatus statusWarn';
+          el.textContent = '権限一覧の読込に失敗しました：' + ((error && error.message) ? error.message : String(error));
+        }
+      }
+
+      try {
+        loadCompanyCalendarToForm(true);
+      } catch (error) {
+        const el = document.getElementById('companyCalendarStatus');
+        if (el) {
+          el.className = 'cacheStatus statusWarn';
+          el.textContent = '会社カレンダーの読込に失敗しました：' + ((error && error.message) ? error.message : String(error));
+        }
+      }
     }
 
     function renderAnalysisResult(data) {
@@ -5436,6 +5466,10 @@
         return;
       }
       showMessage(message, true);
+      const metaText = document.getElementById('metaText');
+      if (metaText && metaText.textContent === '読み込み中です。') {
+        metaText.textContent = '読み込みに失敗しました';
+      }
     }
 
     function normalizeHeader(value) {
