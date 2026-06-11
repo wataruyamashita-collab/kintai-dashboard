@@ -4875,7 +4875,13 @@
       appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
 
       const formulaSection = appendForecastDetailSection(container, '計算');
-      appendForecastDetailCurve(formulaSection, row);
+      if (typeof appendForecastDetailCurve === 'function') {
+        try {
+          appendForecastDetailCurve(formulaSection, row);
+        } catch (error) {
+          appendForecastDetailLine(formulaSection, 'グラフ', `グラフを表示できませんでした：${(error && error.message) ? error.message : String(error)}`);
+        }
+      }
       appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
       appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays);
     }
