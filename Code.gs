@@ -180,8 +180,8 @@ function saveClientSnapshot(payload) {
       holidays: payload.holidays || [],
       calculationAudit: payload.calculationAudit || null,
       validationMetrics,
-      over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の法定時間外残業が45時間を超えた月数です。',
-      forecastDefinition: '月末予測は、45h（法定時間外労働）、60h（月60時間超割増対象・法定休日労働を除く）、80h（時間外＋休日労働）を別々の実績値で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。見込みは小数第1位切り上げ、超過判定は > で行います。',
+      over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。',
+      forecastDefinition: '月末残業予測は、45h（法定時間外労働）、60h（月60時間超割増対象・法定休日労働を除く）、80h（時間外＋休日労働）を別々の実績値で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。見込みは小数第1位切り上げ、超過判定は > で行います。',
       approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与計算には使用しません。CSV取込は10MB未満のファイルを対象に、引用符内のカンマ・改行を考慮して必要列のみを抽出します。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
     },
     rows: payload.rows
@@ -249,7 +249,7 @@ function validateClientSnapshotPayload_(payload, targetMonth, cutoffDate) {
   compareMetric_(clientMetrics, metrics, 'missingCount', '未入力あり人数');
   compareMetric_(clientMetrics, metrics, 'estimatedOtTotal', '概算残業時間合計');
   compareMetric_(clientMetrics, metrics, 'fixedOtTotal', '確定残業時間合計');
-  compareMetric_(clientMetrics, metrics, 'forecastTotal', '月末予測残業時間合計');
+  compareMetric_(clientMetrics, metrics, 'forecastTotal', '月末残業予測時間合計');
   compareMetric_(clientMetrics, metrics, 'over45Total', '45h超過回数合計');
 
   if (payload.calculationAudit && typeof payload.calculationAudit === 'object') {
@@ -291,12 +291,12 @@ function createSnapshotValidationMetrics_(rows) {
 
     const estimatedOt = readSnapshotNumber_(row.estimatedOt, `${label} 概算残業時間`, errors);
     const fixedOt = readSnapshotNumber_(row.fixedOt, `${label} 確定残業時間`, errors);
-    const forecast = readSnapshotNumber_(row.monthEndForecastValue, `${label} 月末予測残業時間`, errors);
+    const forecast = readSnapshotNumber_(row.monthEndForecastValue, `${label} 月末残業予測時間`, errors);
     const over45 = readSnapshotNumber_(row.over45Count, `${label} 45h超過回数`, errors);
 
     if (estimatedOt < 0) errors.push(`${label} 概算残業時間がマイナスです。`);
     if (fixedOt < 0) errors.push(`${label} 確定残業時間がマイナスです。`);
-    if (forecast < 0) errors.push(`${label} 月末予測残業時間がマイナスです。`);
+    if (forecast < 0) errors.push(`${label} 月末残業予測時間がマイナスです。`);
     if (over45 < 0) errors.push(`${label} 45h超過回数がマイナスです。`);
 
     const expectedMissing = calculateMissingItemsServer_(row).slice().sort().join('|');
