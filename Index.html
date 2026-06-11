@@ -5008,13 +5008,38 @@
 
       let formula;
       if (remaining <= 0 || elapsed <= 0) {
-        formula = `実績 ${actualText}h${extraText} + 追加見込み 0h → 月末予測 ${forecastText}h`;
+        formula = `実績 ${actualText}${extraText} + 見込み時間 0:00 → 月末予測 ${forecastText}`;
       } else {
-        const additionalText = formatForecastDetailNumber((actual / elapsed) * remaining, 2);
-        formula = `実績 ${actualText}h + 追加見込み ${additionalText}h（${actualText}h ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}h`;
+        const additional = (actual / elapsed) * remaining;
+        const additionalText = formatForecastDetailHours(additional);
+        const rateBaseText = formatForecastDetailHours(actual);
+        formula = `実績 ${actualText} + 見込み時間 ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}`;
       }
 
       appendForecastDetailLine(container, '根拠式', formula);
+    }
+
+    function appendForecastPaceProposal(container, row, remainingWorkDays) {
+      const remaining = safeNumber(remainingWorkDays);
+      const remainingTo45 = safeNumber(row.remainingTo45);
+      const dailyLimitTo45 = safeNumber(row.dailyLimitTo45);
+      const dailyPaceTo45 = dailyLimitTo45 > 0 ? dailyLimitTo45 : remainingTo45 / remaining;
+
+      if (remaining <= 0) {
+        appendForecastDetailLine(container, '提案', '残り営業日がないため、45時間に達しないためのペース配分は不要です。');
+        return;
+      }
+
+      if (remainingTo45 <= 0) {
+        appendForecastDetailLine(container, '提案', '45時間に達しないための残り枠はありません。以降の実績増加を抑えるペース配分の参考として確認してください。');
+        return;
+      }
+
+      appendForecastDetailLine(
+        container,
+        '提案',
+        `45時間に達しない目安は、残り ${formatForecastDetailNumber(remaining, 1)}日で法定時間外残業を1日あたり ${formatForecastDetailHours(dailyPaceTo45)} 以内のペースにすることです。残業を禁止する趣旨ではなく、45時間に達しないペース配分の参考です（残り枠 ${formatForecastDetailHours(remainingTo45)} ÷ 残り日数 ${formatForecastDetailNumber(remaining, 1)}日）。`
+      );
     }
 
     function renderForecastDetailBody(row, container) {
@@ -5046,7 +5071,8 @@
         appendForecastDetailLine(formulaSection, 'グラフ', `グラフを表示できませんでした：${(error && error.message) ? error.message : String(error)}`);
       }
       appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
-      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays);
+      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
+      appendForecastPaceProposal(formulaSection, row, remainingWorkDays);
     }
 
     function openTextModal(row, field) {
