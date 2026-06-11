@@ -2371,7 +2371,7 @@
           const normalized = row.map(normalizeHeader);
           const matchCount = REQUIRED_HEADERS.filter(h => normalized.includes(normalizeHeader(h))).length;
 
-          if (matchCount >= 8) {
+          if (matchCount === REQUIRED_HEADERS.length) {
             headers = row;
             headerIndex = createHeaderIndex(headers);
             prescribedExcessSource = findPrescribedExcessSource(headers);
@@ -2594,6 +2594,7 @@
           cachedRows = parsed.rows;
           cachedRowsByMonth = parsed.monthIndex || {};
           cachedFileName = file.name;
+          syncTargetMonthWithImportedData(cachedRowsByMonth);
 
           if (cachedRows.length === 0) {
             throw new Error('取込可能なデータがありません。');
@@ -2649,6 +2650,19 @@
         if (cachedRowsByMonth[key]) result.push(...cachedRowsByMonth[key]);
       }
       return result;
+    }
+
+    function syncTargetMonthWithImportedData(monthIndex) {
+      const targetMonthInput = document.getElementById('targetMonth');
+      if (!targetMonthInput) return;
+
+      const importedMonths = Object.keys(monthIndex || {}).sort();
+      if (importedMonths.length === 0) return;
+
+      const selectedMonth = normalizeText(targetMonthInput.value).replace(/-/g, '/');
+      if (selectedMonth && monthIndex[selectedMonth]) return;
+
+      targetMonthInput.value = importedMonths[importedMonths.length - 1].replace(/\//g, '-');
     }
 
     function determineAutoCutoffDate(rows, targetMonth) {
