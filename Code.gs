@@ -919,9 +919,9 @@ function getBusinessDayInfo(targetMonth) {
   }
 
   const cacheKey = BUSINESS_DAY_CACHE_PREFIX + normalized.replace('/', '_');
-  const props = PropertiesService.getScriptProperties();
+  const cache = CacheService.getScriptCache();
 
-  const cached = props.getProperty(cacheKey);
+  const cached = cache.get(cacheKey);
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
@@ -929,13 +929,13 @@ function getBusinessDayInfo(targetMonth) {
         return parsed;
       }
     } catch (e) {
-      props.deleteProperty(cacheKey);
+      cache.remove(cacheKey);
     }
   }
 
   const result = calculateBusinessDaysWithHolidayFallback_(year, month);
 
-  props.setProperty(cacheKey, JSON.stringify(result));
+  cache.put(cacheKey, JSON.stringify(result), 21600);
   return result;
 }
 
@@ -1600,9 +1600,31 @@ function bulkSaveAuthUsers(payload) {
   lock.waitLock(30000);
 
   try {
+    const currentValues = sheet.getDataRange().getValues();
+    const headers = currentValues[0].map(h => String(h || '').trim());
+    const records = currentValues.slice(1)
+      .filter(row => row.some(cell => String(cell || '').trim() !== ''))
+      .map(row => {
+        const obj = {};
+        headers.forEach((header, index) => {
+          obj[header] = row[index];
+        });
+        return obj;
+      });
+    const recordIndexByEmail = {};
+    records.forEach((record, index) => {
+      const email = String(record.email || '').trim().toLowerCase();
+      if (email && recordIndexByEmail[email] === undefined) recordIndexByEmail[email] = index;
+    });
+
+    const historyHeaders = historySheet.getRange(1, 1, 1, historySheet.getLastColumn()).getValues()[0]
+      .map(h => String(h || '').trim());
+    const historyFields = ['name', 'department', 'role', 'enabled', 'note'];
+    const historyRecords = [];
+
     normalizedUsers.forEach(item => {
-      const existingRowNumber = findRowByKey_(sheet, 'email', item.email);
-      const before = existingRowNumber > 0 ? getObjectAtRow_(sheet, existingRowNumber) : null;
+      const existingIndex = recordIndexByEmail[item.email];
+      const before = existingIndex !== undefined ? records[existingIndex] : null;
       const record = Object.assign({}, item, {
         createdAt: before ? before.createdAt : now,
         createdBy: before ? before.createdBy : user.email,
@@ -1610,9 +1632,40 @@ function bulkSaveAuthUsers(payload) {
         updatedBy: user.email
       });
 
-      upsertObjectByKey_(sheet, 'email', item.email, record);
-      appendAuthHistoryIfChanged_(historySheet, before, record, user.email);
+      if (existingIndex !== undefined) {
+        records[existingIndex] = record;
+      } else {
+        recordIndexByEmail[item.email] = records.length;
+        records.push(record);
+      }
+
+      historyFields.forEach(field => {
+        const beforeValue = before ? String(before[field] || '') : '';
+        const afterValue = String(record[field] || '');
+        if (beforeValue === afterValue) return;
+
+        historyRecords.push({
+          historyId: Utilities.getUuid(),
+          email: record.email,
+          fieldName: field,
+          beforeValue,
+          afterValue,
+          action: before ? 'update' : 'create',
+          createdAt: now,
+          createdBy: user.email
+        });
+      });
     });
+
+    const outputRows = records.map(record => headers.map(header => record[header] !== undefined ? record[header] : ''));
+    if (outputRows.length > 0) {
+      sheet.getRange(2, 1, outputRows.length, headers.length).setValues(outputRows);
+    }
+
+    if (historyRecords.length > 0) {
+      const historyRows = historyRecords.map(record => historyHeaders.map(header => record[header] !== undefined ? record[header] : ''));
+      historySheet.getRange(historySheet.getLastRow() + 1, 1, historyRows.length, historyHeaders.length).setValues(historyRows);
+    }
   } finally {
     lock.releaseLock();
   }
@@ -1860,6 +1913,9 @@ function createClientPermissions_(user) {
 function mergeManualInputsToRows_(rows, targetMonth) {
   const normalizedMonth = normalizeTargetMonth_(targetMonth);
   if (!normalizedMonth || !Array.isArray(rows)) return rows || [];
+
+  const currentMonth = Utilities.formatDate(new Date(), APP_CONFIG.TIMEZONE, 'yyyy/MM');
+  if (normalizedMonth !== currentMonth) return rows;
 
   const manualMap = {};
   loadManualInputsAllForMonth_(normalizedMonth).forEach(record => {
