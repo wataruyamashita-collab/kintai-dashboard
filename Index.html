@@ -4595,6 +4595,8 @@
       const displayValue = row.monthEndForecast || formatHoursAsHHMM(forecastHours);
 
       td.className = 'monthForecastCell';
+      td.title = `月末予測 ${displayValue} のグラフと計算根拠を表示`;
+      td.onclick = () => openForecastDetailModal(row);
 
       const wrapper = document.createElement('div');
       wrapper.className = 'monthForecastCellContent';
@@ -4603,9 +4605,13 @@
       visual.type = 'button';
       visual.className = 'monthForecastVisual';
       visual.title = `月末予測 ${displayValue} のグラフと計算根拠を表示`;
-      visual.onclick = () => openForecastDetailModal(row);
+      visual.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        openForecastDetailModal(row);
+      };
 
-      const value = document.createElement('div');
+      const value = document.createElement('span');
       value.className = 'monthForecastValue';
       value.textContent = displayValue;
 
@@ -4726,13 +4732,23 @@
     function openForecastDetailModal(row) {
       if (!row) return;
 
+      const modal = document.getElementById('forecastDetailModal');
       const meta = document.getElementById('forecastDetailMeta');
       const body = document.getElementById('forecastDetailBody');
-      if (!meta || !body) return;
+      if (!modal || !meta || !body) return;
 
       meta.textContent = `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
-      renderForecastDetailBody(row, body);
-      document.getElementById('forecastDetailModal').style.display = 'flex';
+      try {
+        renderForecastDetailBody(row, body);
+      } catch (error) {
+        body.innerHTML = '';
+        appendForecastDetailLine(body, '表示エラー', (error && error.message) ? error.message : String(error));
+      }
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        const closeButton = document.getElementById('forecastDetailCloseButton');
+        if (closeButton) closeButton.focus();
+      }, 0);
     }
 
     function closeForecastDetailModal() {
