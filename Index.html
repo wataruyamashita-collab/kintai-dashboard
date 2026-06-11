@@ -601,137 +601,6 @@
       font-weight: 700;
     }
 
-
-    .forecastCurvePanel {
-      margin-top: 10px;
-      padding: 10px 10px 8px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #fbfcfe;
-    }
-
-    .forecastCurveSvg {
-      display: block;
-      width: 100%;
-      height: 260px;
-    }
-
-    .forecastCurveGrid {
-      stroke: #dfe6ef;
-      stroke-width: 1;
-    }
-
-    .forecastCurveAxisLabel {
-      fill: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .forecastCurveLimit45 {
-      stroke: #c5972f;
-      stroke-width: 1.5;
-      stroke-dasharray: 5 5;
-    }
-
-    .forecastCurveLimit60 {
-      stroke: #d97917;
-      stroke-width: 1.5;
-      stroke-dasharray: 5 5;
-    }
-
-    .forecastCurveLimit80 {
-      stroke: #b91c1c;
-      stroke-width: 1.5;
-      stroke-dasharray: 5 5;
-    }
-
-    .forecastCurveCrossLine {
-      stroke: #8fa3ba;
-      stroke-width: 1;
-      stroke-dasharray: 3 4;
-    }
-
-    .forecastCurveCrossLabel {
-      fill: #26384d;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .forecastCurveActual {
-      fill: none;
-      stroke: #1f4e79;
-      stroke-width: 3;
-      stroke-linecap: round;
-    }
-
-    .forecastCurveForecast {
-      fill: none;
-      stroke: #1f4e79;
-      stroke-width: 3;
-      stroke-linecap: round;
-      stroke-dasharray: 7 6;
-    }
-
-    .forecastCurvePoint {
-      fill: #ffffff;
-      stroke: #1f4e79;
-      stroke-width: 2;
-    }
-
-    .forecastCurveWarning {
-      fill: #b91c1c;
-      stroke: #ffffff;
-      stroke-width: 2;
-    }
-
-    .forecastCurveLegend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 14px;
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .forecastCurveLegendItem {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .forecastCurveLegendSwatch {
-      width: 22px;
-      height: 0;
-      border-top: 3px solid #1f4e79;
-      border-radius: 999px;
-    }
-
-    .forecastCurveLegendSwatch.forecast {
-      border-top-style: dashed;
-    }
-
-    .forecastCurveLegendSwatch.limit45 {
-      border-top-color: #c5972f;
-      border-top-style: dashed;
-    }
-
-    .forecastCurveLegendSwatch.limit60 {
-      border-top-color: #d97917;
-      border-top-style: dashed;
-    }
-
-    .forecastCurveLegendSwatch.limit80 {
-      border-top-color: #b91c1c;
-      border-top-style: dashed;
-    }
-
-    .forecastGraphNote {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
     .agreementSelect {
       width: 100%;
       height: 30px;
@@ -5127,20 +4996,15 @@
       return candidates.reduce((best, item) => item.forecast > best.forecast ? item : best, candidates[0]);
     }
 
-    function appendMonthEndForecastFormula(container, basis, elapsedDays, remainingWorkDays, fallbackForecast) {
+    function appendMonthEndForecastFormula(container, basis, elapsedDays, remainingWorkDays) {
       const actual = safeNumber(basis.actual);
       const forecast = safeNumber(basis.forecast);
       const extra = safeNumber(basis.extra);
       const elapsed = safeNumber(elapsedDays);
       const remaining = safeNumber(remainingWorkDays);
-      const computedForecast = elapsed > 0
-        ? ceilTo1(actual + (actual / elapsed) * remaining + extra)
-        : ceilTo1(actual + extra);
-      const displayForecast = forecast > 0 ? forecast : (safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : computedForecast);
-      const displayActual = remaining <= 0 && forecast <= 0 && safeNumber(fallbackForecast) > 0 ? safeNumber(fallbackForecast) : actual;
-      const actualText = formatForecastDetailHours(displayActual);
-      const forecastText = formatForecastDetailHours(displayForecast);
-      const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailHours(extra)}` : '';
+      const actualText = formatForecastDetailNumber(actual, 2);
+      const forecastText = formatForecastDetailNumber(forecast, 1);
+      const extraText = extra > 0 ? ` + 予定休日労働 ${formatForecastDetailNumber(extra, 2)}h` : '';
 
       let formula;
       if (remaining <= 0 || elapsed <= 0) {
@@ -5186,13 +5050,14 @@
       const totalWorkDays = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
       const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
-      const overallForecast = safeNumber(row.monthEndForecastValue) || safeNumber(calc.overallForecast);
+      const overallForecast = calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue;
       const basis = resolveMonthEndForecastBasis(calc, row);
 
       const summary = appendForecastDetailSection(container, '概要');
       const summaryBox = document.createElement('div');
       summaryBox.className = 'forecastSummary';
-      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatForecastDetailHours(overallForecast)}`));
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（${formatForecastDetailNumber(overallForecast, 1)}h）`));
+      summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
       summary.appendChild(summaryBox);
 
       const days = appendForecastDetailSection(container, '日数の内訳');
