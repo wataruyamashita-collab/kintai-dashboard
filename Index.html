@@ -601,6 +601,15 @@
       font-weight: 700;
     }
 
+    .forecastCurveWarning.blink45 {
+      animation: forecastCurveBlink45 1s ease-in-out infinite;
+    }
+
+    @keyframes forecastCurveBlink45 {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .25; }
+    }
+
     .agreementSelect {
       width: 100%;
       height: 30px;
@@ -4763,10 +4772,12 @@
       if (!row) return;
 
       const modal = document.getElementById('forecastDetailModal');
+      const title = document.getElementById('forecastDetailTitle');
       const meta = document.getElementById('forecastDetailMeta');
       const body = document.getElementById('forecastDetailBody');
       if (!modal || !meta || !body) return;
 
+      if (title) title.textContent = formatForecastDetailTitle(row);
       meta.textContent = `社員：${row.employeeName || ''} ／ 部署：${row.department || ''} ／ 社員コード：${row.employeeCode || ''}`;
       try {
         renderForecastDetailBody(row, body);
@@ -4787,6 +4798,13 @@
 
     function closeForecastDetailModalByOverlay(event) {
       if (event.target && event.target.id === 'forecastDetailModal') closeForecastDetailModal();
+    }
+
+    function formatForecastDetailTitle(row) {
+      const calc = row && row.forecastCalculation ? row.forecastCalculation : {};
+      const monthSource = (row && (row.month || row.targetMonth)) || calc.targetMonth || getActiveTargetMonthForManualInput();
+      const parsed = parseYearMonth(monthSource);
+      return parsed && parsed.month ? `${parsed.month}月末予測` : '月末予測';
     }
 
     function appendForecastDetailLine(container, label, value) {
@@ -4816,6 +4834,13 @@
 
     function formatForecastDetailHours(value) {
       return formatHoursAsHHMM(safeNumber(value));
+    }
+
+    function formatHoursAsJapanese(value) {
+      const totalMinutes = Math.round(safeNumber(value) * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `${hours}時間${minutes}分`;
     }
 
     function createForecastDetailDiv(className, text) {
@@ -4965,7 +4990,8 @@
         crossingLabel.textContent = `${Math.ceil(limit.crossingDay)}日`;
         svg.appendChild(crossingLabel);
 
-        const warning = createSvgElement('circle', { class: 'forecastCurveWarning', cx: x, cy: y, r: 5, tabindex: '0', fill: '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
+        const warningClass = limit.value === 45 ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
+        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: 5, tabindex: '0', fill: '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
         title.textContent = `${Math.ceil(limit.crossingDay)}日時点：予測 ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、月末予測 ${formatForecastDetailHours(context.forecast)}）`;
         warning.appendChild(title);
@@ -5046,7 +5072,7 @@
         formula = `実績 ${actualText} + 見込み時間 ${additionalText}（${rateBaseText} ÷ ${formatForecastDetailNumber(elapsed, 1)}日 × ${formatForecastDetailNumber(remaining, 1)}日）${extraText} → 月末予測 ${forecastText}`;
       }
 
-      appendForecastDetailLine(container, '根拠式', formula);
+      appendForecastDetailLine(container, '根拠', formula);
     }
 
     function appendForecastPaceProposal(container, row, remainingWorkDays) {
@@ -5086,7 +5112,7 @@
       const summary = appendForecastDetailSection(container, '概要');
       const summaryBox = document.createElement('div');
       summaryBox.className = 'forecastSummary';
-      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${row.monthEndForecast || formatHoursAsHHMM(row.monthEndForecastValue)}（${formatForecastDetailNumber(overallForecast, 1)}h）`));
+      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `月末予測：${formatHoursAsJapanese(overallForecast)}`));
       summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
       summary.appendChild(summaryBox);
 
@@ -5100,9 +5126,9 @@
       } catch (error) {
         appendForecastDetailLine(formulaSection, 'グラフ', `グラフを表示できませんでした：${(error && error.message) ? error.message : String(error)}`);
       }
-      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
-      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
       appendForecastPaceProposal(formulaSection, row, remainingWorkDays);
+      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
+      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
     }
 
     function openTextModal(row, field) {
