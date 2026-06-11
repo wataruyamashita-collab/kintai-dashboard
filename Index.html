@@ -601,13 +601,51 @@
       font-weight: 700;
     }
 
+    .forecastDetailLine {
+      margin-top: 6px;
+    }
+
+    .forecastProposal {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid #f6c66a;
+      border-left: 5px solid #d97706;
+      border-radius: 10px;
+      background: #fff7e6;
+      line-height: 1.8;
+    }
+
+    .forecastProposal strong {
+      color: #8a4b00;
+    }
+
+    .forecastProposal .proposalLine {
+      display: block;
+      margin-top: 2px;
+      padding-left: 1em;
+      text-indent: -1em;
+    }
+
     .forecastCurveWarning.blink45 {
+      animation: forecastCurveBlink45 1s ease-in-out infinite;
+    }
+
+    .forecastCurveWarningHalo.blink45 {
+      animation: forecastCurveBlink45Halo 1s ease-in-out infinite;
+    }
+
+    .forecastCurveWarningLabel.blink45 {
       animation: forecastCurveBlink45 1s ease-in-out infinite;
     }
 
     @keyframes forecastCurveBlink45 {
       0%, 100% { opacity: 1; }
-      50% { opacity: .25; }
+      50% { opacity: .35; }
+    }
+
+    @keyframes forecastCurveBlink45Halo {
+      0%, 100% { opacity: .25; stroke-width: 4; }
+      50% { opacity: .95; stroke-width: 8; }
     }
 
     .agreementSelect {
@@ -4809,10 +4847,26 @@
 
     function appendForecastDetailLine(container, label, value) {
       const div = document.createElement('div');
+      div.className = 'forecastDetailLine';
       const strong = document.createElement('strong');
       strong.textContent = label + '：';
       div.appendChild(strong);
       div.appendChild(document.createTextNode(value));
+      container.appendChild(div);
+    }
+
+    function appendForecastDetailBlock(container, label, lines, className) {
+      const div = document.createElement('div');
+      div.className = 'forecastDetailLine' + (className ? ` ${className}` : '');
+      const strong = document.createElement('strong');
+      strong.textContent = label + '：';
+      div.appendChild(strong);
+      (Array.isArray(lines) ? lines : [lines]).forEach((line, index) => {
+        const span = document.createElement('span');
+        span.className = 'proposalLine';
+        span.textContent = index === 0 ? String(line || '') : `・${String(line || '')}`;
+        div.appendChild(span);
+      });
       container.appendChild(div);
     }
 
@@ -4841,6 +4895,14 @@
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       return `${hours}時間${minutes}分`;
+    }
+
+    function formatClockTimeFromHours(value) {
+      const totalMinutes = Math.round(safeNumber(value) * 60);
+      const normalizedMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const hours = Math.floor(normalizedMinutes / 60);
+      const minutes = normalizedMinutes % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
     function createForecastDetailDiv(className, text) {
@@ -4990,12 +5052,22 @@
         crossingLabel.textContent = `${Math.ceil(limit.crossingDay)}日`;
         svg.appendChild(crossingLabel);
 
-        const warningClass = limit.value === 45 ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
-        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: 5, tabindex: '0', fill: '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
+        const is45Limit = limit.value === 45;
+        if (is45Limit) {
+          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 12, fill: '#f59e0b', 'fill-opacity': .22, stroke: '#f59e0b', 'stroke-width': 5 }));
+        }
+        const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
+        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 7 : 5, tabindex: '0', fill: is45Limit ? '#dc2626' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
         title.textContent = `${Math.ceil(limit.crossingDay)}日時点：予測 ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、月末予測 ${formatForecastDetailHours(context.forecast)}）`;
         warning.appendChild(title);
         svg.appendChild(warning);
+
+        if (is45Limit) {
+          const warningLabel = createSvgElement('text', { class: 'forecastCurveWarningLabel blink45', x: Math.min(width - padding.right - 8, x + 8), y: Math.max(padding.top + 12, y - 12), fill: '#b91c1c', 'font-size': 12, 'font-weight': 800, 'text-anchor': 'start' });
+          warningLabel.textContent = '45h到達';
+          svg.appendChild(warningLabel);
+        }
       });
 
       panel.appendChild(svg);
@@ -5079,23 +5151,32 @@
       const remaining = safeNumber(remainingWorkDays);
       const remainingTo45 = safeNumber(row.remainingTo45);
       const dailyLimitTo45 = safeNumber(row.dailyLimitTo45);
-      const dailyPaceTo45 = dailyLimitTo45 > 0 ? dailyLimitTo45 : remainingTo45 / remaining;
+      const dailyPaceTo45 = dailyLimitTo45 > 0 ? dailyLimitTo45 : remaining > 0 ? remainingTo45 / remaining : 0;
+      const leaveByTime = formatClockTimeFromHours(ORDINARY_OVERTIME_START_HOUR + Math.max(0, dailyPaceTo45));
 
       if (remaining <= 0) {
-        appendForecastDetailLine(container, '提案', '残り営業日がないため、45時間に達しないためのペース配分は不要です。');
+        appendForecastDetailBlock(container, '提案', [
+          '残り営業日がないため、45時間に達しないためのペース配分は不要です。',
+          '以降の勤務が発生する場合は、実績増加を最小限に抑える前提で確認してください。'
+        ], 'forecastProposal');
         return;
       }
 
       if (remainingTo45 <= 0) {
-        appendForecastDetailLine(container, '提案', '45時間に達しないための残り枠はありません。以降の実績増加を抑えるペース配分の参考として確認してください。');
+        appendForecastDetailBlock(container, '提案', [
+          '45時間に達しないための残り枠はありません。',
+          '以降の実績増加を抑えるペース配分の参考として確認してください。'
+        ], 'forecastProposal');
         return;
       }
 
-      appendForecastDetailLine(
-        container,
-        '提案',
-        `45時間に達しない目安は、残り ${formatForecastDetailNumber(remaining, 1)}日で法定時間外残業を1日あたり ${formatForecastDetailHours(dailyPaceTo45)} 以内のペースにすることです。残業を禁止する趣旨ではなく、45時間に達しないペース配分の参考です（残り枠 ${formatForecastDetailHours(remainingTo45)} ÷ 残り日数 ${formatForecastDetailNumber(remaining, 1)}日）。`
-      );
+      appendForecastDetailBlock(container, '提案', [
+        '45時間に達しないための目安です。',
+        `残り営業日：${formatForecastDetailNumber(remaining, 1)}日`,
+        `1日あたりの法定時間外残業：${formatForecastDetailHours(dailyPaceTo45)}以内`,
+        `退社目安：${leaveByTime}まで（${formatClockTimeFromHours(ORDINARY_OVERTIME_START_HOUR)}以降の残業を${formatForecastDetailHours(dailyPaceTo45)}以内にする場合）`,
+        '残業を禁止する趣旨ではなく、45時間に達しないペース配分の参考です。'
+      ], 'forecastProposal');
     }
 
     function renderForecastDetailBody(row, container) {
@@ -5107,7 +5188,6 @@
       const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
       const overallForecast = calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue;
-      const basis = resolveMonthEndForecastBasis(calc, row);
 
       const summary = appendForecastDetailSection(container, '概要');
       const summaryBox = document.createElement('div');
@@ -5127,8 +5207,6 @@
         appendForecastDetailLine(formulaSection, 'グラフ', `グラフを表示できませんでした：${(error && error.message) ? error.message : String(error)}`);
       }
       appendForecastPaceProposal(formulaSection, row, remainingWorkDays);
-      appendMonthEndForecastFormula(formulaSection, basis, elapsedDays, remainingWorkDays, overallForecast);
-      appendForecastDetailLine(formulaSection, '式', '実績 + (実績 ÷ 経過日数) × 残り日数');
     }
 
     function openTextModal(row, field) {
