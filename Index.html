@@ -331,6 +331,10 @@
       flex-direction: column;
     }
 
+    .forecastDetailBox {
+      width: min(1040px, 96vw);
+    }
+
     .modalHeader {
       padding: 16px 18px;
       border-bottom: 1px solid var(--line);
@@ -589,14 +593,49 @@
     }
 
     .forecastSummary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
       padding: 12px;
       border: 1px solid var(--line);
       border-radius: 10px;
       background: #f8f9fa;
     }
 
+    .forecastSummaryItem {
+      min-height: 56px;
+      padding: 9px 10px;
+      border: 1px solid #dfe6ef;
+      border-radius: 9px;
+      background: #ffffff;
+    }
+
+    .forecastSummaryLabel {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .forecastSummaryValue {
+      margin-top: 3px;
+      color: #1f4e79;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .forecastSummaryItem.warning .forecastSummaryValue {
+      color: #b45309;
+    }
+
+    .forecastSummaryItem.danger .forecastSummaryValue {
+      color: #a61c00;
+    }
+
     .forecastSummaryMain {
-      margin-bottom: 8px;
+      grid-column: 1 / -1;
+      margin-bottom: 0;
       font-size: 16px;
       font-weight: 700;
     }
@@ -1473,10 +1512,10 @@
   <div id="uploadBox" class="uploadBox">
     <div id="dataImportPanel" class="panel tabPanel adminTabPanel">
       <h3>管理者用：勤怠データ取込・月別再集計</h3>
-      <div class="sub">CSVの取込、計算・再集計、保存を分けて操作します。共有する場合のみ、表示中の結果を保存してください。</div>
+      <div class="sub">CSVの取込、集計・再集計、保存を分けて操作します。共有する場合のみ、表示中の結果を保存してください。</div>
       <div class="guideSteps" aria-label="操作手順">
         <div class="guideStep"><span class="num">1</span><div><strong>CSV取込</strong><br>初回のみCSVを読み込み、対象月を自動集計します（10MB未満）。</div></div>
-        <div class="guideStep"><span class="num">2</span><div><strong>計算・再集計</strong><br>月を変更した場合や再確認時は、取込済みデータから再計算します。</div></div>
+        <div class="guideStep"><span class="num">2</span><div><strong>集計・再集計</strong><br>月を変更した場合や再確認時は、取込済みデータから再集計します。</div></div>
         <div class="guideStep"><span class="num">3</span><div><strong>保存</strong><br>共有する場合だけ、表示中の集計結果を保存します。</div></div>
       </div>
 
@@ -1484,7 +1523,7 @@
         <label>対象月：<input type="month" id="targetMonth" onchange="setDefaultCutoffDate()"></label>
         <input type="file" id="fileInput" accept=".csv,text/csv">
         <button class="primary" id="importButton" onclick="importFileOnce()">CSV取込</button>
-        <button id="analyzeButton" onclick="analyzeCachedData()" disabled>計算・再集計</button>
+        <button id="analyzeButton" onclick="analyzeCachedData()" disabled>集計・再集計</button>
         <button class="save" id="saveButton" onclick="saveCurrentResult()" disabled>結果を保存</button>
       </div>
 
@@ -1503,7 +1542,7 @@
     <div id="parameterPanel" class="panel tabPanel adminTabPanel">
       <h3>管理者用：パラメータ設定</h3>
       <div class="sub" style="margin-bottom:10px;">
-        集計時の表示条件や会社カレンダーなど、勤怠アラート計算に関係する設定を管理します。
+        集計時の表示条件や会社カレンダーなど、勤怠アラート集計に関係する設定を管理します。
       </div>
 
       <div class="options">
@@ -1533,7 +1572,7 @@
         <textarea id="calendarTextInput" style="width:100%;min-height:90px;box-sizing:border-box;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;" placeholder="年間勤務カレンダーPDFのテキストを貼り付けてください。例：各月の「労 20 Orientations」「労 18」または「時 150.0」などから自動抽出します。"></textarea>
 
         <div id="calendarMonthInputs" class="options" style="align-items:flex-end;"></div>
-        <div class="cacheStatus" id="companyCalendarTotalStatus">年間労働日数：未計算</div>
+        <div class="cacheStatus" id="companyCalendarTotalStatus">年間労働日数：未集計</div>
         <div class="cacheStatus" id="companyCalendarStatus">会社カレンダーは未読込です。</div>
       </div>
     </div>
@@ -1568,7 +1607,7 @@
         </div>
 
         <div class="definition" style="margin-top:10px;">
-          権限の意味：admin＝全社閲覧・CSV取込・計算・権限管理、所属長＝自部署閲覧・自部署の手入力保存、役員＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
+          権限の意味：admin＝全社閲覧・CSV取込・集計・権限管理、所属長＝自部署閲覧・自部署の手入力保存、役員＝自部署閲覧のみ。admin は表示範囲を「全社」にしてください。
         </div>
 
         <div class="definition" style="margin-top:10px;">
@@ -1670,7 +1709,7 @@
     </div>
 
     <div class="definition" id="definitionBox">
-      <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与計算には使用しません。<br>
+      <strong>判定の前提</strong>：本画面は、管理職へ早期警戒情報を共有するための管理用シミュレーションです。36協定上の確定判定および給与処理には使用しません。<br>
       <strong>45h超過回数</strong>：対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。<br>
       <strong>月末残業予測時間</strong>：45h・60h・80hを別々の対象時間で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。
     </div>
@@ -1741,8 +1780,8 @@
   </div>
 
   <div class="modalOverlay" id="forecastDetailModal" onclick="closeForecastDetailModalByOverlay(event)">
-    <div class="modalBox" role="dialog" aria-modal="true" aria-labelledby="forecastDetailTitle">
-      <div class="modalHeader" id="forecastDetailTitle">月末残業予測の計算根拠</div>
+    <div class="modalBox forecastDetailBox" role="dialog" aria-modal="true" aria-labelledby="forecastDetailTitle">
+      <div class="modalHeader" id="forecastDetailTitle">月末残業予測の内訳</div>
       <div class="modalBody">
         <div class="modalMeta" id="forecastDetailMeta"></div>
         <div class="forecastDetailContent" id="forecastDetailBody"></div>
@@ -2141,7 +2180,7 @@
 
       if (!total) {
         status.className = 'cacheStatus';
-        status.textContent = '年間労働日数：未計算';
+        status.textContent = '年間労働日数：未集計';
         return;
       }
 
@@ -2281,7 +2320,7 @@
 
     function setDefaultCutoffDate() {
       if (cachedRows.length > 0) {
-        showMessage('対象月を変更しました。「計算・再集計」を押してください。集計基準日は取込データから自動判定します。');
+        showMessage('対象月を変更しました。「集計・再集計」を押してください。集計基準日は取込データから自動判定します。');
       }
     }
 
@@ -2758,7 +2797,7 @@
                 });
               })
               .withFailureHandler(error => {
-                showMessage('手入力内容の復元に失敗しました。計算結果のみ表示します。Code.gs 側の applyManualInputsToRows を確認してください。', true);
+                showMessage('手入力内容の復元に失敗しました。集計結果のみ表示します。Code.gs 側の applyManualInputsToRows を確認してください。', true);
                 finishAnalyzeCachedDataRender(rows, {
                   normalizedTargetMonth,
                   normalizedCutoffDate,
@@ -5068,6 +5107,39 @@
       return div;
     }
 
+    function createForecastSummaryItem(label, value, className) {
+      const item = document.createElement('div');
+      item.className = 'forecastSummaryItem' + (className ? ` ${className}` : '');
+      item.appendChild(createForecastDetailDiv('forecastSummaryLabel', label));
+      item.appendChild(createForecastDetailDiv('forecastSummaryValue', value));
+      return item;
+    }
+
+    function appendForecastSummaryInsights(summaryBox, row, labels, elapsedDays) {
+      try {
+        const context = getForecastCurveContext(row);
+        const statuses = getForecastLimitStatuses(context);
+        const status45 = statuses.find(status => status.value === 45);
+        const status60 = statuses.find(status => status.value === 60);
+        const elapsedText = `経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`;
+        const status45Text = status45 && status45.exceeded
+          ? '既に45時間以上'
+          : status45 && status45.crossingDay
+            ? `${status45.crossingLabel || formatForecastCurveDateLabel(context, status45.crossingDay)}頃`
+            : '45時間未満の見込み';
+        const remaining60 = status60 ? 60 - safeNumber(status60.basisForecast) : 60 - safeNumber(context.forecast);
+        const status60Text = remaining60 > 0
+          ? `残り ${formatForecastDetailHours(remaining60)}`
+          : '60時間以上の見込み';
+
+        summaryBox.appendChild(createForecastSummaryItem('45時間到達見込み', status45Text, status45 && (status45.exceeded || status45.crossingDay) ? 'warning' : ''));
+        summaryBox.appendChild(createForecastSummaryItem('60時間まで', status60Text, remaining60 <= 0 ? 'danger' : ''));
+        summaryBox.appendChild(createForecastSummaryItem('集計状況', elapsedText));
+      } catch (error) {
+        summaryBox.appendChild(createForecastSummaryItem('集計状況', `経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
+      }
+    }
+
     function getForecastLimitBasisMap(calc, row, isPast) {
       const resolveActual = (calcValue, rowValue) => safeNumber(calcValue !== undefined ? calcValue : rowValue);
       const resolveForecast = (actual, calcValue, rowValue) => {
@@ -5090,7 +5162,7 @@
           actual: overtime60Actual,
           forecast: resolveForecast(overtime60Actual, calc.forecast60, row.forecast60),
           basisLabel: '月60時間超割増対象時間',
-          shortBasisLabel: '60h対象'
+          shortBasisLabel: '60時間対象'
         },
         80: {
           actual: overtime80Actual,
@@ -5124,9 +5196,9 @@
 
     function getForecastLimitDefinitions() {
       return [
-        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45h', basisLabel: '法定外労働時間', shortBasisLabel: '法定外' },
-        { value: 60, className: 'forecastCurveLimit60', legendClass: 'limit60', label: '60h', basisLabel: '月60時間超割増対象時間', shortBasisLabel: '60h対象' },
-        { value: 80, className: 'forecastCurveLimit80', legendClass: 'limit80', label: '80h', basisLabel: '時間外＋休日労働時間', shortBasisLabel: '時間外+休日' }
+        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45時間', basisLabel: '法定外労働時間', shortBasisLabel: '法定外' },
+        { value: 60, className: 'forecastCurveLimit60', legendClass: 'limit60', label: '60時間', basisLabel: '月60時間超割増対象時間', shortBasisLabel: '60時間対象' },
+        { value: 80, className: 'forecastCurveLimit80', legendClass: 'limit80', label: '80時間', basisLabel: '時間外＋休日労働時間', shortBasisLabel: '時間外+休日' }
       ];
     }
 
@@ -5396,10 +5468,10 @@
 
         const is45Limit = limit.value === 45;
         if (is45Limit) {
-          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 12, fill: '#f59e0b', 'fill-opacity': .22, stroke: '#f59e0b', 'stroke-width': 5 }));
+          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo', cx: x, cy: y, r: 10, fill: '#f59e0b', 'fill-opacity': .18, stroke: '#f59e0b', 'stroke-width': 3 }));
         }
-        const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
-        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 7 : 5, tabindex: '0', fill: is45Limit ? '#dc2626' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
+        const warningClass = 'forecastCurveWarning';
+        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 6 : 5, tabindex: '0', fill: is45Limit ? '#f59e0b' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
         const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
         const forecastLabel = context.isPast ? '確定' : '月末見込み';
@@ -5423,12 +5495,12 @@
             'stroke-dasharray': '3 4',
             'stroke-opacity': .7
           }));
-          appendSvgTextPill(svg, '45h到達見込み', {
-            class: 'forecastCurveWarningLabel blink45',
+          appendSvgTextPill(svg, '45時間到達見込み', {
+            class: 'forecastCurveWarningLabel',
             x: warningLabelX,
             y: warningLabelY,
-            fill: '#b91c1c',
-            'font-size': 12,
+            fill: '#9a3412',
+            'font-size': 11,
             'font-weight': 800,
             'text-anchor': placeLeft ? 'end' : 'start'
           }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true });
@@ -5557,8 +5629,8 @@
       const summary = appendForecastDetailSection(container, '概要');
       const summaryBox = document.createElement('div');
       summaryBox.className = 'forecastSummary';
-      summaryBox.appendChild(createForecastDetailDiv('forecastSummaryMain', `${labels.metricLabel}：${formatHoursAsJapanese(overallForecast)}`));
-      summaryBox.appendChild(createForecastDetailDiv('', `日数：経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
+      summaryBox.appendChild(createForecastSummaryItem(labels.metricLabel, formatHoursAsJapanese(overallForecast)));
+      appendForecastSummaryInsights(summaryBox, row, labels, elapsedDays);
       summary.appendChild(summaryBox);
 
       const days = appendForecastDetailSection(container, '日数の内訳');
@@ -5566,7 +5638,7 @@
       appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
       appendForecastDetailLine(days, '残営業日数', `${formatForecastDetailNumber(remainingWorkDays, 1)}日（集計基準日後の有休予定 ${formatForecastDetailNumber(futurePaidLeave, 1)}日を控除）`);
 
-      const formulaSection = appendForecastDetailSection(container, '計算');
+      const formulaSection = appendForecastDetailSection(container, '推移と根拠');
       try {
         appendForecastDetailCurve(formulaSection, row);
       } catch (error) {
