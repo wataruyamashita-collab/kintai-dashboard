@@ -4661,7 +4661,7 @@
       const totalDays = Math.max(1, totalFromCalc || elapsed + remaining || elapsed || 1);
       const elapsedDays = labels.isPast ? totalDays : clampNumber(elapsed || 0, 0, totalDays);
       const actual = labels.isPast
-        ? safeNumber(row.fixedOt) || safeNumber(calc.overallForecast) || safeNumber(row.monthEndForecastValue) || safeNumber(basis.actual)
+        ? getPastConfirmedOvertimeActual(calc, row) || safeNumber(basis.actual)
         : safeNumber(basis.actual);
       const forecast = labels.isPast
         ? actual
@@ -5152,6 +5152,15 @@
       }
     }
 
+    function getPastConfirmedOvertimeActual(calc, row) {
+      return safeNumber(row.fixedOt)
+        || safeNumber(row.confirmedOt)
+        || safeNumber(calc.overallForecast)
+        || safeNumber(row.monthEndForecastValue)
+        || safeNumber(calc.statutoryOvertimeActual)
+        || safeNumber(row.statutoryOt);
+    }
+
     function getForecastLimitBasisMap(calc, row, isPast) {
       const resolveActual = (calcValue, rowValue) => safeNumber(calcValue !== undefined ? calcValue : rowValue);
       const resolveForecast = (actual, calcValue, rowValue) => {
@@ -5162,6 +5171,30 @@
       const statutoryActual = resolveActual(calc.statutoryOvertimeActual, row.statutoryOt);
       const overtime60Actual = resolveActual(calc.overtimeFor60Actual, row.overtimeFor60Actual);
       const overtime80Actual = resolveActual(calc.overtimeAndHolidayActual, row.overtimeAndHolidayActual);
+
+      if (isPast) {
+        const confirmedActual = getPastConfirmedOvertimeActual(calc, row);
+        return {
+          45: {
+            actual: confirmedActual,
+            forecast: confirmedActual,
+            basisLabel: '確定残業',
+            shortBasisLabel: '確定'
+          },
+          60: {
+            actual: confirmedActual,
+            forecast: confirmedActual,
+            basisLabel: '確定残業',
+            shortBasisLabel: '確定'
+          },
+          80: {
+            actual: confirmedActual,
+            forecast: confirmedActual,
+            basisLabel: '確定残業',
+            shortBasisLabel: '確定'
+          }
+        };
+      }
 
       return {
         45: {
@@ -5664,7 +5697,7 @@
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
       const futurePaidLeave = labels.isPast ? 0 : safeNumber(calc.futurePaidLeave !== undefined ? calc.futurePaidLeave : row.futurePaidLeave);
       const overallForecast = labels.isPast
-        ? safeNumber(row.fixedOt) || safeNumber(calc.overallForecast) || safeNumber(row.monthEndForecastValue)
+        ? getPastConfirmedOvertimeActual(calc, row)
         : (calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue);
 
       const summary = appendForecastDetailSection(container, '概要');
