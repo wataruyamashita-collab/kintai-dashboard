@@ -1670,8 +1670,9 @@
       </div>
 
       <div class="options" id="detailSettingsOptions">
-        <label><input type="checkbox" id="showAllEmployees"> 詳細設定：全社員を表示する</label>
-        <label><input type="checkbox" id="usePastAverage"> 参考設定：本人の過去月平均で月末残業予測を補正する</label>
+        <label><input type="checkbox" id="showAlertOnlyEmployees" onchange="handleDetailSettingsChange('alertsOnly')" checked> 詳細設定：アラート対象だけを表示する</label>
+        <label><input type="checkbox" id="showAllEmployees" onchange="handleDetailSettingsChange('allEmployees')"> 詳細設定：全社員を表示する</label>
+        <label><input type="checkbox" id="usePastAverage" onchange="handleDetailSettingsChange('usePastAverage')"> 参考設定：本人の過去月平均で月末残業予測を補正する</label>
         <span class="sub">※既存シートに合わせる場合は、補正なしで運用してください。過去月実績がない場合、固定値補正は使いません。</span>
       </div>
 
@@ -2026,8 +2027,6 @@
     let testDisplayRole = 'executive';
     let initialDisplayRoleApplied = false;
     let previousTestDisplayRole = 'executive';
-    const TEST_MANAGER_LOCK_DEPARTMENT = '営業第1課';
-    let lockedManagerDepartment = '';
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -2158,7 +2157,7 @@
       }
 
       if (isManagerDisplayRole()) {
-        status.textContent = '所属長：勤怠アラートのみ表示（管轄部署に固定）';
+        status.textContent = '所属長：勤怠アラートのみ表示（権限の部署グループ範囲）';
         return;
       }
 
@@ -2878,7 +2877,8 @@
       }
 
       const targetMonth = document.getElementById('targetMonth').value;
-      const showAllEmployees = document.getElementById('showAllEmployees').checked;
+      const displayMode = getSelectedDisplayMode();
+      const showAllEmployees = displayMode === 'allEmployees';
       const usePastAverage = document.getElementById('usePastAverage').checked;
 
       if (!targetMonth) return showMessage('対象月を選択してください。', true);
@@ -2903,19 +2903,19 @@
 
             showMessage('取込済みデータから集計しています。Drive保存は行いません。');
 
-            const rows = analyzeRowsClient(
+            const completeRows = analyzeRowsClient(
               rowsForAnalysis,
               normalizedTargetMonth,
               normalizedCutoffDate,
               {
-                showAllEmployees,
+                showAllEmployees: true,
                 usePastAverage,
                 businessDays
               }
             );
 
-            lastCalculationAudit = runCalculationAudit(rows, {
-              showAllEmployees,
+            lastCalculationAudit = runCalculationAudit(completeRows, {
+              showAllEmployees: true,
               usePastAverage,
               targetMonth: normalizedTargetMonth,
               cutoffDate: normalizedCutoffDate,
@@ -2927,8 +2927,8 @@
 
             google.script.run
               .withSuccessHandler(mergedRows => {
-                const displayRows = Array.isArray(mergedRows) ? mergedRows : rows;
-                finishAnalyzeCachedDataRender(displayRows, {
+                const allRows = Array.isArray(mergedRows) ? mergedRows : completeRows;
+                finishAnalyzeCachedDataRender(allRows, {
                   normalizedTargetMonth,
                   normalizedCutoffDate,
                   showAllEmployees,
@@ -2939,7 +2939,7 @@
               })
               .withFailureHandler(error => {
                 showMessage('手入力内容の復元に失敗しました。集計結果のみ表示します。Code.gs 側の applyManualInputsToRows を確認してください。', true);
-                finishAnalyzeCachedDataRender(rows, {
+                finishAnalyzeCachedDataRender(completeRows, {
                   normalizedTargetMonth,
                   normalizedCutoffDate,
                   showAllEmployees,
@@ -2950,7 +2950,7 @@
               })
               .applyManualInputsToRows({
                 targetMonth: normalizedTargetMonth,
-                rows
+                rows: completeRows
               });
           } catch (error) {
             showError(error);
@@ -2962,7 +2962,8 @@
         .getBusinessDayInfo(normalizedTargetMonth);
     }
 
-    function finishAnalyzeCachedDataRender(rows, context) {
+    function finishAnalyzeCachedDataRender(allRows, context) {
+      const rows = getRowsForDisplayModeClient(allRows, context.showAllEmployees ? 'allEmployees' : 'alertsOnly');
       const summary = createSummaryClient(rows);
       const departments = createDepartmentListClient(rows);
 
@@ -2972,14 +2973,14 @@
         cutoffDate: context.normalizedCutoffDate,
         originalFileName: cachedFileName,
         sourceRows: cachedRows.length,
-        rows,
+        rows: allRows,
         displayMode: context.showAllEmployees ? 'allEmployees' : 'alertsOnly',
         usePastAverage: context.usePastAverage,
         businessDays: context.businessDays,
         businessDaySource: context.businessDayInfo.source,
         holidays: context.businessDayInfo.holidays || [],
         calculationAudit: lastCalculationAudit,
-        validationMetrics: createSnapshotValidationMetricsClient(rows)
+        validationMetrics: createSnapshotValidationMetricsClient(allRows)
       };
 
       renderAnalysisResult({
@@ -3656,6 +3657,17 @@
         .replace('超過アラート', '超過');
     }
 
+    function hasAlertForDisplayClient(row) {
+      return Boolean(row && (row.actualAlert || row.forecastAlert));
+    }
+
+    function getRowsForDisplayModeClient(rows, displayMode) {
+      const sourceRows = Array.isArray(rows) ? rows : [];
+      return displayMode === 'allEmployees'
+        ? sourceRows.slice()
+        : sourceRows.filter(hasAlertForDisplayClient);
+    }
+
     function getAlertBadgeLevel(alertText, fallbackLevel) {
       const text = normalizeAlertDisplayLabel(alertText);
       if (text.includes('80h')) return 'high';
@@ -3803,6 +3815,53 @@
       applyTabVisibility();
     }
 
+    function getSelectedDisplayMode() {
+      const showAll = document.getElementById('showAllEmployees');
+      return showAll && showAll.checked ? 'allEmployees' : 'alertsOnly';
+    }
+
+    function setDisplayModeControls(displayMode) {
+      const normalizedMode = displayMode === 'allEmployees' ? 'allEmployees' : 'alertsOnly';
+      const showAlertOnly = document.getElementById('showAlertOnlyEmployees');
+      const showAll = document.getElementById('showAllEmployees');
+      if (showAlertOnly) showAlertOnly.checked = normalizedMode === 'alertsOnly';
+      if (showAll) showAll.checked = normalizedMode === 'allEmployees';
+    }
+
+    function syncDetailSettingsControlsFromSnapshot(snapshotMeta) {
+      const usePastAverage = document.getElementById('usePastAverage');
+      setDisplayModeControls(snapshotMeta && snapshotMeta.displayMode);
+      if (usePastAverage) usePastAverage.checked = Boolean(snapshotMeta && snapshotMeta.usePastAverage);
+    }
+
+    function handleDetailSettingsChange(changedSetting) {
+      if (!isAdminDisplayRole()) return;
+
+      if (changedSetting === 'allEmployees') {
+        setDisplayModeControls('allEmployees');
+      } else if (changedSetting === 'alertsOnly') {
+        setDisplayModeControls('alertsOnly');
+      } else {
+        setDisplayModeControls(getSelectedDisplayMode());
+      }
+
+      if (cachedRows.length) {
+        showMessage('詳細設定の変更を反映するため、取込済みCSVから再集計します。');
+        analyzeCachedData();
+        return;
+      }
+
+      const wantsAllEmployees = getSelectedDisplayMode() === 'allEmployees';
+      const displayMode = currentSnapshotPayload && currentSnapshotPayload.displayMode;
+
+      if (wantsAllEmployees && displayMode !== 'allEmployees') {
+        showMessage('保存済みデータが「アラート対象のみ」で作成されているため、チェックを入れるだけでは全社員を復元できません。CSVを再取込して「全社員を表示する」をオンのまま集計・保存してください。', true);
+        return;
+      }
+
+      showMessage('詳細設定を変更しました。保存済みデータに反映する場合はCSVを再取込して集計・保存してください。');
+    }
+
     function safeRenderApp(data) {
       try {
         renderApp(data);
@@ -3839,6 +3898,8 @@
           holidays: data.snapshotMeta.holidays || []
         };
       }
+
+      syncDetailSettingsControlsFromSnapshot(data.snapshotMeta);
 
       document.getElementById('userBox').innerHTML =
         '<div><strong>ログインユーザー</strong>：' + escapeHtml(data.user.email) + '</div>' +
@@ -4675,56 +4736,23 @@
       syncDepartmentFilterForDisplayRole(departments);
     }
 
-    function resolveManagerLockDepartment(departments) {
-      const sourceDepartments = Array.isArray(departments) && departments.length
-        ? departments
-        : createDepartmentListClient(currentRows);
-      if (sourceDepartments.includes(TEST_MANAGER_LOCK_DEPARTMENT)) return TEST_MANAGER_LOCK_DEPARTMENT;
-      return sourceDepartments[0] || '';
-    }
-
     function syncDepartmentFilterForDisplayRole(departments) {
       const select = document.getElementById('departmentFilter');
       if (!select) return '';
 
-      if (!isManagerDisplayRole()) {
-        const previouslyLockedDepartment = lockedManagerDepartment;
-        lockedManagerDepartment = '';
-        select.disabled = false;
-        select.classList.remove('departmentFilterLocked');
-        select.title = '';
-        if (previouslyLockedDepartment && select.value === previouslyLockedDepartment) {
-          select.value = '';
-        }
-        if (!Array.from(select.options).some(option => option.value === select.value)) {
-          select.value = '';
-        }
-        return '';
+      select.disabled = false;
+      select.classList.remove('departmentFilterLocked');
+      select.title = isManagerDisplayRole()
+        ? '所属長表示では、サーバー側で権限の部署グループ範囲に絞り込まれています。部署プルダウンでは範囲内の部署を追加で絞り込めます。'
+        : '';
+
+      if (!Array.from(select.options).some(option => option.value === select.value)) {
+        select.value = '';
       }
-
-      const lockDepartment = resolveManagerLockDepartment(departments);
-      lockedManagerDepartment = lockDepartment;
-
-      if (lockDepartment && !Array.from(select.options).some(option => option.value === lockDepartment)) {
-        const option = document.createElement('option');
-        option.value = lockDepartment;
-        option.textContent = lockDepartment;
-        select.appendChild(option);
-      }
-
-      select.value = lockDepartment || '';
-      select.disabled = true;
-      select.classList.add('departmentFilterLocked');
-      select.title = lockDepartment
-        ? `所属長表示では管轄部署「${lockDepartment}」に固定されます。`
-        : '所属長表示ですが、固定できる部署データがありません。';
-      return lockDepartment;
+      return select.value || '';
     }
 
     function getEffectiveDepartmentFilter() {
-      if (isManagerDisplayRole()) {
-        return lockedManagerDepartment || syncDepartmentFilterForDisplayRole();
-      }
       const select = document.getElementById('departmentFilter');
       return select ? select.value : '';
     }
@@ -5347,7 +5375,7 @@
       if (keyword) keyword.value = row.employeeCode || row.employeeName || '';
       if (riskFilter) riskFilter.value = '';
       if (missingFilter) missingFilter.value = '';
-      if (departmentFilter && !isManagerDisplayRole()) departmentFilter.value = '';
+      if (departmentFilter) departmentFilter.value = '';
       applyFilters();
 
       setTimeout(() => {
