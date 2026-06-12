@@ -2964,6 +2964,7 @@
         }
 
         const employee = employees[employeeKey];
+        employee.targetMonth = targetMonth;
 
         const scheduledHours = toHours(row[FIELD.SCHEDULED_HOURS]);
         const legalOt = toHours(row[FIELD.LEGAL_OT]);
@@ -3242,6 +3243,7 @@
         employeeName,
         department,
         departmentGroup,
+        targetMonth: '',
         hasTargetMonthData: false,
         fixedOt: 0,
         confirmedOt: 0,
@@ -3279,6 +3281,8 @@
         department: employee.department,
         employeeCode: employee.employeeCode,
         employeeName: employee.employeeName,
+        targetMonth: employee.targetMonth,
+        targetWorkingDateKeys: Object.keys(employee.targetWorkingDates).sort(),
         estimatedOt: round2(employee.estimatedOt),
         estimatedOtDisplay: formatHoursAsHHMM(employee.estimatedOt),
         fixedOt: round2(employee.confirmedOt),
@@ -3311,6 +3315,8 @@
         futurePaidLeave: round1(employee.futurePaidLeave),
         forecastRemainingWorkDays: round2(employee.forecastRemainingWorkDays),
         forecastCalculation: {
+          targetMonth: employee.targetMonth,
+          targetWorkingDateKeys: Object.keys(employee.targetWorkingDates).sort(),
           totalWorkDays: round2(targetWorkingDays),
           elapsedDays: round2(elapsedDays),
           attendanceDaysTotal: round2(employee.attendanceDaysTotal),
@@ -4608,6 +4614,7 @@
       const calc = row.forecastCalculation || {};
       const basis = resolveMonthEndForecastBasis(calc, row);
       const labels = getForecastDisplayLabels(row);
+      const targetMonth = getForecastTargetMonth(row);
       const elapsed = safeNumber(calc.elapsedDays !== undefined ? calc.elapsedDays : row.elapsedDays);
       const remaining = safeNumber(calc.remainingWorkDays !== undefined ? calc.remainingWorkDays : row.forecastRemainingWorkDays);
       const totalFromCalc = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
@@ -4626,9 +4633,70 @@
         forecast,
         totalDays,
         elapsedDays,
+        targetMonth,
+        targetWorkingDateKeys: getForecastTargetWorkingDateKeys(row, targetMonth, totalDays),
         isPast: labels.isPast,
         maxHours: Math.ceil(maxHours / 10) * 10
       };
+    }
+
+    function getForecastTargetWorkingDateKeys(row, targetMonth, totalDays) {
+      const calc = row && row.forecastCalculation ? row.forecastCalculation : {};
+      const existing = Array.isArray(row && row.targetWorkingDateKeys)
+        ? row.targetWorkingDateKeys
+        : (Array.isArray(calc.targetWorkingDateKeys) ? calc.targetWorkingDateKeys : []);
+      const normalizedExisting = existing
+        .map(normalizeDateText)
+        .filter(Boolean)
+        .sort();
+      if (normalizedExisting.length > 0) return normalizedExisting;
+
+      return buildWeekdayDateKeysForMonth(targetMonth, totalDays);
+    }
+
+    function buildWeekdayDateKeysForMonth(targetMonth, totalDays) {
+      const parsed = parseYearMonth(targetMonth);
+      if (!parsed || !Number.isFinite(parsed.year) || !Number.isFinite(parsed.month)) return [];
+
+      const keys = [];
+      const lastDay = new Date(parsed.year, parsed.month, 0).getDate();
+      for (let day = 1; day <= lastDay; day++) {
+        const date = new Date(parsed.year, parsed.month - 1, day);
+        const weekday = date.getDay();
+        if (weekday !== 0 && weekday !== 6) {
+          keys.push(`${parsed.year}/${String(parsed.month).padStart(2, '0')}/${String(day).padStart(2, '0')}`);
+        }
+      }
+
+      const expectedDays = Math.round(safeNumber(totalDays));
+      if (expectedDays > keys.length) {
+        for (let day = 1; day <= lastDay; day++) {
+          const key = `${parsed.year}/${String(parsed.month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+          if (!keys.includes(key)) keys.push(key);
+        }
+        keys.sort();
+      }
+      return keys;
+    }
+
+    function getForecastDateKeyForDay(context, day) {
+      const dateKeys = Array.isArray(context && context.targetWorkingDateKeys) ? context.targetWorkingDateKeys : [];
+      if (dateKeys.length > 0) {
+        const index = clampNumber(Math.ceil(safeNumber(day)) - 1, 0, dateKeys.length - 1);
+        return dateKeys[index];
+      }
+
+      const parsed = parseYearMonth(context && context.targetMonth);
+      if (!parsed || !Number.isFinite(parsed.year) || !Number.isFinite(parsed.month)) return '';
+      const lastDay = new Date(parsed.year, parsed.month, 0).getDate();
+      const calendarDay = clampNumber(Math.ceil(safeNumber(day)), 1, lastDay);
+      return `${parsed.year}/${String(parsed.month).padStart(2, '0')}/${String(calendarDay).padStart(2, '0')}`;
+    }
+
+    function formatForecastCurveDateLabel(context, day) {
+      const parsed = parseDateKey(getForecastDateKeyForDay(context, day));
+      if (!parsed) return `${Math.ceil(safeNumber(day))}日`;
+      return `${parsed.month}月${parsed.day}日`;
     }
 
     function createLinearPath(points) {
@@ -5021,14 +5089,15 @@
       return getForecastLimitDefinitions().map(limit => {
         const crossingDay = getForecastThresholdCrossing(context, limit.value);
         const exceeded = safeNumber(context.actual) >= limit.value;
-        return { ...limit, crossingDay, exceeded };
+        const crossingLabel = crossingDay ? formatForecastCurveDateLabel(context, crossingDay) : '';
+        return { ...limit, crossingDay, crossingLabel, exceeded };
       });
     }
 
     function buildForecastLimitWarning(statuses, labels) {
       const crossings = statuses
         .filter(status => status.crossingDay)
-        .map(status => `約${Math.ceil(status.crossingDay)}日目に${status.value}時間`);
+        .map(status => `${status.crossingLabel || `${Math.ceil(status.crossingDay)}日目`}頃に${status.value}時間`);
       const exceeded = statuses
         .filter(status => status.exceeded)
         .map(status => `${status.value}時間`);
@@ -5119,7 +5188,7 @@
         const x = points.xForDay(day);
         svg.appendChild(createSvgElement('line', { class: 'forecastCurveGrid', x1: x, y1: padding.top, x2: x, y2: height - padding.bottom, stroke: '#dfe6ef', 'stroke-width': 1 }));
         const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x, y: height - 10, 'text-anchor': 'middle', fill: '#666666', 'font-size': 11, 'font-weight': 700 });
-        label.textContent = day === Math.round(context.totalDays) ? '月末' : `${day}日`;
+        label.textContent = formatForecastCurveDateLabel(context, day);
         svg.appendChild(label);
       });
 
@@ -5168,7 +5237,7 @@
         svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
 
         const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 14, 'text-anchor': 'middle', fill: '#26384d', 'font-size': 11, 'font-weight': 700 });
-        crossingLabel.textContent = `${Math.ceil(limit.crossingDay)}日`;
+        crossingLabel.textContent = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
         svg.appendChild(crossingLabel);
 
         const is45Limit = limit.value === 45;
@@ -5178,7 +5247,8 @@
         const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
         const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 7 : 5, tabindex: '0', fill: is45Limit ? '#dc2626' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
-        title.textContent = `${Math.ceil(limit.crossingDay)}日時点：${labels.forecastLegendLabel} ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、${labels.metricLabel} ${formatForecastDetailHours(context.forecast)}）`;
+        const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
+        title.textContent = `${crossingTitleDate}時点：${labels.forecastLegendLabel} ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、${labels.metricLabel} ${formatForecastDetailHours(context.forecast)}）`;
         warning.appendChild(title);
         svg.appendChild(warning);
 
