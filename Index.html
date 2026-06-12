@@ -678,6 +678,11 @@
       animation: forecastCurveBlink45 2s ease-in-out infinite;
     }
 
+    .forecastCurveMonthEndPoint.blinkForecast,
+    .forecastCurveMonthEndPill.blinkForecast {
+      animation: forecastCurveBlinkForecast 1.15s ease-in-out infinite;
+    }
+
     @keyframes forecastCurveBlink45 {
       0%, 100% { opacity: 1; }
       50% { opacity: .35; }
@@ -686,6 +691,11 @@
     @keyframes forecastCurveBlink45Halo {
       0%, 100% { opacity: .25; stroke-width: 4; }
       50% { opacity: .95; stroke-width: 8; }
+    }
+
+    @keyframes forecastCurveBlinkForecast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .42; }
     }
 
     .agreementSelect {
@@ -5453,7 +5463,7 @@
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
-      }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, strokeWidth: .9, centerY: true });
+      }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveMonthEndPill blinkForecast' });
 
       limitStatuses.forEach(limit => {
         if (!limit.crossingDay) return;
