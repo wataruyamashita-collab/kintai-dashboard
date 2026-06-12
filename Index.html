@@ -5371,13 +5371,18 @@
       svg.style.width = '100%';
       svg.style.height = `${height}px`;
 
-      [0, 45, 60, 80, context.maxHours].filter((value, index, values) => values.indexOf(value) === index).forEach(value => {
-        const y = points.yForHours(value);
-        svg.appendChild(createSvgElement('line', { class: 'forecastCurveGrid', x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: '#dfe6ef', 'stroke-width': 1 }));
-        const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x: padding.left - 10, y: y + 4, 'text-anchor': 'end', fill: '#666666', 'font-size': 11, 'font-weight': 700 });
-        label.textContent = formatHoursAsHHMM(value);
-        svg.appendChild(label);
-      });
+      const actualAxisLabel = context.actual > 0 ? formatForecastDetailHours(context.actual) : '';
+      [0, context.actual, 45, 60, 80, context.maxHours]
+        .filter(value => Number.isFinite(Number(value)) && value >= 0)
+        .filter((value, index, values) => values.findIndex(item => formatHoursAsHHMM(item) === formatHoursAsHHMM(value)) === index)
+        .forEach(value => {
+          const y = points.yForHours(value);
+          const isActualAxisValue = actualAxisLabel && formatHoursAsHHMM(value) === actualAxisLabel;
+          svg.appendChild(createSvgElement('line', { class: 'forecastCurveGrid', x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: '#dfe6ef', 'stroke-width': 1 }));
+          const label = createSvgElement('text', { class: `forecastCurveAxisLabel${isActualAxisValue ? ' forecastCurveActualAxisLabel' : ''}`, x: padding.left - 8, y: y + 4, 'text-anchor': 'end', fill: isActualAxisValue ? '#1f4e79' : '#666666', 'font-size': 11, 'font-weight': isActualAxisValue ? 800 : 700 });
+          label.textContent = formatHoursAsHHMM(value);
+          svg.appendChild(label);
+        });
 
       [1, Math.max(1, Math.round(context.elapsedDays || 1)), Math.max(1, Math.round(context.totalDays))].filter((value, index, values) => values.indexOf(value) === index).forEach(day => {
         const x = points.xForDay(day);
