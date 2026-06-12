@@ -420,6 +420,106 @@
       min-width: 96px;
     }
 
+    .hiddenRowsBox {
+      width: min(1120px, 96vw);
+    }
+
+    .hiddenRowsSummary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .hiddenRowsSummaryItem {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f9fa;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .hiddenRowsSummaryItem strong {
+      display: block;
+      color: #1f4e79;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .hiddenRowsNotice {
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #f6c66a;
+      border-left: 5px solid #d97706;
+      border-radius: 10px;
+      background: #fff7e6;
+      color: #6b3b00;
+      font-size: 13px;
+      line-height: 1.6;
+      font-weight: 700;
+    }
+
+    .hiddenRowsTableWrap {
+      max-height: 56vh;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .hiddenRowsTable {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .hiddenRowsTable th,
+    .hiddenRowsTable td {
+      padding: 8px 9px;
+      border-bottom: 1px solid #e8edf3;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    .hiddenRowsTable th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #edf2f7;
+      color: #26384d;
+      font-weight: 800;
+    }
+
+    .hiddenRowsTable td.hiddenRowsReason {
+      max-width: 220px;
+      white-space: normal;
+      color: #7c2d12;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .hiddenRowsActions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      min-width: 180px;
+    }
+
+    .hiddenRowsActions button {
+      min-width: 0;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .hiddenInspectorHighlight {
+      outline: 3px solid #f59e0b;
+      outline-offset: -3px;
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, .20);
+    }
+
     table.fixedLayout {
       table-layout: fixed;
       width: 1775px;
@@ -1698,6 +1798,7 @@
         </select>
       </label>
       <button type="button" class="clearButton" onclick="clearFilters()">絞り込み解除</button>
+      <button type="button" class="clearButton" id="hiddenRowsButton" onclick="openHiddenRowsModal()">非表示社員を確認（0件）</button>
     </div>
 
     <div class="summary">
@@ -1758,6 +1859,20 @@
         <tbody id="tbody"></tbody>
       </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="hiddenRowsModal" onclick="closeHiddenRowsModalByOverlay(event)">
+    <div class="modalBox hiddenRowsBox" role="dialog" aria-modal="true" aria-labelledby="hiddenRowsTitle">
+      <div class="modalHeader" id="hiddenRowsTitle">非表示社員の確認</div>
+      <div class="modalBody">
+        <div class="modalMeta" id="hiddenRowsMeta"></div>
+        <div id="hiddenRowsBody"></div>
+      </div>
+      <div class="modalFooter">
+        <button type="button" onclick="clearFiltersFromHiddenRowsModal()">絞り込み解除</button>
+        <button type="button" id="hiddenRowsCloseButton" onclick="closeHiddenRowsModal()">閉じる</button>
       </div>
     </div>
   </div>
@@ -1872,6 +1987,7 @@
     };
 
     let currentRows = [];
+    let lastDisplayedRows = [];
     let currentUser = null;
     let clientConfig = null;
     let clientPermissions = null;
@@ -4661,7 +4777,7 @@
       const totalDays = Math.max(1, totalFromCalc || elapsed + remaining || elapsed || 1);
       const elapsedDays = labels.isPast ? totalDays : clampNumber(elapsed || 0, 0, totalDays);
       const actual = labels.isPast
-        ? safeNumber(row.fixedOt) || safeNumber(calc.overallForecast) || safeNumber(row.monthEndForecastValue) || safeNumber(basis.actual)
+        ? getPastConfirmedOvertimeActual(calc, row) || safeNumber(basis.actual)
         : safeNumber(basis.actual);
       const forecast = labels.isPast
         ? actual
@@ -4858,10 +4974,11 @@
     }
 
     function renderRows(rows) {
+      lastDisplayedRows = Array.isArray(rows) ? rows : [];
       const tbody = document.getElementById('tbody');
       tbody.innerHTML = '';
 
-      if (!rows.length) {
+      if (!lastDisplayedRows.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
         td.colSpan = 16;
@@ -4869,14 +4986,16 @@
         td.textContent = '表示対象データはありません。';
         tr.appendChild(td);
         tbody.appendChild(tr);
+        updateHiddenRowsInspector();
         return;
       }
 
       const editable = canEditManualInputClient();
 
-      rows.forEach((row, index) => {
+      lastDisplayedRows.forEach((row, index) => {
         const tr = document.createElement('tr');
         tr.className = row.riskLevel || '';
+        tr.dataset.rowKey = getEmployeeRowKey(row);
 
         const cells = [
           { value: resolveDisplayRowNo(row, index), type: 'text' },
@@ -4963,6 +5082,234 @@
         });
         tbody.appendChild(tr);
       });
+      updateHiddenRowsInspector();
+    }
+
+    function getEmployeeRowKey(row) {
+      if (!row) return '';
+      return [
+        normalizeText(row.departmentGroup),
+        normalizeText(row.department),
+        normalizeText(row.employeeCode),
+        normalizeText(row.employeeName)
+      ].join('__');
+    }
+
+    function getDisplayedRowSet() {
+      return new Set(lastDisplayedRows || []);
+    }
+
+    function getCurrentHiddenRows() {
+      const displayed = getDisplayedRowSet();
+      return (Array.isArray(currentRows) ? currentRows : []).filter(row => !displayed.has(row));
+    }
+
+    function getHiddenRowReasons(row) {
+      const reasons = [];
+      const keywordInput = document.getElementById('keyword');
+      const missingSelect = document.getElementById('missingFilter');
+      const riskSelect = document.getElementById('riskFilter');
+      const keyword = keywordInput ? keywordInput.value.trim().toLowerCase() : '';
+      const department = getEffectiveDepartmentFilter();
+      const missing = missingSelect ? missingSelect.value : '';
+      const risk = riskSelect ? riskSelect.value : '';
+      const text = [row.departmentGroup, row.department, row.employeeCode, row.employeeName].join(' ').toLowerCase();
+
+      if (keyword && !text.includes(keyword)) reasons.push(`キーワード「${keyword}」対象外`);
+      if (department && row.department !== department) reasons.push(`部署「${department}」対象外`);
+      if (missing === 'missing' && (!row.missingItems || row.missingItems.length === 0)) reasons.push('未入力なし');
+      if (risk && row.riskLevel !== risk) reasons.push(`リスク「${formatRiskLabel(risk)}」対象外`);
+
+      return reasons.length ? reasons : ['現在の表示条件対象外'];
+    }
+
+    function formatRiskLabel(risk) {
+      const labels = { high: '高リスク', mediumHigh: '中高リスク', medium: '中リスク', low: 'リスクなし' };
+      return labels[risk] || risk || 'すべて';
+    }
+
+    function updateHiddenRowsInspector() {
+      const button = document.getElementById('hiddenRowsButton');
+      if (!button) return;
+      const hiddenCount = getCurrentHiddenRows().length;
+      const totalCount = Array.isArray(currentRows) ? currentRows.length : 0;
+      button.textContent = `非表示社員を確認（${hiddenCount}件）`;
+      button.title = `現在保持している${totalCount}件のうち、表示条件で非表示の${hiddenCount}件を確認します。`;
+      button.disabled = totalCount === 0;
+    }
+
+    function createHiddenRowsSummaryItem(label, value) {
+      const div = document.createElement('div');
+      div.className = 'hiddenRowsSummaryItem';
+      const strong = document.createElement('strong');
+      strong.textContent = value;
+      div.appendChild(strong);
+      div.appendChild(document.createTextNode(label));
+      return div;
+    }
+
+    function appendHiddenRowsCell(tr, text, className) {
+      const td = document.createElement('td');
+      if (className) td.className = className;
+      td.textContent = text == null ? '' : String(text);
+      tr.appendChild(td);
+      return td;
+    }
+
+    function appendHiddenRowsHeaderCell(tr, text) {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = text == null ? '' : String(text);
+      tr.appendChild(th);
+      return th;
+    }
+
+    function appendHiddenRowsAction(actions, label, handler) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.onclick = handler;
+      actions.appendChild(button);
+      return button;
+    }
+
+    function openHiddenRowsModal() {
+      const modal = document.getElementById('hiddenRowsModal');
+      const meta = document.getElementById('hiddenRowsMeta');
+      const body = document.getElementById('hiddenRowsBody');
+      if (!modal || !meta || !body) return;
+
+      const hiddenRows = getCurrentHiddenRows();
+      const totalCount = Array.isArray(currentRows) ? currentRows.length : 0;
+      const displayedCount = Array.isArray(lastDisplayedRows) ? lastDisplayedRows.length : 0;
+      const displayMode = currentSnapshotPayload && currentSnapshotPayload.displayMode;
+      meta.textContent = `現在保持している社員 ${totalCount}件 ／ 一覧表示 ${displayedCount}件 ／ 表示条件で非表示 ${hiddenRows.length}件`;
+      body.innerHTML = '';
+
+      const summary = document.createElement('div');
+      summary.className = 'hiddenRowsSummary';
+      summary.appendChild(createHiddenRowsSummaryItem('現在保持している社員', `${totalCount}件`));
+      summary.appendChild(createHiddenRowsSummaryItem('一覧に表示中', `${displayedCount}件`));
+      summary.appendChild(createHiddenRowsSummaryItem('表示条件で非表示', `${hiddenRows.length}件`));
+      body.appendChild(summary);
+
+      if (displayMode === 'alertsOnly') {
+        const notice = document.createElement('div');
+        notice.className = 'hiddenRowsNotice';
+        notice.textContent = '注意：このデータは「アラート対象のみ」モードで作成されています。アラートがない社員は currentRows に保持されていないため、この確認画面にも出ません。全社員を確認する場合は「詳細設定：全社員を表示する」をオンにして再集計・保存してください。';
+        body.appendChild(notice);
+      }
+
+      if (!hiddenRows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'emptyState';
+        empty.textContent = '現在の表示条件で非表示になっている社員はいません。';
+        body.appendChild(empty);
+        modal.style.display = 'flex';
+        focusHiddenRowsCloseButton();
+        return;
+      }
+
+      const wrap = document.createElement('div');
+      wrap.className = 'hiddenRowsTableWrap';
+      const table = document.createElement('table');
+      table.className = 'hiddenRowsTable';
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      ['元#', '非表示理由', '部署', '社員コード', '社員名', '確定残業', '実績警告', '見込み警告', '月末/確定', '未入力', '確認操作'].forEach(label => appendHiddenRowsHeaderCell(headerRow, label));
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      hiddenRows.forEach(row => {
+        const tr = document.createElement('tr');
+        appendHiddenRowsCell(tr, resolveDisplayRowNo(row, currentRows.indexOf(row)));
+        appendHiddenRowsCell(tr, getHiddenRowReasons(row).join(' / '), 'hiddenRowsReason');
+        appendHiddenRowsCell(tr, row.department || '');
+        appendHiddenRowsCell(tr, row.employeeCode || '');
+        appendHiddenRowsCell(tr, row.employeeName || '');
+        appendHiddenRowsCell(tr, formatOvertimeDisplay(row.fixedOtDisplay, row.fixedOt));
+        appendHiddenRowsCell(tr, normalizeAlertDisplayLabel(row.actualAlert) || '該当なし');
+        appendHiddenRowsCell(tr, normalizeAlertDisplayLabel(row.forecastAlert) || '該当なし');
+        appendHiddenRowsCell(tr, row.monthEndForecast || '');
+        appendHiddenRowsCell(tr, Array.isArray(row.missingItems) && row.missingItems.length ? row.missingItems.join(', ') : 'なし');
+
+        const actionCell = document.createElement('td');
+        const actions = document.createElement('div');
+        actions.className = 'hiddenRowsActions';
+        appendHiddenRowsAction(actions, '一覧表示', () => revealHiddenRowInList(row));
+        appendHiddenRowsAction(actions, '詳細', () => {
+          closeHiddenRowsModal();
+          openForecastDetailModal(row);
+        });
+        if (canEditManualInputClient()) {
+          appendHiddenRowsAction(actions, '発動事由', () => {
+            closeHiddenRowsModal();
+            openTextModal(row, 'specialReason');
+          });
+          appendHiddenRowsAction(actions, '健康措置', () => {
+            closeHiddenRowsModal();
+            openTextModal(row, 'healthMeasure');
+          });
+          appendHiddenRowsAction(actions, '備考', () => {
+            closeHiddenRowsModal();
+            openTextModal(row, 'note');
+          });
+        }
+        actionCell.appendChild(actions);
+        tr.appendChild(actionCell);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      body.appendChild(wrap);
+
+      modal.style.display = 'flex';
+      focusHiddenRowsCloseButton();
+    }
+
+    function focusHiddenRowsCloseButton() {
+      setTimeout(() => {
+        const closeButton = document.getElementById('hiddenRowsCloseButton');
+        if (closeButton) closeButton.focus();
+      }, 0);
+    }
+
+    function closeHiddenRowsModal() {
+      const modal = document.getElementById('hiddenRowsModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function closeHiddenRowsModalByOverlay(event) {
+      if (event.target && event.target.id === 'hiddenRowsModal') closeHiddenRowsModal();
+    }
+
+    function clearFiltersFromHiddenRowsModal() {
+      closeHiddenRowsModal();
+      clearFilters();
+    }
+
+    function revealHiddenRowInList(row) {
+      closeHiddenRowsModal();
+      const keyword = document.getElementById('keyword');
+      const riskFilter = document.getElementById('riskFilter');
+      const missingFilter = document.getElementById('missingFilter');
+      const departmentFilter = document.getElementById('departmentFilter');
+
+      if (keyword) keyword.value = row.employeeCode || row.employeeName || '';
+      if (riskFilter) riskFilter.value = '';
+      if (missingFilter) missingFilter.value = '';
+      if (departmentFilter && !isManagerDisplayRole()) departmentFilter.value = '';
+      applyFilters();
+
+      setTimeout(() => {
+        const targetKey = getEmployeeRowKey(row);
+        const target = Array.from(document.querySelectorAll('#tbody tr')).find(tr => tr.dataset.rowKey === targetKey);
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('hiddenInspectorHighlight');
+        setTimeout(() => target.classList.remove('hiddenInspectorHighlight'), 2200);
+      }, 0);
     }
 
     function openForecastDetailModal(row) {
@@ -5152,6 +5499,15 @@
       }
     }
 
+    function getPastConfirmedOvertimeActual(calc, row) {
+      return safeNumber(row.fixedOt)
+        || safeNumber(row.confirmedOt)
+        || safeNumber(calc.overallForecast)
+        || safeNumber(row.monthEndForecastValue)
+        || safeNumber(calc.statutoryOvertimeActual)
+        || safeNumber(row.statutoryOt);
+    }
+
     function getForecastLimitBasisMap(calc, row, isPast) {
       const resolveActual = (calcValue, rowValue) => safeNumber(calcValue !== undefined ? calcValue : rowValue);
       const resolveForecast = (actual, calcValue, rowValue) => {
@@ -5162,6 +5518,30 @@
       const statutoryActual = resolveActual(calc.statutoryOvertimeActual, row.statutoryOt);
       const overtime60Actual = resolveActual(calc.overtimeFor60Actual, row.overtimeFor60Actual);
       const overtime80Actual = resolveActual(calc.overtimeAndHolidayActual, row.overtimeAndHolidayActual);
+
+      if (isPast) {
+        const confirmedActual = getPastConfirmedOvertimeActual(calc, row);
+        return {
+          45: {
+            actual: confirmedActual,
+            forecast: confirmedActual,
+            basisLabel: '確定残業',
+            shortBasisLabel: '確定'
+          },
+          60: {
+            actual: confirmedActual,
+            forecast: confirmedActual,
+            basisLabel: '確定残業',
+            shortBasisLabel: '確定'
+          },
+          80: {
+            actual: confirmedActual,
+            forecast: confirmedActual,
+            basisLabel: '確定残業',
+            shortBasisLabel: '確定'
+          }
+        };
+      }
 
       return {
         45: {
@@ -5664,7 +6044,7 @@
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
       const futurePaidLeave = labels.isPast ? 0 : safeNumber(calc.futurePaidLeave !== undefined ? calc.futurePaidLeave : row.futurePaidLeave);
       const overallForecast = labels.isPast
-        ? safeNumber(row.fixedOt) || safeNumber(calc.overallForecast) || safeNumber(row.monthEndForecastValue)
+        ? getPastConfirmedOvertimeActual(calc, row)
         : (calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue);
 
       const summary = appendForecastDetailSection(container, '概要');
