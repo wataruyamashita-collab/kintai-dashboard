@@ -4635,6 +4635,7 @@
         elapsedDays,
         targetMonth,
         targetWorkingDateKeys: getForecastTargetWorkingDateKeys(row, targetMonth, totalDays),
+        limitBasisMap: getForecastLimitBasisMap(calc, row, labels.isPast),
         isPast: labels.isPast,
         maxHours: Math.ceil(maxHours / 10) * 10
       };
@@ -5067,9 +5068,53 @@
       return div;
     }
 
+    function getForecastLimitBasisMap(calc, row, isPast) {
+      const resolveActual = (calcValue, rowValue) => safeNumber(calcValue !== undefined ? calcValue : rowValue);
+      const resolveForecast = (actual, calcValue, rowValue) => {
+        if (isPast) return actual;
+        return safeNumber(calcValue !== undefined ? calcValue : rowValue) || actual;
+      };
+
+      const statutoryActual = resolveActual(calc.statutoryOvertimeActual, row.statutoryOt);
+      const overtime60Actual = resolveActual(calc.overtimeFor60Actual, row.overtimeFor60Actual);
+      const overtime80Actual = resolveActual(calc.overtimeAndHolidayActual, row.overtimeAndHolidayActual);
+
+      return {
+        45: {
+          actual: statutoryActual,
+          forecast: resolveForecast(statutoryActual, calc.forecast45, row.forecast45),
+          basisLabel: '法定外労働時間',
+          shortBasisLabel: '法定外'
+        },
+        60: {
+          actual: overtime60Actual,
+          forecast: resolveForecast(overtime60Actual, calc.forecast60, row.forecast60),
+          basisLabel: '月60時間超割増対象時間',
+          shortBasisLabel: '60h対象'
+        },
+        80: {
+          actual: overtime80Actual,
+          forecast: resolveForecast(overtime80Actual, calc.forecast80, row.forecast80),
+          basisLabel: '時間外＋休日労働時間',
+          shortBasisLabel: '時間外+休日'
+        }
+      };
+    }
+
+    function getForecastLimitBasis(context, threshold) {
+      const map = context && context.limitBasisMap ? context.limitBasisMap : {};
+      return map[threshold] || {
+        actual: safeNumber(context && context.actual),
+        forecast: safeNumber(context && context.forecast),
+        basisLabel: '',
+        shortBasisLabel: ''
+      };
+    }
+
     function getForecastThresholdCrossing(context, threshold) {
-      const actual = safeNumber(context.actual);
-      const forecast = safeNumber(context.forecast);
+      const basis = getForecastLimitBasis(context, threshold);
+      const actual = safeNumber(basis.actual);
+      const forecast = safeNumber(basis.forecast);
       const elapsed = safeNumber(context.elapsedDays);
       const total = safeNumber(context.totalDays);
       if (forecast <= actual || threshold <= actual || threshold > forecast || total <= elapsed) return null;
@@ -5079,28 +5124,38 @@
 
     function getForecastLimitDefinitions() {
       return [
-        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45h' },
-        { value: 60, className: 'forecastCurveLimit60', legendClass: 'limit60', label: '60h' },
-        { value: 80, className: 'forecastCurveLimit80', legendClass: 'limit80', label: '80h' }
+        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45h', basisLabel: '法定外労働時間', shortBasisLabel: '法定外' },
+        { value: 60, className: 'forecastCurveLimit60', legendClass: 'limit60', label: '60h', basisLabel: '月60時間超割増対象時間', shortBasisLabel: '60h対象' },
+        { value: 80, className: 'forecastCurveLimit80', legendClass: 'limit80', label: '80h', basisLabel: '時間外＋休日労働時間', shortBasisLabel: '時間外+休日' }
       ];
     }
 
     function getForecastLimitStatuses(context) {
       return getForecastLimitDefinitions().map(limit => {
+        const basis = getForecastLimitBasis(context, limit.value);
         const crossingDay = getForecastThresholdCrossing(context, limit.value);
-        const exceeded = safeNumber(context.actual) >= limit.value;
+        const exceeded = safeNumber(basis.actual) >= limit.value;
         const crossingLabel = crossingDay ? formatForecastCurveDateLabel(context, crossingDay) : '';
-        return { ...limit, crossingDay, crossingLabel, exceeded };
+        return {
+          ...limit,
+          basisActual: safeNumber(basis.actual),
+          basisForecast: safeNumber(basis.forecast),
+          basisLabel: basis.basisLabel || limit.basisLabel,
+          shortBasisLabel: basis.shortBasisLabel || limit.shortBasisLabel,
+          crossingDay,
+          crossingLabel,
+          exceeded
+        };
       });
     }
 
     function buildForecastLimitWarning(statuses, labels) {
       const crossings = statuses
         .filter(status => status.crossingDay)
-        .map(status => `${status.crossingLabel || `${Math.ceil(status.crossingDay)}日目`}頃に${status.value}時間`);
+        .map(status => `${status.crossingLabel || `${Math.ceil(status.crossingDay)}日目`}頃に${status.value}時間（${status.basisLabel}）`);
       const exceeded = statuses
         .filter(status => status.exceeded)
-        .map(status => `${status.value}時間`);
+        .map(status => `${status.value}時間（${status.basisLabel}）`);
 
       if (!crossings.length && !exceeded.length) return '';
 
@@ -5129,7 +5184,7 @@
       [
         { label: labels && labels.isPast ? '確定' : '実績', className: '' },
         ...(labels && labels.isPast ? [] : [{ label: (labels && labels.forecastLegendLabel) || '予測', className: 'forecast' }]),
-        ...getForecastLimitDefinitions().map(limit => ({ label: `${limit.label}上限`, className: limit.legendClass }))
+        ...getForecastLimitDefinitions().map(limit => ({ label: `${limit.label}上限（${limit.shortBasisLabel}）`, className: limit.legendClass }))
       ].forEach(item => {
         const entry = document.createElement('span');
         entry.className = 'forecastCurveLegendItem';
@@ -5197,7 +5252,7 @@
         const limitColor = limit.value === 45 ? '#c5972f' : limit.value === 60 ? '#d97917' : '#b91c1c';
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: limitColor, 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }));
         const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x: width - padding.right - 4, y: y - 5, 'text-anchor': 'end', fill: '#666666', 'font-size': 11, 'font-weight': 700 });
-        label.textContent = limit.label;
+        label.textContent = `${limit.label} ${limit.shortBasisLabel}`;
         svg.appendChild(label);
       });
 
@@ -5230,9 +5285,7 @@
       limitStatuses.forEach(limit => {
         if (!limit.crossingDay) return;
         const thresholdY = points.yForHours(limit.value);
-        const crossingPoint = getForecastCurvePointAtThreshold(points, thresholdY);
-        if (!crossingPoint) return;
-        const x = crossingPoint.x;
+        const x = points.xForDay(limit.crossingDay);
         const y = thresholdY;
         svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
 
@@ -5248,7 +5301,8 @@
         const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 7 : 5, tabindex: '0', fill: is45Limit ? '#dc2626' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
         const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
-        title.textContent = `${crossingTitleDate}時点：${labels.forecastLegendLabel} ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(context.actual)}、${labels.metricLabel} ${formatForecastDetailHours(context.forecast)}）`;
+        const forecastLabel = context.isPast ? '確定' : '月末見込み';
+        title.textContent = `${crossingTitleDate}時点：${limit.basisLabel} ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(limit.basisActual)}、${forecastLabel} ${formatForecastDetailHours(limit.basisForecast)}）`;
         warning.appendChild(title);
         svg.appendChild(warning);
 
@@ -5263,7 +5317,7 @@
             'font-weight': 800,
             'text-anchor': placeLeft ? 'end' : 'start'
           });
-          warningLabel.textContent = '45h到達見込み';
+          warningLabel.textContent = '45h（法定外）到達見込み';
           svg.appendChild(warningLabel);
         }
       });
@@ -5278,6 +5332,12 @@
       note.style.color = '#666666';
       note.style.fontSize = '12px';
       panel.appendChild(note);
+
+      const basisNote = createForecastDetailDiv('forecastGraphNote', '判定基準：45h＝法定外労働時間、60h＝月60時間超割増対象時間、80h＝時間外＋休日労働時間。');
+      basisNote.style.marginTop = '4px';
+      basisNote.style.color = '#666666';
+      basisNote.style.fontSize = '12px';
+      panel.appendChild(basisNote);
 
       const warningText = buildForecastLimitWarning(limitStatuses, labels);
       if (warningText) {
