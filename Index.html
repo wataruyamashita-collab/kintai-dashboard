@@ -2027,8 +2027,6 @@
     let testDisplayRole = 'executive';
     let initialDisplayRoleApplied = false;
     let previousTestDisplayRole = 'executive';
-    const TEST_MANAGER_LOCK_DEPARTMENT = '営業第1課';
-    let lockedManagerDepartment = '';
     let lastCalculationAudit = null;
     let lastCompanyCalendarImportText = '';
     let editingRowIndex = null;
@@ -2159,7 +2157,7 @@
       }
 
       if (isManagerDisplayRole()) {
-        status.textContent = '所属長：勤怠アラートのみ表示（管轄部署に固定）';
+        status.textContent = '所属長：勤怠アラートのみ表示（権限の部署グループ範囲）';
         return;
       }
 
@@ -4738,56 +4736,23 @@
       syncDepartmentFilterForDisplayRole(departments);
     }
 
-    function resolveManagerLockDepartment(departments) {
-      const sourceDepartments = Array.isArray(departments) && departments.length
-        ? departments
-        : createDepartmentListClient(currentRows);
-      if (sourceDepartments.includes(TEST_MANAGER_LOCK_DEPARTMENT)) return TEST_MANAGER_LOCK_DEPARTMENT;
-      return sourceDepartments[0] || '';
-    }
-
     function syncDepartmentFilterForDisplayRole(departments) {
       const select = document.getElementById('departmentFilter');
       if (!select) return '';
 
-      if (!isManagerDisplayRole()) {
-        const previouslyLockedDepartment = lockedManagerDepartment;
-        lockedManagerDepartment = '';
-        select.disabled = false;
-        select.classList.remove('departmentFilterLocked');
-        select.title = '';
-        if (previouslyLockedDepartment && select.value === previouslyLockedDepartment) {
-          select.value = '';
-        }
-        if (!Array.from(select.options).some(option => option.value === select.value)) {
-          select.value = '';
-        }
-        return '';
+      select.disabled = false;
+      select.classList.remove('departmentFilterLocked');
+      select.title = isManagerDisplayRole()
+        ? '所属長表示では、サーバー側で権限の部署グループ範囲に絞り込まれています。部署プルダウンでは範囲内の部署を追加で絞り込めます。'
+        : '';
+
+      if (!Array.from(select.options).some(option => option.value === select.value)) {
+        select.value = '';
       }
-
-      const lockDepartment = resolveManagerLockDepartment(departments);
-      lockedManagerDepartment = lockDepartment;
-
-      if (lockDepartment && !Array.from(select.options).some(option => option.value === lockDepartment)) {
-        const option = document.createElement('option');
-        option.value = lockDepartment;
-        option.textContent = lockDepartment;
-        select.appendChild(option);
-      }
-
-      select.value = lockDepartment || '';
-      select.disabled = true;
-      select.classList.add('departmentFilterLocked');
-      select.title = lockDepartment
-        ? `所属長表示では管轄部署「${lockDepartment}」に固定されます。`
-        : '所属長表示ですが、固定できる部署データがありません。';
-      return lockDepartment;
+      return select.value || '';
     }
 
     function getEffectiveDepartmentFilter() {
-      if (isManagerDisplayRole()) {
-        return lockedManagerDepartment || syncDepartmentFilterForDisplayRole();
-      }
       const select = document.getElementById('departmentFilter');
       return select ? select.value : '';
     }
@@ -5410,7 +5375,7 @@
       if (keyword) keyword.value = row.employeeCode || row.employeeName || '';
       if (riskFilter) riskFilter.value = '';
       if (missingFilter) missingFilter.value = '';
-      if (departmentFilter && !isManagerDisplayRole()) departmentFilter.value = '';
+      if (departmentFilter) departmentFilter.value = '';
       applyFilters();
 
       setTimeout(() => {
