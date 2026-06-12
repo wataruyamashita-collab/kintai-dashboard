@@ -124,7 +124,8 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
 
   const sourceRows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
   const authorityRows = filterRowsByAuthority_(sourceRows, user);
-  const rows = mergeManualInputsToRows_(authorityRows, targetMonth);
+  const displayRows = filterRowsByDisplayMode_(authorityRows, snapshot.meta && snapshot.meta.displayMode);
+  const rows = mergeManualInputsToRows_(displayRows, targetMonth);
   const isAdmin = user && user.role === 'admin';
   const departmentGroups = isAdmin
     ? createDepartmentGroupOptions_(sourceRows)
@@ -201,7 +202,8 @@ function saveClientSnapshot(payload) {
     lock.releaseLock();
   }
 
-  const filteredRows = filterRowsByAuthority_(snapshot.rows, user);
+  const authorityRows = filterRowsByAuthority_(snapshot.rows, user);
+  const filteredRows = filterRowsByDisplayMode_(authorityRows, snapshot.meta.displayMode);
 
   return {
     user,
@@ -391,6 +393,12 @@ function filterRowsByAuthority_(rows, user) {
 
   const userDepartment = String(user.department || '');
   return sourceRows.filter(row => String(row.departmentGroup || '') === userDepartment);
+}
+
+function filterRowsByDisplayMode_(rows, displayMode) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  if (String(displayMode || 'alertsOnly') === 'allEmployees') return sourceRows;
+  return sourceRows.filter(row => row && (row.actualAlert || row.forecastAlert));
 }
 
 function createVisibleDepartmentGroupOptions_(user) {
