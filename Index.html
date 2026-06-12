@@ -5393,6 +5393,25 @@
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: limitColor, 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }));
       });
 
+      if (context.actual > 0) {
+        const actualY = points.yForHours(context.actual);
+        const actualValueLine = createSvgElement('line', {
+          class: 'forecastCurveActualValueLine',
+          x1: padding.left,
+          y1: actualY,
+          x2: width - padding.right,
+          y2: actualY,
+          stroke: '#1f4e79',
+          'stroke-width': 1.4,
+          'stroke-dasharray': '2 5',
+          'stroke-opacity': .7
+        });
+        const title = createSvgElement('title', {});
+        title.textContent = `${context.isPast ? '確定実績' : '現時点実績'} ${formatForecastDetailHours(context.actual)}`;
+        actualValueLine.appendChild(title);
+        svg.appendChild(actualValueLine);
+      }
+
       svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createLinearPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
       if (!context.isPast) {
         svg.appendChild(createSvgElement('path', { class: 'forecastCurveForecast', d: createLinearPath(points.forecastPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': '7 6' }));
