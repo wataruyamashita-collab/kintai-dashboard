@@ -5183,8 +5183,7 @@
       legend.style.fontWeight = '700';
       [
         { label: labels && labels.isPast ? '確定' : '実績', className: '' },
-        ...(labels && labels.isPast ? [] : [{ label: (labels && labels.forecastLegendLabel) || '予測', className: 'forecast' }]),
-        ...getForecastLimitDefinitions().map(limit => ({ label: `${limit.label}上限`, className: limit.legendClass }))
+        ...(labels && labels.isPast ? [] : [{ label: (labels && labels.forecastLegendLabel) || '予測', className: 'forecast' }])
       ].forEach(item => {
         const entry = document.createElement('span');
         entry.className = 'forecastCurveLegendItem';
@@ -5294,7 +5293,7 @@
       panel.style.background = '#fbfcfe';
       const width = 720;
       const height = 260;
-      const padding = { top: 24, right: 112, bottom: 34, left: 48 };
+      const padding = { top: 24, right: 128, bottom: 34, left: 48 };
       const points = getForecastCurvePoints(context, width, height, padding);
       const limitStatuses = getForecastLimitStatuses(context);
       const labelYRanges = [];
@@ -5323,18 +5322,18 @@
 
       limitStatuses.forEach(limit => {
         const y = points.yForHours(limit.value);
-        const limitColor = limit.value === 45 ? '#c5972f' : limit.value === 60 ? '#d97917' : '#b91c1c';
+        const limitColor = limit.value === 45 ? '#d99a00' : limit.value === 60 ? '#f97316' : '#dc2626';
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: limitColor, 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }));
-        const labelY = placeForecastCurveLabelY(y, labelYRanges, labelMinY, labelMaxY, 17, 3);
+        const labelY = placeForecastCurveLabelY(y, labelYRanges, labelMinY, labelMaxY, 17, 5);
         appendSvgTextPill(svg, `${limit.label} ${limit.shortBasisLabel}`, {
           class: 'forecastCurveAxisLabel',
-          x: width - 10,
+          x: width - 12,
           y: labelY,
           'text-anchor': 'end',
-          fill: '#666666',
+          fill: '#4b5563',
           'font-size': 11,
           'font-weight': 700
-        }, { fill: '#fbfcfe', stroke: limitColor, fillOpacity: .94, centerY: true });
+        }, { fill: '#fbfcfe', stroke: limitColor, fillOpacity: .90, strokeWidth: .9, centerY: true });
       });
 
       svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createLinearPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
@@ -5344,32 +5343,45 @@
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
       const currentLabelPlaceLeft = currentPoint.x > width - padding.right - 120;
-      appendSvgText(svg, context.isPast ? '確定' : '実績最終／予測開始', {
+      appendSvgText(svg, context.isPast ? '確定' : '予測開始', {
         class: 'forecastCurveCurrentLabel',
         x: currentLabelPlaceLeft ? currentPoint.x - 8 : currentPoint.x + 8,
-        y: Math.max(padding.top + 12, currentPoint.y - 10),
+        y: Math.max(padding.top + 12, currentPoint.y - 12),
         'text-anchor': currentLabelPlaceLeft ? 'end' : 'start',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
       });
+      const monthEndPoint = points.forecastPoints[points.forecastPoints.length - 1];
       const monthEndLabelY = placeForecastCurveLabelY(
-        Math.max(padding.top + 14, points.forecastPoints[points.forecastPoints.length - 1].y),
+        Math.max(padding.top + 14, monthEndPoint.y),
         labelYRanges,
         labelMinY,
         labelMaxY,
         18,
-        4
+        5
       );
+      const monthEndLabelX = width - 12;
+      svg.appendChild(createSvgElement('line', {
+        class: 'forecastCurveMonthEndGuide',
+        x1: monthEndPoint.x + 3,
+        y1: monthEndPoint.y,
+        x2: monthEndLabelX - 92,
+        y2: monthEndLabelY,
+        stroke: '#8fa3ba',
+        'stroke-width': 1,
+        'stroke-dasharray': '3 4',
+        'stroke-opacity': .75
+      }));
       appendSvgTextPill(svg, `${context.isPast ? '確定' : '月末予測'} ${formatForecastDetailHours(context.forecast)}`, {
         class: 'forecastCurveMonthEndLabel',
-        x: width - 10,
+        x: monthEndLabelX,
         y: monthEndLabelY,
         'text-anchor': 'end',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
-      }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, centerY: true });
+      }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, strokeWidth: .9, centerY: true });
 
       limitStatuses.forEach(limit => {
         if (!limit.crossingDay) return;
@@ -5397,17 +5409,29 @@
 
         if (is45Limit) {
           const placeLeft = x > width - padding.right - 112;
-          const desiredWarningY = Math.max(padding.top + 14, y);
-          const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 4);
-          appendSvgTextPill(svg, '45h（法定外）到達', {
+          const desiredWarningY = Math.max(padding.top + 16, y - 24);
+          const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 5);
+          const warningLabelX = placeLeft ? x - 18 : x + 18;
+          svg.appendChild(createSvgElement('line', {
+            class: 'forecastCurveWarningGuide',
+            x1: x + (placeLeft ? -8 : 8),
+            y1: y - 3,
+            x2: warningLabelX + (placeLeft ? 6 : -6),
+            y2: warningLabelY,
+            stroke: '#d97706',
+            'stroke-width': 1,
+            'stroke-dasharray': '3 4',
+            'stroke-opacity': .7
+          }));
+          appendSvgTextPill(svg, '45h到達見込み', {
             class: 'forecastCurveWarningLabel blink45',
-            x: placeLeft ? x - 12 : x + 12,
+            x: warningLabelX,
             y: warningLabelY,
             fill: '#b91c1c',
             'font-size': 12,
             'font-weight': 800,
             'text-anchor': placeLeft ? 'end' : 'start'
-          }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, centerY: true });
+          }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true });
         }
       });
 
