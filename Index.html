@@ -2904,16 +2904,21 @@
 
     function toClockHours(value) {
       if (value === null || value === undefined || value === '') return Number.NaN;
-      if (typeof value === 'number') return value > 0 && value < 1 ? value * 24 : value;
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value)) return Number.NaN;
+        return value > 0 && value < 1 ? value * 24 : value;
+      }
 
       const text = String(value).trim();
       if (!text) return Number.NaN;
 
-      const timeMatch = text.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      const timeMatch = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
       if (timeMatch) {
         const h = Number(timeMatch[1]);
         const m = Number(timeMatch[2]);
         const s = Number(timeMatch[3] || 0);
+        if (!Number.isFinite(h) || !Number.isFinite(m) || !Number.isFinite(s)) return Number.NaN;
+        if (h < 0 || h > 47 || m < 0 || m >= 60 || s < 0 || s >= 60) return Number.NaN;
         return h + m / 60 + s / 3600;
       }
 
@@ -3052,7 +3057,8 @@
           : (Object.keys(employee.targetWorkingDates).length || getWeekdayCountInMonth(target.year, target.month));
 
         const totalWorkDays = targetWorkingDays;
-        const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays);
+        const futurePaidLeave = round2(employee.futurePaidLeave);
+        const remainingWorkDays = Math.max(0, totalWorkDays - elapsedDays - futurePaidLeave);
         employee.forecastRemainingWorkDays = remainingWorkDays;
         const overtimeForecast = calculateOvertimeForecast({
           employeeId: employee.employeeCode,
@@ -3239,6 +3245,7 @@
         legalHolidayWork: 0,
         paidLeaveCumulative: 0,
         targetMonthPaidLeave: 0,
+        futurePaidLeave: 0,
         forecastRemainingWorkDays: 0,
         attendanceDaysTotal: 0,
         over45Count: 0,
@@ -3289,12 +3296,14 @@
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
         targetMonthPaidLeave: round1(employee.targetMonthPaidLeave),
+        futurePaidLeave: round1(employee.futurePaidLeave),
         forecastRemainingWorkDays: round2(employee.forecastRemainingWorkDays),
         forecastCalculation: {
           totalWorkDays: round2(targetWorkingDays),
           elapsedDays: round2(elapsedDays),
           attendanceDaysTotal: round2(employee.attendanceDaysTotal),
           targetMonthPaidLeave: round2(employee.targetMonthPaidLeave),
+          futurePaidLeave: round2(employee.futurePaidLeave),
           remainingWorkDays: round2(employee.forecastRemainingWorkDays),
           statutoryOvertimeActual: round2(employee.statutoryOt),
           overtimeFor60Actual: round2(employee.overtimeFor60Actual),
@@ -3333,7 +3342,7 @@
       }
       const hours = Number(parts[0]);
       const minutes = Number(parts[1]);
-      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
+      if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes < 0 || minutes >= 60) return 0;
       return Math.max(0, hours + minutes / 60);
     }
 
@@ -5261,6 +5270,7 @@
       const totalWorkDays = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
       const attendanceDaysTotal = safeNumber(calc.attendanceDaysTotal !== undefined ? calc.attendanceDaysTotal : row.attendanceDaysTotal);
       const targetMonthPaidLeave = safeNumber(calc.targetMonthPaidLeave !== undefined ? calc.targetMonthPaidLeave : row.targetMonthPaidLeave);
+      const futurePaidLeave = safeNumber(calc.futurePaidLeave !== undefined ? calc.futurePaidLeave : row.futurePaidLeave);
       const overallForecast = calc.overallForecast !== undefined ? calc.overallForecast : row.monthEndForecastValue;
 
       const summary = appendForecastDetailSection(container, '概要');
@@ -5273,6 +5283,7 @@
       const days = appendForecastDetailSection(container, '日数の内訳');
       appendForecastDetailLine(days, '営業日数', `${formatForecastDetailNumber(totalWorkDays, 1)}日`);
       appendForecastDetailLine(days, '経過日数', `${formatForecastDetailNumber(elapsedDays, 1)}日（出社 ${formatForecastDetailNumber(attendanceDaysTotal, 1)}日 + 有休 ${formatForecastDetailNumber(targetMonthPaidLeave, 1)}日）`);
+      appendForecastDetailLine(days, '残営業日数', `${formatForecastDetailNumber(remainingWorkDays, 1)}日（集計基準日後の有休予定 ${formatForecastDetailNumber(futurePaidLeave, 1)}日を控除）`);
 
       const formulaSection = appendForecastDetailSection(container, '計算');
       try {
@@ -5745,18 +5756,19 @@
 
     function toHours(value) {
       if (value === null || value === undefined || value === '') return 0;
-      if (typeof value === 'number') return value;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
 
       const text = String(value).trim();
       if (!text) return 0;
 
-      if (/^-?\d+:\d{1,2}(:\d{1,2})?$/.test(text)) {
-        const sign = text.startsWith('-') ? -1 : 1;
-        const clean = text.replace('-', '');
-        const parts = clean.split(':').map(Number);
-        const hours = parts[0] || 0;
-        const minutes = parts[1] || 0;
-        const seconds = parts[2] || 0;
+      const timeMatch = text.match(/^(-?)(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+      if (timeMatch) {
+        const sign = timeMatch[1] === '-' ? -1 : 1;
+        const hours = Number(timeMatch[2]);
+        const minutes = Number(timeMatch[3]);
+        const seconds = Number(timeMatch[4] || 0);
+        if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) return 0;
+        if (minutes < 0 || minutes >= 60 || seconds < 0 || seconds >= 60) return 0;
         return sign * (hours + minutes / 60 + seconds / 3600);
       }
 

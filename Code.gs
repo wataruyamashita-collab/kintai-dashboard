@@ -125,8 +125,13 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
   const sourceRows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
   const authorityRows = filterRowsByAuthority_(sourceRows, user);
   const rows = mergeManualInputsToRows_(authorityRows, targetMonth);
-  const departmentGroups = createDepartmentGroupOptions_(sourceRows);
-  const departmentGroupStatus = createDepartmentGroupStatus_(sourceRows);
+  const isAdmin = user && user.role === 'admin';
+  const departmentGroups = isAdmin
+    ? createDepartmentGroupOptions_(sourceRows)
+    : createVisibleDepartmentGroupOptions_(user);
+  const departmentGroupStatus = isAdmin
+    ? createDepartmentGroupStatus_(sourceRows)
+    : createDepartmentGroupStatusFromRows_(rows);
 
   return {
     user,
@@ -380,8 +385,17 @@ function getClientConfigForUser_(user, precomputed) {
 }
 
 function filterRowsByAuthority_(rows, user) {
-  if (user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL) return rows;
-  return rows.filter(row => row.departmentGroup === user.department);
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  if (!user) return [];
+  if (user.role === 'admin') return sourceRows;
+
+  const userDepartment = String(user.department || '');
+  return sourceRows.filter(row => String(row.departmentGroup || '') === userDepartment);
+}
+
+function createVisibleDepartmentGroupOptions_(user) {
+  const department = String(user && user.department || '').trim();
+  return department ? [department] : [];
 }
 
 function createSummary_(rows) {
@@ -434,6 +448,11 @@ function createDepartmentGroupStatus_(rows) {
   const sourceRows = Array.isArray(rows) && rows.length > 0
     ? rows
     : ((loadJsonFile_(APP_CONFIG.LATEST_FILE_NAME) || {}).rows || []);
+  return createDepartmentGroupStatusFromRows_(sourceRows);
+}
+
+function createDepartmentGroupStatusFromRows_(rows) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
   const unclassifiedRows = sourceRows.filter(row => String(row.departmentGroup || '') === DEPARTMENT_GROUP_UNCLASSIFIED);
   const departments = [...new Set(unclassifiedRows.map(row => String(row.department || '').trim()).filter(Boolean))].sort();
 
@@ -1262,6 +1281,21 @@ const MANAGEMENT_BASE = {
   MANUAL_FIELDS: ['agreement36', 'specialReason', 'healthMeasure', 'note']
 };
 
+function assertValidAuthScope_(role, department, prefix) {
+  const messagePrefix = prefix || '';
+  if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
+    throw new Error(`${messagePrefix}admin 権限は表示範囲を「全社」にしてください。`);
+  }
+  if (role !== 'admin' && department === DEPARTMENT_GROUP_ALL) {
+    throw new Error(`${messagePrefix}manager / viewer 権限には「全社」を設定できません。`);
+  }
+}
+
+function getManagementSpreadsheetReady_() {
+  setupManagementBaseTables();
+  return getOrCreateManualInputSpreadsheet_();
+}
+
 
 /**
  * 管理用テーブルを初期化する。
@@ -1444,7 +1478,7 @@ function listAuthUsers() {
 
 
 function listAuthUsersInternal_() {
-  const ss = getOrCreateManualInputSpreadsheet_();
+  const ss = getManagementSpreadsheetReady_();
   const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
   if (!sheet) return [];
 
@@ -1492,11 +1526,9 @@ function saveAuthUser(payload) {
     throw new Error('表示範囲は現在の部署グループ一覧から選択してください。新しい部署グループは、保存済みデータまたは最新スナップショットに反映後に選択できます。');
   }
 
-  if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
-    throw new Error('admin 権限は表示範囲を「全社」にしてください。');
-  }
+  assertValidAuthScope_(role, department);
 
-  const ss = getOrCreateManualInputSpreadsheet_();
+  const ss = getManagementSpreadsheetReady_();
   const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
   const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
   const now = getNowText_();
@@ -1574,9 +1606,7 @@ function bulkSaveAuthUsers(payload) {
     if (!availableDepartments.includes(department)) {
       throw new Error(`${lineNumber}行目：表示範囲「${department}」は現在の部署グループ一覧にありません。`);
     }
-    if (role === 'admin' && department !== DEPARTMENT_GROUP_ALL) {
-      throw new Error(`${lineNumber}行目：admin 権限は表示範囲を「全社」にしてください。`);
-    }
+    assertValidAuthScope_(role, department, `${lineNumber}行目：`);
     if (email === currentUserEmail && enabled === 'FALSE') {
       throw new Error(`${lineNumber}行目：自分自身の権限は無効化できません。`);
     }
@@ -1591,7 +1621,7 @@ function bulkSaveAuthUsers(payload) {
     };
   });
 
-  const ss = getOrCreateManualInputSpreadsheet_();
+  const ss = getManagementSpreadsheetReady_();
   const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
   const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
   const now = getNowText_();
@@ -1693,7 +1723,7 @@ function disableAuthUser(email) {
     throw new Error('自分自身の権限は無効化できません。');
   }
 
-  const ss = getOrCreateManualInputSpreadsheet_();
+  const ss = getManagementSpreadsheetReady_();
   const sheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_CURRENT_SHEET);
   const historySheet = ss.getSheetByName(MANAGEMENT_BASE.AUTH_HISTORY_SHEET);
 
@@ -1761,7 +1791,7 @@ function saveManualInput(payload) {
 
   const key = createManualInputKey_(targetMonth, employeeCode, employeeName);
 
-  const ss = getOrCreateManualInputSpreadsheet_();
+  const ss = getManagementSpreadsheetReady_();
   const currentSheet = ss.getSheetByName(MANAGEMENT_BASE.MANUAL_CURRENT_SHEET);
   const historySheet = ss.getSheetByName(MANAGEMENT_BASE.MANUAL_HISTORY_SHEET);
 
@@ -1926,7 +1956,7 @@ function mergeManualInputsToRows_(rows, targetMonth) {
     const key = createManualInputKey_(normalizedMonth, employeeCode, employeeName);
     const fallbackKey = createManualInputKey_(normalizedMonth, '', employeeName);
 
-    const manual = employeeCode ? manualMap[key] : manualMap[fallbackKey];
+    const manual = employeeCode ? (manualMap[key] || manualMap[fallbackKey]) : manualMap[fallbackKey];
 
     if (!manual) return row;
 
@@ -2011,21 +2041,26 @@ function resolveAuthoritativeRow_(targetMonth, payloadRow) {
 
   const employeeCode = String(payloadRow.employeeCode || '').trim();
   const employeeName = String(payloadRow.employeeName || '').trim();
+  const departmentGroup = String(payloadRow.departmentGroup || '').trim();
 
-  if (employeeCode) {
-    return snapshot.rows.find(row => String(row.employeeCode || '').trim() === employeeCode) || null;
+  if (!employeeCode && !employeeName) return null;
+
+  let matches = snapshot.rows.filter(row => {
+    if (employeeCode) return String(row.employeeCode || '').trim() === employeeCode;
+    return String(row.employeeName || '').trim() === employeeName;
+  });
+
+  if (departmentGroup) {
+    matches = matches.filter(row => String(row.departmentGroup || '').trim() === departmentGroup);
   }
 
-  if (!employeeName) return null;
-
-  const nameMatches = snapshot.rows.filter(row => String(row.employeeName || '').trim() === employeeName);
-  return nameMatches.length === 1 ? nameMatches[0] : null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 
 function canViewManualInput_(user, record) {
   if (!user) return false;
-  if (user.role === 'admin' || user.department === DEPARTMENT_GROUP_ALL) return true;
+  if (user.role === 'admin') return true;
   return String(record.departmentGroup || '') === String(user.department || '');
 }
 
@@ -2063,6 +2098,7 @@ function readSheetObjects_(sheet) {
   if (!values || values.length <= 1) return [];
 
   const headers = values[0].map(h => String(h || '').trim());
+  assertValidSheetHeaders_(sheet, headers);
 
   return values.slice(1)
     .filter(row => row.some(cell => String(cell || '').trim() !== ''))
@@ -2076,9 +2112,24 @@ function readSheetObjects_(sheet) {
 }
 
 
+function assertValidSheetHeaders_(sheet, headers) {
+  const seen = {};
+  headers.forEach((header, index) => {
+    if (!header) {
+      throw new Error(`${sheet.getName()} の ${index + 1} 列目のヘッダーが空です。`);
+    }
+    if (seen[header]) {
+      throw new Error(`${sheet.getName()} のヘッダー「${header}」が重複しています。`);
+    }
+    seen[header] = true;
+  });
+}
+
+
 function getHeaderMap_(sheet) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => String(h || '').trim());
+  assertValidSheetHeaders_(sheet, headers);
 
   const map = {};
   headers.forEach((header, index) => {
