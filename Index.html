@@ -4888,20 +4888,6 @@
       const monthLabel = hasMonth ? `${parsed.month}月` : '';
       const isPast = isPastTargetMonth(monthSource);
 
-      if (isPast) {
-        return {
-          isPast,
-          title: monthLabel ? `${monthLabel}残業時間の積み上げ（保存時点）` : '過去月の残業時間の積み上げ（保存時点）',
-          metricLabel: '残業時間の積み上げ（保存時点）',
-          graphLabel: '残業時間の積み上げ推移（保存時点）',
-          forecastLegendLabel: '保存時点の見込み',
-          warningPrefix: '【保存時点】',
-          warningVerb: '到達する見込みでした',
-          exceededSuffix: 'は保存時点で既に超過済みでした。',
-          headerHtml: '残業時間の積み上げ<br>（保存時点）/グラフ'
-        };
-      }
-
       return {
         isPast,
         title: monthLabel ? `${monthLabel}末残業予測` : '月末残業予測',
