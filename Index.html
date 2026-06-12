@@ -666,16 +666,16 @@
     }
 
     .forecastCurveWarning.blink45 {
-      animation: forecastCurveBlink45 1s ease-in-out infinite;
+      animation: forecastCurveBlink45 2s ease-in-out infinite;
     }
 
     .forecastCurveWarningHalo.blink45 {
-      animation: forecastCurveBlink45Halo 1s ease-in-out infinite;
+      animation: forecastCurveBlink45Halo 2s ease-in-out infinite;
     }
 
     .forecastCurveWarningLabel.blink45,
     .forecastCurveWarningLabelPill.blink45 {
-      animation: forecastCurveBlink45 1s ease-in-out infinite;
+      animation: forecastCurveBlink45 2s ease-in-out infinite;
     }
 
     .forecastCurveMonthEndPoint.blinkForecast,
@@ -5434,12 +5434,12 @@
         18,
         5
       );
-      const monthEndLabelX = width - 12;
+      const monthEndLabelX = width - 72;
       svg.appendChild(createSvgElement('line', {
         class: 'forecastCurveMonthEndGuide',
         x1: monthEndPoint.x + 3,
         y1: monthEndPoint.y,
-        x2: monthEndLabelX - 92,
+        x2: monthEndLabelX - 56,
         y2: monthEndLabelY,
         stroke: '#8fa3ba',
         'stroke-width': 1,
@@ -5447,7 +5447,7 @@
         'stroke-opacity': .75
       }));
       svg.appendChild(createSvgElement('circle', {
-        class: 'forecastCurveMonthEndPoint blinkForecast',
+        class: 'forecastCurveMonthEndPoint',
         cx: monthEndPoint.x,
         cy: monthEndPoint.y,
         r: 4.5,
@@ -5455,11 +5455,11 @@
         stroke: '#ffffff',
         'stroke-width': 2
       }));
-      appendSvgTextPill(svg, `${context.isPast ? '確定' : '月末予測'} ${formatForecastDetailHours(context.forecast)}`, {
+      appendSvgTextPill(svg, `${context.isPast ? '確定残業' : '月末予測残業'} ${formatForecastDetailHours(context.forecast)}`, {
         class: 'forecastCurveMonthEndLabel',
         x: monthEndLabelX,
         y: monthEndLabelY,
-        'text-anchor': 'end',
+        'text-anchor': 'middle',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
@@ -5493,12 +5493,12 @@
           const placeLeft = x > width - padding.right - 112;
           const desiredWarningY = Math.max(padding.top + 16, y - 24);
           const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 5);
-          const warningLabelX = placeLeft ? x - 18 : x + 18;
+          const warningLabelX = placeLeft ? x - 76 : x + 76;
           svg.appendChild(createSvgElement('line', {
             class: 'forecastCurveWarningGuide',
             x1: x + (placeLeft ? -8 : 8),
             y1: y - 3,
-            x2: warningLabelX + (placeLeft ? 6 : -6),
+            x2: warningLabelX + (placeLeft ? 50 : -50),
             y2: warningLabelY,
             stroke: '#d97706',
             'stroke-width': 1,
@@ -5512,7 +5512,7 @@
             fill: '#9a3412',
             'font-size': 11,
             'font-weight': 800,
-            'text-anchor': placeLeft ? 'end' : 'start'
+            'text-anchor': 'middle'
           }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveWarningLabelPill blink45' });
         }
       });
