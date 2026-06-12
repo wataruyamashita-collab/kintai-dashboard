@@ -187,7 +187,7 @@ function saveClientSnapshot(payload) {
       validationMetrics,
       over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。',
       forecastDefinition: '月末残業予測は、45h（法定時間外労働）、60h（月60時間超割増対象・法定休日労働を除く）、80h（時間外＋休日労働）を別々の実績値で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。見込みは小数第1位切り上げ、超過判定は > で行います。',
-      approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与計算には使用しません。CSV取込は10MB未満のファイルを対象に、引用符内のカンマ・改行を考慮して必要列のみを抽出します。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
+      approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与処理には使用しません。CSV取込は10MB未満のファイルを対象に、引用符内のカンマ・改行を考慮して必要列のみを抽出します。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
     },
     rows: payload.rows
   };
@@ -307,7 +307,7 @@ function createSnapshotValidationMetrics_(rows) {
     const expectedMissing = calculateMissingItemsServer_(row).slice().sort().join('|');
     const actualMissing = (Array.isArray(row.missingItems) ? row.missingItems : []).slice().sort().join('|');
     if (expectedMissing !== actualMissing) {
-      errors.push(`${label} の未入力判定が計算結果と一致しません。`);
+      errors.push(`${label} の未入力判定が集計結果と一致しません。`);
     }
 
     acc.estimatedOtTotal += estimatedOt;
@@ -1074,7 +1074,7 @@ function clearDriveFolderCache() {
  * - 健康福祉措置
  * - 備考
  *
- * 上記を、勤怠計算結果とは別テーブルで永続保管する。
+ * 上記を、勤怠集計結果とは別テーブルで永続保管する。
  *
  * 実行方法：
  * Apps Script の関数選択で setupManualInputTables を選び、1回実行する。
@@ -1269,7 +1269,7 @@ function clearManualInputSpreadsheetCache() {
  * 目的：
  * 1. 管理者が権限管理をできるようにする
  * 2. 管理監督者が自部署の備考等を保存できるようにする
- * 3. 再計算しても手入力内容が消えないようにする
+ * 3. 再集計しても手入力内容が消えないようにする
  *******************************************************/
 
 const MANAGEMENT_BASE = {
@@ -1908,8 +1908,8 @@ function loadManualInputs(targetMonth) {
 
 
 /**
- * クライアント側で再計算した結果に、保存済み手入力を結合する。
- * 管理者の再計算時に使用する想定。
+ * クライアント側で再集計した結果に、保存済み手入力を結合する。
+ * 管理者の再集計時に使用する想定。
  */
 function applyManualInputsToRows(payload) {
   const user = getCurrentUser_();
@@ -1938,7 +1938,7 @@ function createClientPermissions_(user) {
 
 
 /**
- * 手入力を計算結果に結合する。
+ * 手入力を集計結果に結合する。
  */
 function mergeManualInputsToRows_(rows, targetMonth) {
   const normalizedMonth = normalizeTargetMonth_(targetMonth);
