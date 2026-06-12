@@ -4720,17 +4720,33 @@
       return keys;
     }
 
+    function getMonthLastDateKey(targetMonth) {
+      const parsed = parseYearMonth(targetMonth);
+      if (!parsed || !Number.isFinite(parsed.year) || !Number.isFinite(parsed.month)) return '';
+      const lastDay = new Date(parsed.year, parsed.month, 0).getDate();
+      return `${parsed.year}/${String(parsed.month).padStart(2, '0')}/${String(lastDay).padStart(2, '0')}`;
+    }
+
     function getForecastDateKeyForDay(context, day) {
+      const numericDay = safeNumber(day);
+      const totalDays = safeNumber(context && context.totalDays);
+      const targetMonth = context && context.targetMonth;
+      const monthLastDateKey = getMonthLastDateKey(targetMonth);
+
+      if (context && context.isPast && monthLastDateKey && totalDays > 0 && numericDay >= totalDays) {
+        return monthLastDateKey;
+      }
+
       const dateKeys = Array.isArray(context && context.targetWorkingDateKeys) ? context.targetWorkingDateKeys : [];
       if (dateKeys.length > 0) {
-        const index = clampNumber(Math.ceil(safeNumber(day)) - 1, 0, dateKeys.length - 1);
+        const index = clampNumber(Math.ceil(numericDay) - 1, 0, dateKeys.length - 1);
         return dateKeys[index];
       }
 
-      const parsed = parseYearMonth(context && context.targetMonth);
+      const parsed = parseYearMonth(targetMonth);
       if (!parsed || !Number.isFinite(parsed.year) || !Number.isFinite(parsed.month)) return '';
       const lastDay = new Date(parsed.year, parsed.month, 0).getDate();
-      const calendarDay = clampNumber(Math.ceil(safeNumber(day)), 1, lastDay);
+      const calendarDay = clampNumber(Math.ceil(numericDay), 1, lastDay);
       return `${parsed.year}/${String(parsed.month).padStart(2, '0')}/${String(calendarDay).padStart(2, '0')}`;
     }
 
@@ -5122,12 +5138,14 @@
         const statuses = getForecastLimitStatuses(context);
         const status45 = statuses.find(status => status.value === 45);
         const elapsedText = `経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`;
+        const isPast = Boolean(labels && labels.isPast);
+        const status45Label = isPast ? '45時間到達状況' : '45時間到達見込み';
         const status45Text = status45 && status45.exceeded
-          ? '既に45時間以上'
+          ? (isPast ? '45時間以上' : '既に45時間以上')
           : status45 && status45.crossingDay
             ? `${status45.crossingLabel || formatForecastCurveDateLabel(context, status45.crossingDay)}頃`
-            : '45時間未満の見込み';
-        summaryBox.appendChild(createForecastSummaryItem('45時間到達見込み', status45Text, status45 && (status45.exceeded || status45.crossingDay) ? 'warning' : ''));
+            : (isPast ? '到達なし（45時間未満）' : '45時間未満の見込み');
+        summaryBox.appendChild(createForecastSummaryItem(status45Label, status45Text, status45 && (status45.exceeded || status45.crossingDay) ? 'warning' : ''));
         summaryBox.appendChild(createForecastSummaryItem('集計状況', elapsedText));
       } catch (error) {
         summaryBox.appendChild(createForecastSummaryItem('集計状況', `経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
