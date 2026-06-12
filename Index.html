@@ -678,11 +678,6 @@
       animation: forecastCurveBlink45 2s ease-in-out infinite;
     }
 
-    .forecastCurveMonthEndPoint.blinkForecast,
-    .forecastCurveMonthEndPill.blinkForecast {
-      animation: forecastCurveBlinkForecast 1.15s ease-in-out infinite;
-    }
-
     @keyframes forecastCurveBlink45 {
       0%, 100% { opacity: 1; }
       50% { opacity: .35; }
@@ -5407,16 +5402,6 @@
         const y = points.yForHours(limit.value);
         const limitColor = limit.value === 45 ? '#d99a00' : limit.value === 60 ? '#f97316' : '#dc2626';
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: limitColor, 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }));
-        const labelY = placeForecastCurveLabelY(y - 5, labelYRanges, labelMinY, labelMaxY, 17, 3);
-        appendSvgTextPill(svg, `${limit.label} ${limit.shortBasisLabel}`, {
-          class: 'forecastCurveAxisLabel',
-          x: width - 12,
-          y: labelY,
-          'text-anchor': 'end',
-          fill: '#666666',
-          'font-size': 11,
-          'font-weight': 700
-        }, { fill: '#fbfcfe', stroke: limitColor, fillOpacity: .94 });
       });
 
       svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createLinearPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
@@ -5442,90 +5427,103 @@
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
-      }, { fill: '#fbfcfe', stroke: '#b8c7d8', fillOpacity: .96 });
-      const monthEndLabelY = placeForecastCurveLabelY(
-        Math.max(padding.top + 14, monthEndPoint.y),
-        labelYRanges,
-        labelMinY,
-        labelMaxY,
-        18,
-        5
-      );
-      const monthEndLabelX = width - 72;
-      svg.appendChild(createSvgElement('line', {
-        class: 'forecastCurveMonthEndGuide',
-        x1: monthEndPoint.x + 3,
-        y1: monthEndPoint.y,
-        x2: monthEndLabelX - 56,
-        y2: monthEndLabelY,
-        stroke: '#8fa3ba',
-        'stroke-width': 1,
-        'stroke-dasharray': '3 4',
-        'stroke-opacity': .75
-      }));
-      svg.appendChild(createSvgElement('circle', {
-        class: 'forecastCurveMonthEndPoint',
-        cx: monthEndPoint.x,
-        cy: monthEndPoint.y,
-        r: 4.5,
-        fill: '#1f4e79',
-        stroke: '#ffffff',
-        'stroke-width': 2
-      }));
-      appendSvgTextPill(svg, `${context.isPast ? '確定残業' : '月末予測残業'} ${formatForecastDetailHours(context.forecast)}`, {
-        class: 'forecastCurveMonthEndLabel',
-        x: width - 12,
-        y: monthEndLabelY,
-        'text-anchor': 'middle',
-        fill: '#1f4e79',
-        'font-size': 11,
-        'font-weight': 800
-      }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveMonthEndPill blinkForecast' });
-
-      limitStatuses.forEach(limit => {
-        if (!limit.crossingDay) return;
-        const thresholdY = points.yForHours(limit.value);
-        const x = points.xForDay(limit.crossingDay);
-        const y = thresholdY;
-        svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
-
-        const crossingLabelText = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
-        const axisTickLabels = [1, Math.max(1, Math.round(context.elapsedDays || 1)), Math.max(1, Math.round(context.totalDays))]
-          .map(day => formatForecastCurveDateLabel(context, day));
-        if (!axisTickLabels.includes(crossingLabelText)) {
-          const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 18, 'text-anchor': 'middle', fill: '#26384d', 'font-size': 11, 'font-weight': 700 });
-          crossingLabel.textContent = crossingLabelText;
-          svg.appendChild(crossingLabel);
-        }
-
-        const is45Limit = limit.value === 45;
-        if (is45Limit) {
-          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 10, fill: '#f59e0b', 'fill-opacity': .18, stroke: '#f59e0b', 'stroke-width': 3 }));
-        }
-        const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
-        const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 6 : 5, tabindex: '0', fill: is45Limit ? '#f59e0b' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
-        const title = createSvgElement('title', {});
-        const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
-        const forecastLabel = context.isPast ? '確定' : '月末見込み';
-        title.textContent = `${crossingTitleDate}時点：${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(limit.basisActual)}、${forecastLabel} ${formatForecastDetailHours(limit.basisForecast)}）`;
-        warning.appendChild(title);
-        svg.appendChild(warning);
-
-        if (is45Limit) {
-          const placeLeft = x > width - padding.right - 96;
-          const desiredWarningY = Math.max(padding.top + 14, y - 14);
-          const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 4);
-          appendSvgTextPill(svg, '45h（法定外）到達', {
-            class: 'forecastCurveWarningLabel blink45',
-            x: placeLeft ? x - 14 : x + 14,
-            y: warningLabelY,
-            fill: '#9a3412',
-            'font-size': 11,
-            'font-weight': 800,
-            'text-anchor': 'middle'
-          }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveWarningLabelPill blink45' });
-        }
       });
+      try {
+        const monthEndPoint = points.forecastPoints[points.forecastPoints.length - 1];
+        const monthEndLabelY = placeForecastCurveLabelY(
+          Math.max(padding.top + 14, monthEndPoint.y),
+          labelYRanges,
+          labelMinY,
+          labelMaxY,
+          18,
+          5
+        );
+        const monthEndLabelX = width - 72;
+        svg.appendChild(createSvgElement('line', {
+          class: 'forecastCurveMonthEndGuide',
+          x1: monthEndPoint.x + 3,
+          y1: monthEndPoint.y,
+          x2: monthEndLabelX - 56,
+          y2: monthEndLabelY,
+          stroke: '#8fa3ba',
+          'stroke-width': 1,
+          'stroke-dasharray': '3 4',
+          'stroke-opacity': .75
+        }));
+        svg.appendChild(createSvgElement('circle', {
+          class: 'forecastCurveMonthEndPoint',
+          cx: monthEndPoint.x,
+          cy: monthEndPoint.y,
+          r: 4.5,
+          fill: '#1f4e79',
+          stroke: '#ffffff',
+          'stroke-width': 2
+        }));
+        appendSvgTextPill(svg, `${context.isPast ? '確定残業' : '月末予測残業'} ${formatForecastDetailHours(context.forecast)}`, {
+          class: 'forecastCurveMonthEndLabel',
+          x: monthEndLabelX,
+          y: monthEndLabelY,
+          'text-anchor': 'middle',
+          fill: '#1f4e79',
+          'font-size': 11,
+          'font-weight': 800
+        }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, strokeWidth: .9, centerY: true });
+
+        limitStatuses.forEach(limit => {
+          if (!limit.crossingDay) return;
+          const thresholdY = points.yForHours(limit.value);
+          const x = points.xForDay(limit.crossingDay);
+          const y = thresholdY;
+          svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
+
+          const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 14, 'text-anchor': 'middle', fill: '#26384d', 'font-size': 11, 'font-weight': 700 });
+          crossingLabel.textContent = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
+          svg.appendChild(crossingLabel);
+
+          const is45Limit = limit.value === 45;
+          if (is45Limit) {
+            svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 10, fill: '#f59e0b', 'fill-opacity': .18, stroke: '#f59e0b', 'stroke-width': 3 }));
+          }
+          const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
+          const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 6 : 5, tabindex: '0', fill: is45Limit ? '#f59e0b' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
+          const title = createSvgElement('title', {});
+          const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
+          const forecastLabel = context.isPast ? '確定' : '月末見込み';
+          title.textContent = `${crossingTitleDate}時点：${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(limit.basisActual)}、${forecastLabel} ${formatForecastDetailHours(limit.basisForecast)}）`;
+          warning.appendChild(title);
+          svg.appendChild(warning);
+
+          if (is45Limit) {
+            const placeLeft = x > width - padding.right - 112;
+            const desiredWarningY = Math.max(padding.top + 16, y - 24);
+            const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 5);
+            const warningLabelX = placeLeft ? x - 76 : x + 76;
+            svg.appendChild(createSvgElement('line', {
+              class: 'forecastCurveWarningGuide',
+              x1: x + (placeLeft ? -8 : 8),
+              y1: y - 3,
+              x2: warningLabelX + (placeLeft ? 50 : -50),
+              y2: warningLabelY,
+              stroke: '#d97706',
+              'stroke-width': 1,
+              'stroke-dasharray': '3 4',
+              'stroke-opacity': .7
+            }));
+            appendSvgTextPill(svg, '45時間到達見込み', {
+              class: 'forecastCurveWarningLabel blink45',
+              x: warningLabelX,
+              y: warningLabelY,
+              fill: '#9a3412',
+              'font-size': 11,
+              'font-weight': 800,
+              'text-anchor': 'middle'
+            }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveWarningLabelPill blink45' });
+          }
+        });
+
+      } catch (error) {
+        console.warn('Forecast curve annotations could not be rendered.', error);
+      }
 
       panel.appendChild(svg);
       appendForecastCurveLegend(panel, labels);
