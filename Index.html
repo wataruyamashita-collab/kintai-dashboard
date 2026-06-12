@@ -666,15 +666,16 @@
     }
 
     .forecastCurveWarning.blink45 {
-      animation: forecastCurveBlink45 1s ease-in-out infinite;
+      animation: forecastCurveBlink45 2s ease-in-out infinite;
     }
 
     .forecastCurveWarningHalo.blink45 {
-      animation: forecastCurveBlink45Halo 1s ease-in-out infinite;
+      animation: forecastCurveBlink45Halo 2s ease-in-out infinite;
     }
 
-    .forecastCurveWarningLabel.blink45 {
-      animation: forecastCurveBlink45 1s ease-in-out infinite;
+    .forecastCurveWarningLabel.blink45,
+    .forecastCurveWarningLabelPill.blink45 {
+      animation: forecastCurveBlink45 2s ease-in-out infinite;
     }
 
     @keyframes forecastCurveBlink45 {
@@ -5299,8 +5300,8 @@
       const opts = options || {};
       const labelAttrs = { ...attrs };
       const fontSize = Number(labelAttrs['font-size'] || labelAttrs.fontSize || 11);
-      const padX = opts.padX === undefined ? 5 : opts.padX;
-      const padY = opts.padY === undefined ? 3 : opts.padY;
+      const padX = opts.padX === undefined ? 8 : opts.padX;
+      const padY = opts.padY === undefined ? 4 : opts.padY;
       const textWidth = opts.width || estimateSvgTextWidth(text, fontSize);
       const pillWidth = textWidth + padX * 2;
       const pillHeight = fontSize + padY * 2;
@@ -5396,16 +5397,6 @@
         const y = points.yForHours(limit.value);
         const limitColor = limit.value === 45 ? '#d99a00' : limit.value === 60 ? '#f97316' : '#dc2626';
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: limitColor, 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }));
-        const labelY = placeForecastCurveLabelY(y, labelYRanges, labelMinY, labelMaxY, 17, 5);
-        appendSvgTextPill(svg, `${limit.label} ${limit.shortBasisLabel}`, {
-          class: 'forecastCurveAxisLabel',
-          x: width - 12,
-          y: labelY,
-          'text-anchor': 'end',
-          fill: '#4b5563',
-          'font-size': 11,
-          'font-weight': 700
-        }, { fill: '#fbfcfe', stroke: limitColor, fillOpacity: .90, strokeWidth: .9, centerY: true });
       });
 
       svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createLinearPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
@@ -5433,23 +5424,32 @@
         18,
         5
       );
-      const monthEndLabelX = width - 12;
+      const monthEndLabelX = width - 72;
       svg.appendChild(createSvgElement('line', {
         class: 'forecastCurveMonthEndGuide',
         x1: monthEndPoint.x + 3,
         y1: monthEndPoint.y,
-        x2: monthEndLabelX - 92,
+        x2: monthEndLabelX - 56,
         y2: monthEndLabelY,
         stroke: '#8fa3ba',
         'stroke-width': 1,
         'stroke-dasharray': '3 4',
         'stroke-opacity': .75
       }));
-      appendSvgTextPill(svg, `${context.isPast ? '確定' : '月末予測'} ${formatForecastDetailHours(context.forecast)}`, {
+      svg.appendChild(createSvgElement('circle', {
+        class: 'forecastCurveMonthEndPoint',
+        cx: monthEndPoint.x,
+        cy: monthEndPoint.y,
+        r: 4.5,
+        fill: '#1f4e79',
+        stroke: '#ffffff',
+        'stroke-width': 2
+      }));
+      appendSvgTextPill(svg, `${context.isPast ? '確定残業' : '月末予測残業'} ${formatForecastDetailHours(context.forecast)}`, {
         class: 'forecastCurveMonthEndLabel',
         x: monthEndLabelX,
         y: monthEndLabelY,
-        'text-anchor': 'end',
+        'text-anchor': 'middle',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
@@ -5468,9 +5468,9 @@
 
         const is45Limit = limit.value === 45;
         if (is45Limit) {
-          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo', cx: x, cy: y, r: 10, fill: '#f59e0b', 'fill-opacity': .18, stroke: '#f59e0b', 'stroke-width': 3 }));
+          svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 10, fill: '#f59e0b', 'fill-opacity': .18, stroke: '#f59e0b', 'stroke-width': 3 }));
         }
-        const warningClass = 'forecastCurveWarning';
+        const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
         const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 6 : 5, tabindex: '0', fill: is45Limit ? '#f59e0b' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
         const title = createSvgElement('title', {});
         const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
@@ -5483,12 +5483,12 @@
           const placeLeft = x > width - padding.right - 112;
           const desiredWarningY = Math.max(padding.top + 16, y - 24);
           const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 5);
-          const warningLabelX = placeLeft ? x - 18 : x + 18;
+          const warningLabelX = placeLeft ? x - 76 : x + 76;
           svg.appendChild(createSvgElement('line', {
             class: 'forecastCurveWarningGuide',
             x1: x + (placeLeft ? -8 : 8),
             y1: y - 3,
-            x2: warningLabelX + (placeLeft ? 6 : -6),
+            x2: warningLabelX + (placeLeft ? 50 : -50),
             y2: warningLabelY,
             stroke: '#d97706',
             'stroke-width': 1,
@@ -5496,14 +5496,14 @@
             'stroke-opacity': .7
           }));
           appendSvgTextPill(svg, '45時間到達見込み', {
-            class: 'forecastCurveWarningLabel',
+            class: 'forecastCurveWarningLabel blink45',
             x: warningLabelX,
             y: warningLabelY,
             fill: '#9a3412',
             'font-size': 11,
             'font-weight': 800,
-            'text-anchor': placeLeft ? 'end' : 'start'
-          }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true });
+            'text-anchor': 'middle'
+          }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveWarningLabelPill blink45' });
         }
       });
 
