@@ -5211,6 +5211,65 @@
       return label;
     }
 
+
+    function estimateSvgTextWidth(text, fontSize) {
+      const normalized = String(text || '');
+      return Math.max(18, normalized.length * Number(fontSize || 11) * 0.62);
+    }
+
+    function appendSvgTextPill(svg, text, attrs, options) {
+      const opts = options || {};
+      const fontSize = Number(attrs['font-size'] || attrs.fontSize || 11);
+      const padX = opts.padX === undefined ? 5 : opts.padX;
+      const padY = opts.padY === undefined ? 3 : opts.padY;
+      const textWidth = opts.width || estimateSvgTextWidth(text, fontSize);
+      const pillWidth = textWidth + padX * 2;
+      const pillHeight = fontSize + padY * 2;
+      const x = Number(attrs.x || 0);
+      const y = Number(attrs.y || 0);
+      const anchor = attrs['text-anchor'] || 'start';
+      const rectX = anchor === 'end' ? x - pillWidth : (anchor === 'middle' ? x - pillWidth / 2 : x);
+      const rectY = y - fontSize - padY + 2;
+      const group = createSvgElement('g', { class: opts.groupClass || 'forecastCurveLabelPill' });
+      group.appendChild(createSvgElement('rect', {
+        x: rectX,
+        y: rectY,
+        width: pillWidth,
+        height: pillHeight,
+        rx: opts.rx === undefined ? 5 : opts.rx,
+        ry: opts.rx === undefined ? 5 : opts.rx,
+        fill: opts.fill || '#ffffff',
+        'fill-opacity': opts.fillOpacity === undefined ? .92 : opts.fillOpacity,
+        stroke: opts.stroke || 'rgba(220,223,229,.9)',
+        'stroke-width': opts.strokeWidth === undefined ? 1 : opts.strokeWidth
+      }));
+      const label = createSvgElement('text', attrs);
+      label.textContent = text;
+      group.appendChild(label);
+      svg.appendChild(group);
+      return label;
+    }
+
+    function placeForecastCurveLabelY(desiredY, occupied, minY, maxY, height, gap) {
+      const labelHeight = height || 16;
+      const labelGap = gap || 4;
+      const clamp = value => Math.min(maxY - labelHeight / 2, Math.max(minY + labelHeight / 2, value));
+      const overlaps = value => occupied.some(range => value - labelHeight / 2 < range.bottom + labelGap && value + labelHeight / 2 > range.top - labelGap);
+      let y = clamp(desiredY);
+      if (overlaps(y)) {
+        for (let offset = labelHeight + labelGap; offset <= 96; offset += labelHeight + labelGap) {
+          const candidates = [clamp(desiredY - offset), clamp(desiredY + offset)];
+          const available = candidates.find(candidate => !overlaps(candidate));
+          if (available !== undefined) {
+            y = available;
+            break;
+          }
+        }
+      }
+      occupied.push({ top: y - labelHeight / 2, bottom: y + labelHeight / 2 });
+      return y;
+    }
+
     const appendForecastDetailCurve = function(container, row) {
       const context = getForecastCurveContext(row);
       const labels = getForecastDisplayLabels(row);
@@ -5223,9 +5282,12 @@
       panel.style.background = '#fbfcfe';
       const width = 720;
       const height = 260;
-      const padding = { top: 18, right: 18, bottom: 34, left: 48 };
+      const padding = { top: 24, right: 112, bottom: 34, left: 48 };
       const points = getForecastCurvePoints(context, width, height, padding);
       const limitStatuses = getForecastLimitStatuses(context);
+      const labelYRanges = [];
+      const labelMinY = padding.top + 8;
+      const labelMaxY = height - padding.bottom - 8;
       const svg = createSvgElement('svg', { class: 'forecastCurveSvg', viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': `${labels.graphLabel}の詳細折れ線グラフ`, width: '100%', height: height });
       svg.style.display = 'block';
       svg.style.width = '100%';
@@ -5251,9 +5313,16 @@
         const y = points.yForHours(limit.value);
         const limitColor = limit.value === 45 ? '#c5972f' : limit.value === 60 ? '#d97917' : '#b91c1c';
         svg.appendChild(createSvgElement('line', { class: limit.className, x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: limitColor, 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }));
-        const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x: width - padding.right - 4, y: y - 5, 'text-anchor': 'end', fill: '#666666', 'font-size': 11, 'font-weight': 700 });
-        label.textContent = `${limit.label} ${limit.shortBasisLabel}`;
-        svg.appendChild(label);
+        const labelY = placeForecastCurveLabelY(y - 5, labelYRanges, labelMinY, labelMaxY, 17, 3);
+        appendSvgTextPill(svg, `${limit.label} ${limit.shortBasisLabel}`, {
+          class: 'forecastCurveAxisLabel',
+          x: width - 10,
+          y: labelY,
+          'text-anchor': 'end',
+          fill: '#666666',
+          'font-size': 11,
+          'font-weight': 700
+        }, { fill: '#fbfcfe', stroke: limitColor, fillOpacity: .94 });
       });
 
       svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createLinearPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
@@ -5272,15 +5341,23 @@
         'font-size': 11,
         'font-weight': 800
       });
-      appendSvgText(svg, `${context.isPast ? '確定' : '月末予測'} ${formatForecastDetailHours(context.forecast)}`, {
+      const monthEndLabelY = placeForecastCurveLabelY(
+        Math.max(padding.top + 14, points.forecastPoints[points.forecastPoints.length - 1].y - 10),
+        labelYRanges,
+        labelMinY,
+        labelMaxY,
+        18,
+        4
+      );
+      appendSvgTextPill(svg, `${context.isPast ? '確定' : '月末予測'} ${formatForecastDetailHours(context.forecast)}`, {
         class: 'forecastCurveMonthEndLabel',
-        x: width - padding.right - 6,
-        y: Math.max(padding.top + 14, points.forecastPoints[points.forecastPoints.length - 1].y - 10),
+        x: width - 10,
+        y: monthEndLabelY,
         'text-anchor': 'end',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
-      });
+      }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96 });
 
       limitStatuses.forEach(limit => {
         if (!limit.crossingDay) return;
@@ -5307,18 +5384,18 @@
         svg.appendChild(warning);
 
         if (is45Limit) {
-          const placeLeft = x > width - padding.right - 90;
-          const warningLabel = createSvgElement('text', {
+          const placeLeft = x > width - padding.right - 112;
+          const desiredWarningY = Math.max(padding.top + 14, y - 14);
+          const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 4);
+          appendSvgTextPill(svg, '45h（法定外）到達', {
             class: 'forecastCurveWarningLabel blink45',
-            x: placeLeft ? x - 10 : x + 10,
-            y: Math.max(padding.top + 14, y - 14),
+            x: placeLeft ? x - 12 : x + 12,
+            y: warningLabelY,
             fill: '#b91c1c',
             'font-size': 12,
             'font-weight': 800,
             'text-anchor': placeLeft ? 'end' : 'start'
-          });
-          warningLabel.textContent = '45h（法定外）到達見込み';
-          svg.appendChild(warningLabel);
+          }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96 });
         }
       });
 
