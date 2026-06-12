@@ -1771,6 +1771,18 @@
       '出社日数'
     ];
 
+    const HEADER_ALIASES = {
+      '法定時間内残業': ['法定時間内残業', '法定時間内残業時間', '法定内残業', '法定内残業時間', '法内残業'],
+      '残業時間': ['残業時間', '法定時間外残業', '法定時間外残業時間', '法定外残業', '法定外残業時間', '時間外残業', '時間外労働時間'],
+      '年次有休取得日数(時間単位休を除く)': [
+        '年次有休取得日数(時間単位休を除く)',
+        '年次有休取得日数（時間単位休を除く）',
+        '年次有休取得日数',
+        '年休有休取得日数',
+        '有休取得日数'
+      ]
+    };
+
     const PRESCRIBED_EXCESS_HEADER_CANDIDATES = [
       '所定超過時間',
       '概算残業時間',
@@ -2368,12 +2380,11 @@
         if (!row.some(cell => cell !== '')) continue;
 
         if (!headers) {
-          const normalized = row.map(normalizeHeader);
-          const matchCount = REQUIRED_HEADERS.filter(h => normalized.includes(normalizeHeader(h))).length;
+          const detectedHeaderIndex = tryCreateHeaderIndex(row);
 
-          if (matchCount === REQUIRED_HEADERS.length) {
+          if (detectedHeaderIndex) {
             headers = row;
-            headerIndex = createHeaderIndex(headers);
+            headerIndex = detectedHeaderIndex;
             prescribedExcessSource = findPrescribedExcessSource(headers);
             rawSourceIndex = createRawSourceIndex(headers);
           }
@@ -4613,25 +4624,16 @@
       };
     }
 
-    function createSmoothPath(points) {
+    function createLinearPath(points) {
       if (!points.length) return '';
-      if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-      return points.slice(1).reduce((path, point, index) => {
-        const prev = points[index];
-        const midX = (prev.x + point.x) / 2;
-        return `${path} C ${midX} ${prev.y}, ${midX} ${point.y}, ${point.x} ${point.y}`;
-      }, `M ${points[0].x} ${points[0].y}`);
+      return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
     }
 
-    function getSmoothSegmentPoint(start, end, t) {
+    function getLinearSegmentPoint(start, end, t) {
       const clampedT = clampNumber(t, 0, 1);
-      const midX = (start.x + end.x) / 2;
-      const c1 = { x: midX, y: start.y };
-      const c2 = { x: midX, y: end.y };
-      const mt = 1 - clampedT;
       return {
-        x: mt ** 3 * start.x + 3 * mt ** 2 * clampedT * c1.x + 3 * mt * clampedT ** 2 * c2.x + clampedT ** 3 * end.x,
-        y: mt ** 3 * start.y + 3 * mt ** 2 * clampedT * c1.y + 3 * mt * clampedT ** 2 * c2.y + clampedT ** 3 * end.y
+        x: start.x + (end.x - start.x) * clampedT,
+        y: start.y + (end.y - start.y) * clampedT
       };
     }
 
@@ -4640,17 +4642,10 @@
       const end = points.forecastPoints[points.forecastPoints.length - 1];
       const minY = Math.min(start.y, end.y);
       const maxY = Math.max(start.y, end.y);
-      if (thresholdY < minY || thresholdY > maxY) return null;
+      if (thresholdY < minY || thresholdY > maxY || start.y === end.y) return null;
 
-      let low = 0;
-      let high = 1;
-      for (let i = 0; i < 24; i++) {
-        const mid = (low + high) / 2;
-        const point = getSmoothSegmentPoint(start, end, mid);
-        if (start.y > end.y ? point.y > thresholdY : point.y < thresholdY) low = mid;
-        else high = mid;
-      }
-      return getSmoothSegmentPoint(start, end, (low + high) / 2);
+      const ratio = (thresholdY - start.y) / (end.y - start.y);
+      return getLinearSegmentPoint(start, end, ratio);
     }
 
     function getForecastCurvePoints(context, width, height, padding) {
@@ -4685,8 +4680,8 @@
         role: 'img',
         'aria-label': `${getForecastDisplayLabels(row).graphLabel} ${formatHoursAsHHMM(context.forecast)}`
       });
-      svg.appendChild(createSvgElement('path', { class: 'sparkActual', d: createSmoothPath(points.actualPoints) }));
-      svg.appendChild(createSvgElement('path', { class: 'sparkForecast', d: createSmoothPath(points.forecastPoints) }));
+      svg.appendChild(createSvgElement('path', { class: 'sparkActual', d: createLinearPath(points.actualPoints) }));
+      svg.appendChild(createSvgElement('path', { class: 'sparkForecast', d: createLinearPath(points.forecastPoints) }));
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'sparkPoint', cx: currentPoint.x, cy: currentPoint.y, r: 3 }));
       return svg;
@@ -5058,6 +5053,13 @@
       container.appendChild(legend);
     }
 
+    function appendSvgText(svg, text, attrs) {
+      const label = createSvgElement('text', attrs);
+      label.textContent = text;
+      svg.appendChild(label);
+      return label;
+    }
+
     const appendForecastDetailCurve = function(container, row) {
       const context = getForecastCurveContext(row);
       const labels = getForecastDisplayLabels(row);
@@ -5073,7 +5075,7 @@
       const padding = { top: 18, right: 18, bottom: 34, left: 48 };
       const points = getForecastCurvePoints(context, width, height, padding);
       const limitStatuses = getForecastLimitStatuses(context);
-      const svg = createSvgElement('svg', { class: 'forecastCurveSvg', viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': `${labels.graphLabel}の詳細曲線グラフ`, width: '100%', height: height });
+      const svg = createSvgElement('svg', { class: 'forecastCurveSvg', viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': `${labels.graphLabel}の詳細折れ線グラフ`, width: '100%', height: height });
       svg.style.display = 'block';
       svg.style.width = '100%';
       svg.style.height = `${height}px`;
@@ -5103,10 +5105,29 @@
         svg.appendChild(label);
       });
 
-      svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createSmoothPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
-      svg.appendChild(createSvgElement('path', { class: 'forecastCurveForecast', d: createSmoothPath(points.forecastPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': '7 6' }));
+      svg.appendChild(createSvgElement('path', { class: 'forecastCurveActual', d: createLinearPath(points.actualPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round' }));
+      svg.appendChild(createSvgElement('path', { class: 'forecastCurveForecast', d: createLinearPath(points.forecastPoints), fill: 'none', stroke: '#1f4e79', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': '7 6' }));
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
+      const currentLabelPlaceLeft = currentPoint.x > width - padding.right - 120;
+      appendSvgText(svg, '実績最終／予測開始', {
+        class: 'forecastCurveCurrentLabel',
+        x: currentLabelPlaceLeft ? currentPoint.x - 8 : currentPoint.x + 8,
+        y: Math.max(padding.top + 12, currentPoint.y - 10),
+        'text-anchor': currentLabelPlaceLeft ? 'end' : 'start',
+        fill: '#1f4e79',
+        'font-size': 11,
+        'font-weight': 800
+      });
+      appendSvgText(svg, `月末予測 ${formatForecastDetailHours(context.forecast)}`, {
+        class: 'forecastCurveMonthEndLabel',
+        x: width - padding.right - 6,
+        y: Math.max(padding.top + 14, points.forecastPoints[points.forecastPoints.length - 1].y - 10),
+        'text-anchor': 'end',
+        fill: '#1f4e79',
+        'font-size': 11,
+        'font-weight': 800
+      });
 
       limitStatuses.forEach(limit => {
         if (!limit.crossingDay) return;
@@ -5133,15 +5154,24 @@
         svg.appendChild(warning);
 
         if (is45Limit) {
-          const warningLabel = createSvgElement('text', { class: 'forecastCurveWarningLabel blink45', x: Math.min(width - padding.right - 8, x + 8), y: Math.max(padding.top + 12, y - 12), fill: '#b91c1c', 'font-size': 12, 'font-weight': 800, 'text-anchor': 'start' });
-          warningLabel.textContent = '45h到達';
+          const placeLeft = x > width - padding.right - 90;
+          const warningLabel = createSvgElement('text', {
+            class: 'forecastCurveWarningLabel blink45',
+            x: placeLeft ? x - 10 : x + 10,
+            y: Math.max(padding.top + 14, y - 14),
+            fill: '#b91c1c',
+            'font-size': 12,
+            'font-weight': 800,
+            'text-anchor': placeLeft ? 'end' : 'start'
+          });
+          warningLabel.textContent = '45h到達見込み';
           svg.appendChild(warningLabel);
         }
       });
 
       panel.appendChild(svg);
       appendForecastCurveLegend(panel, labels);
-      const note = createForecastDetailDiv('forecastGraphNote', `実績 ${formatForecastDetailHours(context.actual)} から${labels.metricLabel} ${formatForecastDetailHours(context.forecast)} までを、経過 ${formatForecastDetailNumber(context.elapsedDays, 1)}日／月末 ${formatForecastDetailNumber(context.totalDays, 0)}日で表示しています。`);
+      const note = createForecastDetailDiv('forecastGraphNote', `実績最終日（${formatForecastDetailNumber(context.elapsedDays, 1)}日目）までは実績を実線、以降は月末予測 ${formatForecastDetailHours(context.forecast)} までの見込みを点線の折れ線で表示しています。未集計期間を0時間として滑らかに補間しないため、実績と予測の境界が分かります。`);
       note.style.marginTop = '8px';
       note.style.color = '#666666';
       note.style.fontSize = '12px';
@@ -5648,7 +5678,43 @@
     }
 
     function normalizeHeader(value) {
-      return String(value || '').replace(/\s/g, '').trim();
+      return String(value || '')
+        .replace(/^\ufeff/, '')
+        .replace(/[\u200b-\u200d\ufeff]/g, '')
+        .replace(/[\s\u00a0　]/g, '')
+        .replace(/（/g, '(')
+        .replace(/）/g, ')')
+        .trim();
+    }
+
+    function getHeaderCandidates(required) {
+      const candidates = HEADER_ALIASES[required] || [required];
+      return candidates.map(normalizeHeader).filter(Boolean);
+    }
+
+    function findHeaderIndex(normalizedHeaders, required) {
+      const candidates = getHeaderCandidates(required);
+      for (const candidate of candidates) {
+        const exactIndex = normalizedHeaders.indexOf(candidate);
+        if (exactIndex >= 0) return exactIndex;
+      }
+
+      for (const candidate of candidates) {
+        const partialIndex = normalizedHeaders.findIndex(header => header && (header === candidate || header.includes(candidate) || candidate.includes(header)));
+        if (partialIndex >= 0) return partialIndex;
+      }
+      return -1;
+    }
+
+    function tryCreateHeaderIndex(headers) {
+      const normalizedHeaders = headers.map(normalizeHeader);
+      const result = {};
+      for (const required of REQUIRED_HEADERS) {
+        const index = findHeaderIndex(normalizedHeaders, required);
+        if (index === -1) return null;
+        result[required] = index;
+      }
+      return result;
     }
 
     function cleanCellText(value) {
@@ -5667,20 +5733,12 @@
     }
 
     function createHeaderIndex(headers) {
+      const result = tryCreateHeaderIndex(headers);
+      if (result) return result;
+
       const normalizedHeaders = headers.map(normalizeHeader);
-      const result = {};
-      const missing = [];
-
-      REQUIRED_HEADERS.forEach(required => {
-        const index = normalizedHeaders.indexOf(normalizeHeader(required));
-        if (index === -1) missing.push(required);
-        result[required] = index;
-      });
-
-      if (missing.length > 0) {
-        throw new Error('必要な列が見つかりません：' + missing.join('、'));
-      }
-      return result;
+      const missing = REQUIRED_HEADERS.filter(required => findHeaderIndex(normalizedHeaders, required) === -1);
+      throw new Error('必要な列が見つかりません：' + missing.join('、'));
     }
 
     function createRawSourceIndex(headers) {
