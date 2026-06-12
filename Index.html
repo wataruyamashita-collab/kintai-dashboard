@@ -5152,7 +5152,7 @@
     function buildForecastLimitWarning(statuses, labels) {
       const crossings = statuses
         .filter(status => status.crossingDay)
-        .map(status => `${status.crossingLabel || `${Math.ceil(status.crossingDay)}日目`}頃に${status.value}時間（${status.basisLabel}）`);
+        .map(status => `${status.crossingLabel || `${Math.ceil(status.crossingDay)}日目`}頃に${status.value}時間`);
       const exceeded = statuses
         .filter(status => status.exceeded)
         .map(status => `${status.value}時間（${status.basisLabel}）`);
@@ -5184,7 +5184,7 @@
       [
         { label: labels && labels.isPast ? '確定' : '実績', className: '' },
         ...(labels && labels.isPast ? [] : [{ label: (labels && labels.forecastLegendLabel) || '予測', className: 'forecast' }]),
-        ...getForecastLimitDefinitions().map(limit => ({ label: `${limit.label}上限（${limit.shortBasisLabel}）`, className: limit.legendClass }))
+        ...getForecastLimitDefinitions().map(limit => ({ label: `${limit.label}上限`, className: limit.legendClass }))
       ].forEach(item => {
         const entry = document.createElement('span');
         entry.className = 'forecastCurveLegendItem';
@@ -5302,7 +5302,7 @@
         const title = createSvgElement('title', {});
         const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
         const forecastLabel = context.isPast ? '確定' : '月末見込み';
-        title.textContent = `${crossingTitleDate}時点：${limit.basisLabel} ${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(limit.basisActual)}、${forecastLabel} ${formatForecastDetailHours(limit.basisForecast)}）`;
+        title.textContent = `${crossingTitleDate}時点：${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(limit.basisActual)}、${forecastLabel} ${formatForecastDetailHours(limit.basisForecast)}）`;
         warning.appendChild(title);
         svg.appendChild(warning);
 
@@ -5324,21 +5324,6 @@
 
       panel.appendChild(svg);
       appendForecastCurveLegend(panel, labels);
-      const noteText = context.isPast
-        ? `過去月のため、確定残業 ${formatForecastDetailHours(context.actual)} を月末までの確定データとして実線で表示しています。予測線は表示しません。`
-        : `実績最終日（${formatForecastDetailNumber(context.elapsedDays, 1)}日目）までは実績を実線、以降は月末予測 ${formatForecastDetailHours(context.forecast)} までの見込みを点線の折れ線で表示しています。未集計期間を0時間として滑らかに補間しないため、実績と予測の境界が分かります。`;
-      const note = createForecastDetailDiv('forecastGraphNote', noteText);
-      note.style.marginTop = '8px';
-      note.style.color = '#666666';
-      note.style.fontSize = '12px';
-      panel.appendChild(note);
-
-      const basisNote = createForecastDetailDiv('forecastGraphNote', '判定基準：45h＝法定外労働時間、60h＝月60時間超割増対象時間、80h＝時間外＋休日労働時間。');
-      basisNote.style.marginTop = '4px';
-      basisNote.style.color = '#666666';
-      basisNote.style.fontSize = '12px';
-      panel.appendChild(basisNote);
-
       const warningText = buildForecastLimitWarning(limitStatuses, labels);
       if (warningText) {
         const warningNote = createForecastDetailDiv('forecastGraphNote', warningText);
