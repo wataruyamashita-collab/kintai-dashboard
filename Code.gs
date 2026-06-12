@@ -43,6 +43,10 @@ const DEPARTMENT_GROUP_RULES = [
       '関東エリア',
       '中部エリア',
       '西日本エリア',
+      '中四国エリア',
+      '九州エリア',
+      '関西エリア',
+      '営業本部',
       '北陸',
       '長野',
       '埼玉',
@@ -122,7 +126,7 @@ function createSnapshotResponse_(user, snapshot, availableMonths) {
     ? snapshot.meta.targetMonth
     : '';
 
-  const sourceRows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+  const sourceRows = normalizeDepartmentGroupsForRows_(snapshot.rows);
   const authorityRows = filterRowsByAuthority_(sourceRows, user);
   const displayRows = filterRowsByDisplayMode_(authorityRows, snapshot.meta && snapshot.meta.displayMode);
   const rows = mergeManualInputsToRows_(displayRows, targetMonth);
@@ -190,7 +194,7 @@ function saveClientSnapshot(payload) {
       forecastDefinition: '月末残業予測は、45h（法定時間外労働）、60h（月60時間超割増対象・法定休日労働を除く）、80h（時間外＋休日労働）を別々の実績値で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。見込みは小数第1位切り上げ、超過判定は > で行います。',
       approvalDefinition: '本画面は管理職向けの早期警戒情報を作成する管理用画面です。36協定上の確定判定および給与処理には使用しません。CSV取込は10MB未満のファイルを対象に、引用符内のカンマ・改行を考慮して必要列のみを抽出します。集計基準日は取込データから自動判定し、開始時刻・終了時刻のみでは実績日と判定しません。特別条項の発動事由、健康福祉措置、備考はモーダルで入力・削除できます。36協定適用事前申請はプルダウンで選択できます。'
     },
-    rows: payload.rows
+    rows: normalizeDepartmentGroupsForRows_(payload.rows)
   };
 
   const lock = LockService.getScriptLock();
@@ -399,6 +403,33 @@ function filterRowsByDisplayMode_(rows, displayMode) {
   const sourceRows = Array.isArray(rows) ? rows : [];
   if (String(displayMode || 'alertsOnly') === 'allEmployees') return sourceRows;
   return sourceRows.filter(row => row && (row.actualAlert || row.forecastAlert));
+}
+
+function normalizeDepartmentGroupsForRows_(rows) {
+  return (Array.isArray(rows) ? rows : []).map(row => {
+    if (!row) return row;
+    const resolvedGroup = resolveDepartmentGroupByKeyword_(row.department);
+    if (!resolvedGroup || resolvedGroup === DEPARTMENT_GROUP_UNCLASSIFIED) return row;
+
+    const currentGroup = String(row.departmentGroup || '').trim();
+    if (currentGroup && currentGroup !== DEPARTMENT_GROUP_UNCLASSIFIED) return row;
+
+    return Object.assign({}, row, { departmentGroup: resolvedGroup });
+  });
+}
+
+function resolveDepartmentGroupByKeyword_(department) {
+  const dept = normalizeText_(department);
+  if (!dept) return DEPARTMENT_GROUP_UNCLASSIFIED;
+
+  for (let i = 0; i < DEPARTMENT_GROUP_RULES.length; i++) {
+    const rule = DEPARTMENT_GROUP_RULES[i];
+    const keywords = Array.isArray(rule.keywords) ? rule.keywords : [];
+    for (let j = 0; j < keywords.length; j++) {
+      if (dept.indexOf(normalizeText_(keywords[j])) !== -1) return rule.group;
+    }
+  }
+  return DEPARTMENT_GROUP_UNCLASSIFIED;
 }
 
 function createVisibleDepartmentGroupOptions_(user) {

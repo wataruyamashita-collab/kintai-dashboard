@@ -1670,8 +1670,9 @@
       </div>
 
       <div class="options" id="detailSettingsOptions">
-        <label><input type="checkbox" id="showAllEmployees" onchange="handleDetailSettingsChange()"> 詳細設定：全社員を表示する</label>
-        <label><input type="checkbox" id="usePastAverage" onchange="handleDetailSettingsChange()"> 参考設定：本人の過去月平均で月末残業予測を補正する</label>
+        <label><input type="checkbox" id="showAlertOnlyEmployees" onchange="handleDetailSettingsChange('alertsOnly')" checked> 詳細設定：アラート対象だけを表示する</label>
+        <label><input type="checkbox" id="showAllEmployees" onchange="handleDetailSettingsChange('allEmployees')"> 詳細設定：全社員を表示する</label>
+        <label><input type="checkbox" id="usePastAverage" onchange="handleDetailSettingsChange('usePastAverage')"> 参考設定：本人の過去月平均で月末残業予測を補正する</label>
         <span class="sub">※既存シートに合わせる場合は、補正なしで運用してください。過去月実績がない場合、固定値補正は使いません。</span>
       </div>
 
@@ -2878,7 +2879,8 @@
       }
 
       const targetMonth = document.getElementById('targetMonth').value;
-      const showAllEmployees = document.getElementById('showAllEmployees').checked;
+      const displayMode = getSelectedDisplayMode();
+      const showAllEmployees = displayMode === 'allEmployees';
       const usePastAverage = document.getElementById('usePastAverage').checked;
 
       if (!targetMonth) return showMessage('対象月を選択してください。', true);
@@ -3815,15 +3817,35 @@
       applyTabVisibility();
     }
 
-    function syncDetailSettingsControlsFromSnapshot(snapshotMeta) {
+    function getSelectedDisplayMode() {
       const showAll = document.getElementById('showAllEmployees');
+      return showAll && showAll.checked ? 'allEmployees' : 'alertsOnly';
+    }
+
+    function setDisplayModeControls(displayMode) {
+      const normalizedMode = displayMode === 'allEmployees' ? 'allEmployees' : 'alertsOnly';
+      const showAlertOnly = document.getElementById('showAlertOnlyEmployees');
+      const showAll = document.getElementById('showAllEmployees');
+      if (showAlertOnly) showAlertOnly.checked = normalizedMode === 'alertsOnly';
+      if (showAll) showAll.checked = normalizedMode === 'allEmployees';
+    }
+
+    function syncDetailSettingsControlsFromSnapshot(snapshotMeta) {
       const usePastAverage = document.getElementById('usePastAverage');
-      if (showAll) showAll.checked = Boolean(snapshotMeta && snapshotMeta.displayMode === 'allEmployees');
+      setDisplayModeControls(snapshotMeta && snapshotMeta.displayMode);
       if (usePastAverage) usePastAverage.checked = Boolean(snapshotMeta && snapshotMeta.usePastAverage);
     }
 
-    function handleDetailSettingsChange() {
+    function handleDetailSettingsChange(changedSetting) {
       if (!isAdminDisplayRole()) return;
+
+      if (changedSetting === 'allEmployees') {
+        setDisplayModeControls('allEmployees');
+      } else if (changedSetting === 'alertsOnly') {
+        setDisplayModeControls('alertsOnly');
+      } else {
+        setDisplayModeControls(getSelectedDisplayMode());
+      }
 
       if (cachedRows.length) {
         showMessage('詳細設定の変更を反映するため、取込済みCSVから再集計します。');
@@ -3831,8 +3853,7 @@
         return;
       }
 
-      const showAll = document.getElementById('showAllEmployees');
-      const wantsAllEmployees = Boolean(showAll && showAll.checked);
+      const wantsAllEmployees = getSelectedDisplayMode() === 'allEmployees';
       const displayMode = currentSnapshotPayload && currentSnapshotPayload.displayMode;
 
       if (wantsAllEmployees && displayMode !== 'allEmployees') {
