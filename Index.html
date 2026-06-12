@@ -673,11 +673,6 @@
       animation: forecastCurveBlink45Halo 2s ease-in-out infinite;
     }
 
-    .forecastCurveWarningLabel.blink45,
-    .forecastCurveWarningLabelPill.blink45 {
-      animation: forecastCurveBlink45 2s ease-in-out infinite;
-    }
-
     @keyframes forecastCurveBlink45 {
       0%, 100% { opacity: 1; }
       50% { opacity: .35; }
@@ -5126,20 +5121,13 @@
         const context = getForecastCurveContext(row);
         const statuses = getForecastLimitStatuses(context);
         const status45 = statuses.find(status => status.value === 45);
-        const status60 = statuses.find(status => status.value === 60);
         const elapsedText = `経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`;
         const status45Text = status45 && status45.exceeded
           ? '既に45時間以上'
           : status45 && status45.crossingDay
             ? `${status45.crossingLabel || formatForecastCurveDateLabel(context, status45.crossingDay)}頃`
             : '45時間未満の見込み';
-        const remaining60 = status60 ? 60 - safeNumber(status60.basisForecast) : 60 - safeNumber(context.forecast);
-        const status60Text = remaining60 > 0
-          ? `残り ${formatForecastDetailHours(remaining60)}`
-          : '60時間以上の見込み';
-
         summaryBox.appendChild(createForecastSummaryItem('45時間到達見込み', status45Text, status45 && (status45.exceeded || status45.crossingDay) ? 'warning' : ''));
-        summaryBox.appendChild(createForecastSummaryItem('60時間まで', status60Text, remaining60 <= 0 ? 'danger' : ''));
         summaryBox.appendChild(createForecastSummaryItem('集計状況', elapsedText));
       } catch (error) {
         summaryBox.appendChild(createForecastSummaryItem('集計状況', `経過 ${formatForecastDetailNumber(elapsedDays, 1)}日`));
@@ -5318,6 +5306,7 @@
       const rectY = centerY ? y - pillHeight / 2 : y - fontSize - padY + 2;
       if (centerY) {
         labelAttrs['dominant-baseline'] = 'middle';
+        labelAttrs['alignment-baseline'] = 'middle';
       }
       const group = createSvgElement('g', { class: opts.groupClass || 'forecastCurveLabelPill' });
       group.appendChild(createSvgElement('rect', {
@@ -5411,18 +5400,10 @@
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
       const currentLabelPlaceLeft = currentPoint.x > width - padding.right - 120;
-      const currentLabelY = placeForecastCurveLabelY(
-        currentPoint.y < padding.top + 38 ? currentPoint.y + 22 : currentPoint.y - 12,
-        labelYRanges,
-        labelMinY,
-        labelMaxY,
-        18,
-        5
-      );
-      appendSvgTextPill(svg, context.isPast ? '確定' : '実績最終 / 予測開始', {
+      appendSvgText(svg, context.isPast ? '確定' : '予測開始', {
         class: 'forecastCurveCurrentLabel',
-        x: currentLabelPlaceLeft ? currentPoint.x - 10 : currentPoint.x + 10,
-        y: currentLabelY,
+        x: currentLabelPlaceLeft ? currentPoint.x - 8 : currentPoint.x + 8,
+        y: Math.max(padding.top + 12, currentPoint.y - 12),
         'text-anchor': currentLabelPlaceLeft ? 'end' : 'start',
         fill: '#1f4e79',
         'font-size': 11,
@@ -5459,7 +5440,7 @@
           stroke: '#ffffff',
           'stroke-width': 2
         }));
-        appendSvgTextPill(svg, `${context.isPast ? '確定残業' : '月末予測残業'} ${formatForecastDetailHours(context.forecast)}`, {
+        appendSvgTextPill(svg, `${context.isPast ? '確定残業' : '月末残業予測'} ${formatForecastDetailHours(context.forecast)}`, {
           class: 'forecastCurveMonthEndLabel',
           x: monthEndLabelX,
           y: monthEndLabelY,
@@ -5510,14 +5491,14 @@
               'stroke-opacity': .7
             }));
             appendSvgTextPill(svg, '45時間到達見込み', {
-              class: 'forecastCurveWarningLabel blink45',
+              class: 'forecastCurveWarningLabel',
               x: warningLabelX,
               y: warningLabelY,
               fill: '#9a3412',
               'font-size': 11,
               'font-weight': 800,
               'text-anchor': 'middle'
-            }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveWarningLabelPill blink45' });
+            }, { fill: '#fff7e6', stroke: '#d97706', fillOpacity: .96, strokeWidth: .9, centerY: true, groupClass: 'forecastCurveLabelPill forecastCurveWarningLabelPill' });
           }
         });
 
