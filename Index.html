@@ -420,6 +420,28 @@
       min-width: 96px;
     }
 
+    .detailSettingsButton {
+      border-color: #8fa3ba;
+      background: #eef3f8;
+      color: #1f4e79;
+      font-weight: 800;
+    }
+
+    .detailSettingsButton:hover,
+    .detailSettingsButton:focus {
+      border-color: #1f4e79;
+      box-shadow: 0 0 0 3px rgba(31, 78, 121, .12);
+    }
+
+    .detailSettingsFocus {
+      animation: detailSettingsFocus 1.8s ease-in-out 1;
+    }
+
+    @keyframes detailSettingsFocus {
+      0%, 100% { box-shadow: none; }
+      25%, 75% { box-shadow: 0 0 0 4px rgba(245, 158, 11, .28); }
+    }
+
     .hiddenRowsBox {
       width: min(1120px, 96vw);
     }
@@ -1625,6 +1647,7 @@
         <input type="file" id="fileInput" accept=".csv,text/csv">
         <button class="primary" id="importButton" onclick="importFileOnce()">CSV取込</button>
         <button id="analyzeButton" onclick="analyzeCachedData()" disabled>集計・再集計</button>
+        <button type="button" class="detailSettingsButton" id="detailSettingsButton" onclick="openDetailSettingsPanel()">詳細設定</button>
         <button class="save" id="saveButton" onclick="saveCurrentResult()" disabled>結果を保存</button>
       </div>
 
@@ -1646,7 +1669,7 @@
         集計時の表示条件や会社カレンダーなど、勤怠アラート集計に関係する設定を管理します。
       </div>
 
-      <div class="options">
+      <div class="options" id="detailSettingsOptions">
         <label><input type="checkbox" id="showAllEmployees"> 詳細設定：全社員を表示する</label>
         <label><input type="checkbox" id="usePastAverage"> 参考設定：本人の過去月平均で月末残業予測を補正する</label>
         <span class="sub">※既存シートに合わせる場合は、補正なしで運用してください。過去月実績がない場合、固定値補正は使いません。</span>
@@ -1872,6 +1895,7 @@
       </div>
       <div class="modalFooter">
         <button type="button" onclick="clearFiltersFromHiddenRowsModal()">絞り込み解除</button>
+        <button type="button" class="detailSettingsButton" onclick="openDetailSettingsPanelFromHiddenRows()">詳細設定を開く</button>
         <button type="button" id="hiddenRowsCloseButton" onclick="closeHiddenRowsModal()">閉じる</button>
       </div>
     </div>
@@ -3688,6 +3712,30 @@
       applyTabVisibility();
     }
 
+    function openDetailSettingsPanel() {
+      if (!isAdminDisplayRole()) {
+        showMessage('詳細設定は管理者のみ変更できます。管理者に「全社員を表示する」で再集計するよう依頼してください。', true);
+        return;
+      }
+
+      switchTab('parameters');
+      setTimeout(() => {
+        const options = document.getElementById('detailSettingsOptions');
+        const showAll = document.getElementById('showAllEmployees');
+        if (options) {
+          options.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          options.classList.add('detailSettingsFocus');
+          setTimeout(() => options.classList.remove('detailSettingsFocus'), 2000);
+        }
+        if (showAll) showAll.focus();
+      }, 0);
+    }
+
+    function openDetailSettingsPanelFromHiddenRows() {
+      closeHiddenRowsModal();
+      openDetailSettingsPanel();
+    }
+
     function applyTabVisibility() {
       const isAdminView = isAdminDisplayRole();
       const hasAlertData = Boolean(lastRenderedHasSnapshot || currentRows.length);
@@ -5196,7 +5244,7 @@
       if (displayMode === 'alertsOnly') {
         const notice = document.createElement('div');
         notice.className = 'hiddenRowsNotice';
-        notice.textContent = '注意：このデータは「アラート対象のみ」モードで作成されています。アラートがない社員は currentRows に保持されていないため、この確認画面にも出ません。全社員を確認する場合は「詳細設定：全社員を表示する」をオンにして再集計・保存してください。';
+        notice.textContent = '注意：このデータは「アラート対象のみ」モードで作成されています。アラートがない社員は currentRows に保持されていないため、この確認画面にも出ません。全社員を確認する場合は「詳細設定」ボタンから「全社員を表示する」をオンにして再集計・保存してください。';
         body.appendChild(notice);
       }
 
