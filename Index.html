@@ -1718,7 +1718,7 @@
             </select>
           </label>
           <label>権限：
-            <select id="authRole">
+            <select id="authRole" onchange="handleAuthRoleChange()">
               <option value="admin">admin</option>
               <option value="viewer">役員</option>
               <option value="manager">所属長</option>
@@ -1740,7 +1740,7 @@
         </div>
         <div class="uploadControls authControls" style="margin-top:10px;">
           <label>一括登録の既定値：
-            <select id="authBulkPreset">
+            <select id="authBulkPreset" onchange="updateAuthBulkPresetStatus()">
               <option value="executive">役員</option>
               <option value="salesSupportManager">営業支援ユニット</option>
               <option value="salesManager">営業ユニット</option>
@@ -2019,6 +2019,7 @@
     let activeTab = 'alert';
     let cachedRows = [];
     let cachedRowsByMonth = {};
+    let cachedSourceRows = 0;
     let cachedFileName = '';
     let currentSnapshotPayload = null;
     let currentDepartmentGroups = [DEPARTMENT_GROUP_ALL];
@@ -2040,6 +2041,7 @@
       setDefaultCutoffDate();
       initializeCompanyCalendarForm();
       initializeRoleSwitchHeader();
+      updateAuthBulkPresetStatus();
 
       const fileInput = document.getElementById('fileInput');
       fileInput.addEventListener('change', () => {
@@ -2744,6 +2746,7 @@
 
       cachedRows = [];
       cachedRowsByMonth = {};
+      cachedSourceRows = 0;
       cachedFileName = '';
 
       resetImportProgress();
@@ -2783,6 +2786,7 @@
 
           cachedRows = parsed.rows;
           cachedRowsByMonth = parsed.monthIndex || {};
+          cachedSourceRows = Number(parsed.sourceRows || parsed.rows.length || 0);
           cachedFileName = file.name;
           syncTargetMonthWithImportedData(cachedRowsByMonth);
 
@@ -2805,6 +2809,7 @@
         } catch (error) {
           cachedRows = [];
           cachedRowsByMonth = {};
+          cachedSourceRows = 0;
           cachedFileName = '';
           updateCacheStatus();
           setImportProgress(100, 'CSV取込エラー', (error && error.message) ? error.message : String(error), false, true);
@@ -2938,14 +2943,16 @@
                 });
               })
               .withFailureHandler(error => {
-                showMessage('手入力内容の復元に失敗しました。集計結果のみ表示します。Code.gs 側の applyManualInputsToRows を確認してください。', true);
+                showMessage('手入力内容の復元に失敗しました。保存済み手入力の先祖返りを防ぐため、この集計結果は保存できません。Code.gs 側の applyManualInputsToRows を確認してください。', true);
                 finishAnalyzeCachedDataRender(completeRows, {
                   normalizedTargetMonth,
                   normalizedCutoffDate,
                   showAllEmployees,
                   usePastAverage,
                   businessDays,
-                  businessDayInfo
+                  businessDayInfo,
+                  manualInputsApplied: false,
+                  disableSave: true
                 });
               })
               .applyManualInputsToRows({
@@ -2972,7 +2979,7 @@
         targetMonth: context.normalizedTargetMonth,
         cutoffDate: context.normalizedCutoffDate,
         originalFileName: cachedFileName,
-        sourceRows: cachedRows.length,
+        sourceRows: cachedSourceRows || cachedRows.length,
         rows: allRows,
         displayMode: context.showAllEmployees ? 'allEmployees' : 'alertsOnly',
         usePastAverage: context.usePastAverage,
@@ -2980,6 +2987,7 @@
         businessDaySource: context.businessDayInfo.source,
         holidays: context.businessDayInfo.holidays || [],
         calculationAudit: lastCalculationAudit,
+        manualInputsApplied: context.manualInputsApplied !== false,
         validationMetrics: createSnapshotValidationMetricsClient(allRows)
       };
 
@@ -2989,7 +2997,7 @@
           targetMonth: currentSnapshotPayload.targetMonth,
           cutoffDate: currentSnapshotPayload.cutoffDate,
           uploadedAt: '未保存',
-          sourceRows: cachedRows.length,
+          sourceRows: cachedSourceRows || cachedRows.length,
           over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。'
         },
         rows,
@@ -2999,7 +3007,7 @@
         departmentGroupStatus: createDepartmentGroupStatusClient(rows)
       });
 
-      document.getElementById('saveButton').disabled = false;
+      document.getElementById('saveButton').disabled = Boolean(context.disableSave);
 
       const sourceText = context.businessDayInfo.source === 'company_calendar'
         ? '会社カレンダー'
@@ -3007,19 +3015,28 @@
           ? '土日祝日除外'
           : '土日除外フォールバック');
 
+      const manualRestoreMessage = context.manualInputsApplied === false
+        ? '保存済みの手入力内容を復元できなかったため、この集計結果は保存できません。'
+        : '保存済みの手入力内容を復元しました。共有する場合のみ「結果を保存」を押してください。';
+
       showMessage(
         `集計表示を更新しました。検算OK：${lastCalculationAudit.checkedRows}行を確認しました。` +
         `当月営業日数：${context.businessDays}日（${sourceText}）。` +
         `概算＝確定の行数：${lastCalculationAudit.estimatedEqualsConfirmedCount}行。` +
-        `保存済みの手入力内容を復元しました。共有する場合のみ「結果を保存」を押してください。`,
-        false,
-        true
+        manualRestoreMessage,
+        context.manualInputsApplied === false,
+        context.manualInputsApplied !== false
       );
     }
 
     function saveCurrentResult() {
       if (!currentSnapshotPayload || !currentSnapshotPayload.rows) {
         return showMessage('保存する集計結果がありません。先に集計表示してください。', true);
+      }
+
+      if (currentSnapshotPayload.manualInputsApplied === false) {
+        document.getElementById('saveButton').disabled = true;
+        return showMessage('保存済み手入力の復元に失敗した集計結果は保存できません。再集計または再読み込みしてください。', true);
       }
 
       currentSnapshotPayload.validationMetrics = createSnapshotValidationMetricsClient(currentSnapshotPayload.rows);
@@ -3030,8 +3047,8 @@
       google.script.run
         .withSuccessHandler(data => {
           renderApp(data);
-          showMessage('表示中の集計結果だけを保存しました。CSV再取込は行っていません。', false, true);
-          document.getElementById('saveButton').disabled = false;
+          showMessage('表示中の集計結果だけを保存しました。再保存する場合は取込済みCSVから再集計してください。', false, true);
+          document.getElementById('saveButton').disabled = true;
         })
         .withFailureHandler(error => {
           document.getElementById('saveButton').disabled = false;
@@ -3904,10 +3921,13 @@
       clientConfig = data.clientConfig;
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
       setupAuthDepartmentOptions();
+      updateAuthBulkPresetStatus();
       renderDepartmentGroupWarning(data.departmentGroupStatus || (clientConfig && clientConfig.departmentGroupStatus));
       clientPermissions = data.permissions || createClientPermissionsFallback(data.user);
       availableSnapshotMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
       currentRows = data.rows || [];
+      const saveButton = document.getElementById('saveButton');
+      if (saveButton) saveButton.disabled = true;
 
       if (data.hasSnapshot && data.snapshotMeta) {
         currentSnapshotPayload = {
@@ -3978,6 +3998,7 @@
       currentRows = data.rows || [];
       currentDepartmentGroups = resolveDepartmentGroupOptions(data);
       setupAuthDepartmentOptions();
+      updateAuthBulkPresetStatus();
       renderDepartmentGroupWarning(data.departmentGroupStatus || createDepartmentGroupStatusClient(currentRows));
       availableSnapshotMonths = Array.isArray(data.availableMonths) ? data.availableMonths : availableSnapshotMonths;
       const meta = data.snapshotMeta;
@@ -4169,6 +4190,29 @@
       }
     }
 
+    function mergeManualInputResultLocal(row, record) {
+      if (!row || !record || record.ok !== true) return;
+
+      ['agreement36', 'specialReason', 'healthMeasure', 'note'].forEach(field => {
+        row[field] = record[field] || '';
+      });
+      refreshMissingItems(row);
+
+      if (currentSnapshotPayload && Array.isArray(currentSnapshotPayload.rows)) {
+        const payloadRow = findManualInputRow(currentSnapshotPayload.rows, row);
+        if (payloadRow) {
+          ['agreement36', 'specialReason', 'healthMeasure', 'note'].forEach(field => {
+            payloadRow[field] = row[field];
+          });
+          payloadRow.missingItems = row.missingItems;
+          currentSnapshotPayload.validationMetrics = createSnapshotValidationMetricsClient(currentSnapshotPayload.rows);
+        }
+      }
+
+      updateSummary(createSummaryClient(currentRows));
+      applyFilters();
+    }
+
     function persistManualInput(row, fieldName, value, successMessage, rollback, callbacks) {
       const options = callbacks || {};
 
@@ -4195,6 +4239,7 @@
       google.script.run
         .withSuccessHandler(result => {
           try {
+            mergeManualInputResultLocal(row, result);
             if (options.onSuccess) options.onSuccess(result);
           } finally {
             showMessage(successMessage || '入力内容を保存しました。', false, true);
@@ -4259,22 +4304,90 @@
       );
     }
 
+    function getFirstScopedDepartmentGroup() {
+      return (currentDepartmentGroups || []).find(group => group && group !== DEPARTMENT_GROUP_ALL) || '';
+    }
+
+    function normalizeAuthScopeRole(role) {
+      const normalized = String(role || '').trim().toLowerCase();
+      if (normalized === 'admin') return 'admin';
+      if (normalized === 'manager') return 'manager';
+      if (normalized === 'viewer' || normalized === 'executive') return 'viewer';
+      return normalized;
+    }
+
+    function getAuthScopeValidationMessage(role, department) {
+      const normalizedRole = normalizeAuthScopeRole(role);
+      const normalizedDepartment = String(department || '').trim();
+
+      if (!normalizedDepartment) return '表示範囲を選択してください。';
+      if (normalizedRole === 'admin' && normalizedDepartment !== DEPARTMENT_GROUP_ALL) {
+        return 'admin 権限は表示範囲を「全社」にしてください。';
+      }
+      if (normalizedRole !== 'admin' && normalizedDepartment === DEPARTMENT_GROUP_ALL) {
+        return 'manager / viewer 権限には「全社」を設定できません。部署グループを選択してください。';
+      }
+      return '';
+    }
+
+    function getRoleCompatibleDepartment(role, selectedValue) {
+      const normalizedRole = normalizeAuthScopeRole(role);
+      const selected = String(selectedValue || '').trim();
+      if (normalizedRole === 'admin') return DEPARTMENT_GROUP_ALL;
+      if (selected && selected !== DEPARTMENT_GROUP_ALL) return selected;
+      return getFirstScopedDepartmentGroup();
+    }
+
     function setupAuthDepartmentOptions(selectedValue) {
       const select = document.getElementById('authDepartment');
       if (!select) return;
 
-      const selected = selectedValue || select.value || DEPARTMENT_GROUP_ALL;
+      const roleSelect = document.getElementById('authRole');
+      const role = normalizeAuthScopeRole(roleSelect ? roleSelect.value : 'manager');
+      const selected = getRoleCompatibleDepartment(role, selectedValue || select.value);
       const groups = currentDepartmentGroups.length ? currentDepartmentGroups : [DEPARTMENT_GROUP_ALL];
-      const options = groups.includes(selected) || !selected ? groups : groups.concat([selected]);
+      let options = role === 'admin'
+        ? [DEPARTMENT_GROUP_ALL]
+        : groups.filter(group => group && group !== DEPARTMENT_GROUP_ALL);
+
+      if (selected && !options.includes(selected)) options = options.concat([selected]);
 
       select.innerHTML = '';
+      if (!options.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = '部署グループ未登録';
+        select.appendChild(option);
+        select.value = '';
+        return;
+      }
+
       options.forEach(group => {
         const option = document.createElement('option');
         option.value = group;
         option.textContent = group;
         select.appendChild(option);
       });
-      select.value = options.includes(selected) ? selected : DEPARTMENT_GROUP_ALL;
+      select.value = options.includes(selected) ? selected : options[0];
+    }
+
+    function handleAuthRoleChange() {
+      setupAuthDepartmentOptions(document.getElementById('authDepartment').value);
+    }
+
+    function updateAuthBulkPresetStatus() {
+      const status = document.getElementById('authBulkStatus');
+      if (!status) return;
+
+      const defaults = getAuthBulkPresetDefaults();
+      const error = getAuthScopeValidationMessage(defaults.role, defaults.department);
+      if (error) {
+        status.className = 'cacheStatus statusWarn';
+        status.textContent = '一括登録の既定値を適用できません：' + error;
+      } else {
+        status.className = 'cacheStatus';
+        status.textContent = `一括登録の既定値：表示範囲「${defaults.department}」／権限「${formatRoleLabel(defaults.role)}」`;
+      }
     }
 
     function renderDepartmentGroupWarning(status) {
@@ -4397,13 +4510,14 @@
       const noteInput = document.getElementById('authNote');
       const status = document.getElementById('authStatus');
 
-      const department = user.department || DEPARTMENT_GROUP_ALL;
-      setupAuthDepartmentOptions(department);
+      const role = normalizeAuthFormRole(user.role);
+      const department = getRoleCompatibleDepartment(role, user.department || DEPARTMENT_GROUP_ALL);
 
       emailInput.value = user.email || '';
       nameInput.value = user.name || '';
+      roleSelect.value = role;
+      setupAuthDepartmentOptions(department);
       departmentSelect.value = department;
-      roleSelect.value = normalizeAuthFormRole(user.role);
       enabledInput.checked = user.enabled !== false;
       noteInput.value = user.note || '';
 
@@ -4418,19 +4532,21 @@
     function resetAuthForm() {
       document.getElementById('authEmail').value = '';
       document.getElementById('authName').value = '';
-      const defaultDepartment = currentDepartmentGroups.find(group => group !== DEPARTMENT_GROUP_ALL) || DEPARTMENT_GROUP_ALL;
+      document.getElementById('authRole').value = 'manager';
+      const defaultDepartment = getRoleCompatibleDepartment('manager', getFirstScopedDepartmentGroup());
       setupAuthDepartmentOptions(defaultDepartment);
       document.getElementById('authDepartment').value = defaultDepartment;
-      document.getElementById('authRole').value = 'manager';
       document.getElementById('authEnabled').checked = true;
       document.getElementById('authNote').value = '';
+      updateAuthBulkPresetStatus();
     }
 
     function getAuthBulkPresetDefaults() {
       const select = document.getElementById('authBulkPreset');
       const preset = select ? select.value : 'executive';
+      const scopedDepartment = getFirstScopedDepartmentGroup();
       const map = {
-        executive: { department: DEPARTMENT_GROUP_ALL, role: 'viewer' },
+        executive: { department: scopedDepartment, role: 'viewer' },
         salesSupportManager: { department: '営業支援ユニット', role: 'manager' },
         salesManager: { department: '営業ユニット', role: 'manager' },
         adminManager: { department: '管理課', role: 'manager' }
@@ -4513,12 +4629,19 @@
           throw new Error(`${record.rowNumber}行目のメールアドレスが未入力、または正しくありません。メール欄を確認してください。`);
         }
 
+        const department = findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment);
+        const role = normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], defaultRole));
+        const scopeError = getAuthScopeValidationMessage(role, department);
+        if (scopeError) {
+          throw new Error(`${record.rowNumber}行目：${scopeError}`);
+        }
+
         return {
           sourceRowNumber: record.rowNumber,
           email,
           name: findAuthImportValue(row, headerMap, ['氏名', '名前', 'name', 'Name', 'NAME'], ''),
-          department: findAuthImportValue(row, headerMap, ['表示範囲', '部署グループ', 'department', 'Department', 'DEPARTMENT'], defaultDepartment),
-          role: normalizeAuthImportRole(findAuthImportValue(row, headerMap, ['権限', 'role', 'Role', 'ROLE'], defaultRole)),
+          department,
+          role,
           enabled: normalizeAuthImportEnabled(findAuthImportValue(row, headerMap, ['有効', '状態', 'enabled', 'Enabled', 'ENABLED'], 'TRUE')),
           note: findAuthImportValue(row, headerMap, ['メモ', '備考', 'note', 'Note', 'NOTE'], '')
         };
@@ -4650,7 +4773,16 @@
         note: document.getElementById('authNote').value
       };
 
+      const scopeError = getAuthScopeValidationMessage(payload.role, payload.department);
       const status = document.getElementById('authStatus');
+      if (scopeError) {
+        if (status) {
+          status.className = 'cacheStatus statusWarn';
+          status.textContent = '権限情報の保存に失敗しました：' + scopeError;
+        }
+        return;
+      }
+
       if (status) {
         status.className = 'cacheStatus';
         status.textContent = '権限情報を保存しています。';
@@ -6490,7 +6622,8 @@
         el.textContent = '取込済みファイルはありません。';
         return;
       }
-      el.textContent = `取込済みCSV：${cachedFileName} ／ 保持行数：${cachedRows.length}行。月を変更してもCSV再取込・自動保存は行いません。`;
+      const sourceText = cachedSourceRows && cachedSourceRows !== cachedRows.length ? ` ／ 元データ行数：${cachedSourceRows}行` : '';
+      el.textContent = `取込済みCSV：${cachedFileName} ／ 保持行数：${cachedRows.length}行${sourceText}。月を変更してもCSV再取込・自動保存は行いません。`;
     }
 
     function setImportDisabled(disabled) {
