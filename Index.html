@@ -3182,6 +3182,9 @@
           if (date.year === target.year && date.month === target.month && paidLeave > 0) {
             employee.futurePaidLeave += paidLeave;
           }
+          if (date.year === target.year && date.month === target.month) {
+            employee.plannedHolidayWorkHours += prescribedHolidayWork + legalHolidayWork;
+          }
           return;
         }
 
@@ -3253,6 +3256,13 @@
         const isPastTarget = isPastTargetMonth(targetMonth);
         const futurePaidLeave = isPastTarget ? 0 : round2(employee.futurePaidLeave);
         const remainingWorkDays = isPastTarget ? 0 : Math.max(0, totalWorkDays - elapsedDays - futurePaidLeave);
+        const pastMonthlyJudgeValues = Object.values(employeePastMonthlyJudgeOt[employeeKey] || {});
+        const pastMonthlyJudgeAverage = options.usePastAverage && pastMonthlyJudgeValues.length > 0
+          ? pastMonthlyJudgeValues.reduce((sum, value) => sum + safeNumber(value), 0) / pastMonthlyJudgeValues.length
+          : 0;
+        const calendarDays = new Date(target.year, target.month, 0).getDate();
+        employee.pastMonthlyJudgeAverage = pastMonthlyJudgeAverage;
+        employee.calendarDays = calendarDays;
         employee.forecastRemainingWorkDays = remainingWorkDays;
         const overtimeForecast = calculateOvertimeForecast({
           employeeId: employee.employeeCode,
@@ -3264,7 +3274,11 @@
           statutoryOvertimeActual: employee.statutoryOt,
           overtimeFor60Actual: employee.overtimeFor60Actual,
           overtimeAndHolidayActual: employee.overtimeAndHolidayActual,
-          plannedHolidayWorkHours: employee.plannedHolidayWorkHours
+          plannedHolidayWorkHours: employee.plannedHolidayWorkHours,
+          pastMonthlyJudgeAverage,
+          totalWorkingHoursActual: employee.actualWorkHours,
+          calendarDays,
+          useStrict80Formula: true
         });
 
         employee.overtimeForecast = overtimeForecast;
@@ -3434,6 +3448,8 @@
         overtimeFor60Actual: 0,
         overtimeAndHolidayActual: 0,
         plannedHolidayWorkHours: 0,
+        pastMonthlyJudgeAverage: 0,
+        calendarDays: 0,
         actualWorkHours: 0,
         scheduledHours: 0,
         prescribedHolidayWork: 0,
@@ -3490,6 +3506,7 @@
         overtimeFor60Actual: round2(employee.overtimeFor60Actual),
         overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
         plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
+        pastMonthlyJudgeAverage: round2(employee.pastMonthlyJudgeAverage),
         over45Count: employee.over45Count,
         paidLeaveTotal: round1(employee.paidLeaveCumulative),
         targetMonthPaidLeave: round1(employee.targetMonthPaidLeave),
@@ -3508,6 +3525,10 @@
           overtimeFor60Actual: round2(employee.overtimeFor60Actual),
           overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
           plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
+          pastMonthlyJudgeAverage: round2(employee.pastMonthlyJudgeAverage),
+          totalWorkingHoursActual: round2(employee.actualWorkHours),
+          calendarDays: employee.calendarDays,
+          useStrict80Formula: true,
           forecast45: round1(employee.forecast45),
           forecast60: round1(employee.forecast60),
           forecast80: round1(employee.forecast80),
@@ -3569,6 +3590,7 @@
       const overtimeFor60Actual = safeNumber(input.overtimeFor60Actual);
       const overtimeAndHolidayActual = safeNumber(input.overtimeAndHolidayActual);
       const plannedHolidayWorkHours = safeNumber(input.plannedHolidayWorkHours);
+      const pastMonthlyJudgeAverage = safeNumber(input.pastMonthlyJudgeAverage);
       const totalWorkingHoursActual = safeNumber(input.totalWorkingHoursActual);
       const calendarDays = safeNumber(input.calendarDays);
       const useStrict80Formula = input.useStrict80Formula === true;
@@ -3589,7 +3611,10 @@
         return floorTo1(Math.max(0, (safeNumber(limit) - safeNumber(actual) - safeNumber(planned)) / remainingWorkDays));
       }
 
-      const forecast45 = forecastByWorkDays(statutoryOvertimeActual, 0);
+      const workdayForecast45 = forecastByWorkDays(statutoryOvertimeActual, 0);
+      const forecast45 = pastMonthlyJudgeAverage > 0
+        ? ceilTo1(Math.max(workdayForecast45, pastMonthlyJudgeAverage))
+        : workdayForecast45;
       const forecast60 = forecastByWorkDays(overtimeFor60Actual, 0);
       let forecast80;
 
