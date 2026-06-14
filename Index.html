@@ -3895,7 +3895,7 @@
       const status80 = forecast80 > 80 ? '80h超見込み' : '';
 
       let overallStatus = '問題なし';
-      let overallForecast = Math.max(forecast45, forecast60, forecast80);
+      let overallForecast = forecast45;
       if (forecast80 > 80) {
         overallStatus = '80h超見込み';
         overallForecast = forecast80;
