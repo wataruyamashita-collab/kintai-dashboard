@@ -3253,10 +3253,28 @@
       });
 
       const result = [];
+      const normalLaborDepartments = new Set([
+        'カスタマーサクセス推進課',
+        'クラウド推進課',
+        '業務支援課',
+        '管理課'
+      ]);
 
       Object.keys(employees).forEach(employeeKey => {
         const employee = employees[employeeKey];
         if (!employee.hasTargetMonthData) return;
+
+        const normalizedDepartment = normalizeDepartmentName(employee.department);
+        const isOutsideDeemedSales = !normalLaborDepartments.has(normalizedDepartment);
+        const agreement45ActualOt = isOutsideDeemedSales
+          ? Math.max(safeNumber(employee.statutoryOt), safeNumber(employee.estimatedOt))
+          : safeNumber(employee.statutoryOt);
+        const overtimeFor60Actual = isOutsideDeemedSales
+          ? Math.max(safeNumber(employee.overtimeFor60Actual), agreement45ActualOt + safeNumber(employee.prescribedHolidayWork))
+          : safeNumber(employee.overtimeFor60Actual);
+        const overtimeAndHolidayActual = isOutsideDeemedSales
+          ? Math.max(safeNumber(employee.overtimeAndHolidayActual), agreement45ActualOt + safeNumber(employee.prescribedHolidayWork) + safeNumber(employee.legalHolidayWork))
+          : safeNumber(employee.overtimeAndHolidayActual);
 
         const attendanceDaysTotal = round2(employee.attendanceDaysTotal);
         const targetMonthPaidLeave = round2(employee.targetMonthPaidLeave);
@@ -3288,9 +3306,9 @@
           totalWorkDays,
           elapsedWorkDays: elapsedDays,
           remainingWorkDays,
-          statutoryOvertimeActual: employee.statutoryOt,
-          overtimeFor60Actual: employee.overtimeFor60Actual,
-          overtimeAndHolidayActual: employee.overtimeAndHolidayActual,
+          statutoryOvertimeActual: agreement45ActualOt,
+          overtimeFor60Actual,
+          overtimeAndHolidayActual,
           plannedHolidayWorkHours: employee.plannedHolidayWorkHours,
           pastMonthlyJudgeAverage,
           totalWorkingHoursActual: employee.actualWorkHours,
@@ -3313,7 +3331,6 @@
         employee.dailyLimitTo80 = overtimeForecast.dailyLimitTo80;
         employee.overallStatus = overtimeForecast.overallStatus;
         employee.monthEndForecast = overtimeForecast.overallForecast;
-        const agreement45ActualOt = employee.statutoryOt;
         employee.alertBaseOt = agreement45ActualOt;
         employee.actualAlert = agreement45ActualOt > 45 ? '45h超過' : '';
         employee.forecastAlert = createForecastAlert(overtimeForecast);
