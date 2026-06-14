@@ -938,15 +938,21 @@ function getCompanyBusinessDayInfo_(year, month) {
 }
 
 function clearBusinessDayCacheForYear_(year) {
-  const props = PropertiesService.getScriptProperties();
-  const all = props.getProperties();
+  const cache = CacheService.getScriptCache();
   const prefix = BUSINESS_DAY_CACHE_PREFIX + String(year) + '_';
+  const keys = [];
 
-  Object.keys(all).forEach(key => {
-    if (key.indexOf(prefix) === 0) {
-      props.deleteProperty(key);
-    }
-  });
+  for (let month = 1; month <= 12; month++) {
+    keys.push(prefix + String(month).padStart(2, '0'));
+  }
+
+  removeBusinessDayCacheKeys_(cache, keys);
+}
+
+function removeBusinessDayCacheKeys_(cache, keys) {
+  for (let i = 0; i < keys.length; i += 100) {
+    cache.removeAll(keys.slice(i, i + 100));
+  }
 }
 
 
@@ -957,7 +963,7 @@ const BUSINESS_DAY_CACHE_PREFIX = 'BUSINESS_DAYS_';
  * 対象月の営業日数を返す。
  * 原則：土日祝日除外。
  * 祝日：Google日本の祝日カレンダーから取得。
- * 安全策：取得結果はScriptPropertiesへ月単位でキャッシュ。
+ * 安全策：取得結果はCacheServiceへ月単位でキャッシュ。
  * フォールバック：取得失敗時は土日除外。
  */
 function getBusinessDayInfo(targetMonth) {
@@ -1086,14 +1092,16 @@ function getWeekdayCountInMonth_(year, month) {
  * 祝日データの再取得が必要な場合のみ手動実行してください。
  */
 function clearBusinessDayCache() {
-  const props = PropertiesService.getScriptProperties();
-  const all = props.getProperties();
+  const cache = CacheService.getScriptCache();
+  const keys = [];
 
-  Object.keys(all).forEach(key => {
-    if (key.indexOf(BUSINESS_DAY_CACHE_PREFIX) === 0) {
-      props.deleteProperty(key);
+  for (let year = 2000; year <= 2100; year++) {
+    for (let month = 1; month <= 12; month++) {
+      keys.push(BUSINESS_DAY_CACHE_PREFIX + year + '_' + String(month).padStart(2, '0'));
     }
-  });
+  }
+
+  removeBusinessDayCacheKeys_(cache, keys);
 }
 
 
