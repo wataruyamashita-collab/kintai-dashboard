@@ -3494,16 +3494,26 @@
             )
           : safeNumber(employee.actualWorkHours);
 
-        const attendanceDaysTotal = round2(employee.attendanceDaysTotal);
+        const parsedTarget = parseYearMonth(targetMonth);
+        const safeTargetYear = Number.isFinite(parsedTarget.year) ? parsedTarget.year : target.year;
+        const safeTargetMonth = Number.isFinite(parsedTarget.month) ? parsedTarget.month : target.month;
+        const calendarDaysRaw = Number.isFinite(safeTargetYear) && Number.isFinite(safeTargetMonth)
+          ? new Date(safeTargetYear, safeTargetMonth, 0).getDate()
+          : 0;
+        const calendarDays = Number.isFinite(calendarDaysRaw) && calendarDaysRaw > 0 ? calendarDaysRaw : 0;
+
+        const attendanceDaysFromCsv = round2(employee.attendanceDaysTotal);
+        const elapsedWorkingDateCount = Object.keys(employee.elapsedWorkingDates).length;
+        const attendanceDaysTotal = round2(Math.max(attendanceDaysFromCsv, elapsedWorkingDateCount));
+        employee.attendanceDaysTotal = attendanceDaysTotal;
+
         const targetMonthPaidLeave = round2(employee.targetMonthPaidLeave);
         const elapsedDaysWithPaidLeave = round2(attendanceDaysTotal + targetMonthPaidLeave);
-        const elapsedDays = elapsedDaysWithPaidLeave > 0
-          ? elapsedDaysWithPaidLeave
-          : Object.keys(employee.elapsedWorkingDates).length;
+        const elapsedDays = elapsedDaysWithPaidLeave > 0 ? elapsedDaysWithPaidLeave : elapsedWorkingDateCount;
 
         const targetWorkingDays = Number(options.businessDays || 0) > 0
           ? Number(options.businessDays)
-          : (Object.keys(employee.targetWorkingDates).length || getWeekdayCountInMonth(target.year, target.month));
+          : (Object.keys(employee.targetWorkingDates).length || getWeekdayCountInMonth(safeTargetYear, safeTargetMonth));
 
         const totalWorkDays = targetWorkingDays;
         const isPastTarget = isPastTargetMonth(targetMonth);
@@ -3513,7 +3523,6 @@
         const pastMonthlyJudgeAverage = options.usePastAverage && pastMonthlyJudgeValues.length > 0
           ? pastMonthlyJudgeValues.reduce((sum, value) => sum + safeNumber(value), 0) / pastMonthlyJudgeValues.length
           : 0;
-        const calendarDays = new Date(target.year, target.month, 0).getDate();
         employee.pastMonthlyJudgeAverage = pastMonthlyJudgeAverage;
         employee.calendarDays = calendarDays;
         employee.forecastRemainingWorkDays = remainingWorkDays;
@@ -4289,10 +4298,9 @@
     }
 
     function normalizeMonthValueForSelect(value) {
-      const text = String(value || '').trim();
-      const match = text.match(/^(\d{4})[\/-](\d{1,2})$/);
-      if (!match) return '';
-      return `${match[1]}/${String(Number(match[2])).padStart(2, '0')}`;
+      const parsed = parseYearMonth(value);
+      if (!Number.isFinite(parsed.year) || !Number.isFinite(parsed.month)) return '';
+      return `${parsed.year}/${String(parsed.month).padStart(2, '0')}`;
     }
 
     function formatMonthSelectLabel(value) {
@@ -7004,9 +7012,15 @@
     }
 
     function parseYearMonth(value) {
-      const text = normalizeText(value).replace(/-/g, '/');
-      const parts = text.split('/').map(Number);
-      return { year: parts[0], month: parts[1] };
+      const text = normalizeText(value).replace(/[年月]/g, '/').replace(/日/g, '').replace(/-/g, '/');
+      const match = text.match(/(\d{4})\s*\/\s*(\d{1,2})/);
+      if (!match) return { year: NaN, month: NaN };
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+        return { year: NaN, month: NaN };
+      }
+      return { year, month };
     }
 
     function normalizeDateText(value) {
