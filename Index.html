@@ -2266,7 +2266,7 @@
     }
 
     function extractLaborDaysFromCalendarText(text) {
-      const values = new Array(12);
+      const values = new Array(12).fill(null);
       const monthMatches = Array.from(text.matchAll(/(?:^|[^0-9])([1-9]|1[0-2])\s*月/g));
 
       monthMatches.forEach((monthMatch, index) => {
@@ -2285,7 +2285,7 @@
     }
 
     function extractLaborDaysFromMonthlyHours(text) {
-      const values = new Array(12);
+      const values = new Array(12).fill(null);
       const monthMatches = Array.from(text.matchAll(/(?:^|[^0-9])([1-9]|1[0-2])\s*月/g));
 
       monthMatches.forEach((monthMatch, index) => {
