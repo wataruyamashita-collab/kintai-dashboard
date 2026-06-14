@@ -3557,7 +3557,14 @@
         employee.dailyLimitTo60 = overtimeForecast.dailyLimitTo60;
         employee.dailyLimitTo80 = overtimeForecast.dailyLimitTo80;
         employee.overallStatus = overtimeForecast.overallStatus;
-        employee.monthEndForecast = overtimeForecast.overallForecast;
+        // 月末残業予測の表示値は、画面上の現時点残業（概算・確定）を下回らないようにする。
+        // 36協定の見込み判定は forecast45/60/80 の各法定基準で維持しつつ、一覧の「月末残業予測」が
+        // 現時点実績より小さく見える混乱を防ぐ。
+        employee.monthEndForecast = Math.max(
+          safeNumber(overtimeForecast.overallForecast),
+          safeNumber(employee.confirmedOt),
+          safeNumber(employee.estimatedOt)
+        );
         employee.totalWorkingHoursForForecast = totalWorkingHoursActual;
         employee.alertBaseOt = agreement45ActualOt;
         employee.actualAlert = agreement45ActualOt > 45 ? '45h超過' : '';
