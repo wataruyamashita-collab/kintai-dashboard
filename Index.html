@@ -3567,7 +3567,14 @@
 
         if (!options.showAllEmployees && !employee.actualAlert && !employee.forecastAlert) return;
 
-        result.push(formatEmployeeResult(employee, elapsedDays, targetWorkingDays, agreement45ActualOt));
+        result.push(formatEmployeeResult(
+          employee,
+          elapsedDays,
+          targetWorkingDays,
+          agreement45ActualOt,
+          overtimeFor60Actual,
+          overtimeAndHolidayActual
+        ));
       });
 
       result.sort((a, b) => {
@@ -3733,7 +3740,7 @@
       };
     }
 
-    function formatEmployeeResult(employee, elapsedDays, targetWorkingDays, agreement45ActualOt) {
+    function formatEmployeeResult(employee, elapsedDays, targetWorkingDays, agreement45ActualOt, overtimeFor60Actual, overtimeAndHolidayActual) {
       return {
         rowNo: 0,
         departmentGroup: employee.departmentGroup,
@@ -3765,8 +3772,8 @@
         dailyLimitTo60: round1(employee.dailyLimitTo60),
         dailyLimitTo80: round1(employee.dailyLimitTo80),
         overallStatus: employee.overallStatus,
-        overtimeFor60Actual: round2(employee.overtimeFor60Actual),
-        overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
+        overtimeFor60Actual: round2(overtimeFor60Actual),
+        overtimeAndHolidayActual: round2(overtimeAndHolidayActual),
         plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
         pastMonthlyJudgeAverage: round2(employee.pastMonthlyJudgeAverage),
         over45Count: employee.over45Count,
@@ -3784,8 +3791,8 @@
           futurePaidLeave: round2(employee.futurePaidLeave),
           remainingWorkDays: round2(employee.forecastRemainingWorkDays),
           statutoryOvertimeActual: round2(agreement45ActualOt),
-          overtimeFor60Actual: round2(employee.overtimeFor60Actual),
-          overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
+          overtimeFor60Actual: round2(overtimeFor60Actual),
+          overtimeAndHolidayActual: round2(overtimeAndHolidayActual),
           plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
           pastMonthlyJudgeAverage: round2(employee.pastMonthlyJudgeAverage),
           totalWorkingHoursActual: round2(employee.totalWorkingHoursForForecast),
