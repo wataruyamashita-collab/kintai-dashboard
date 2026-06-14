@@ -171,6 +171,10 @@ function saveClientSnapshot(payload) {
   if (!targetMonth) throw new Error('対象月の形式が不正です。');
   if (!cutoffDate) throw new Error('集計基準日の形式が不正です。');
 
+  if (payload.manualInputsApplied === false) {
+    throw new Error('保存済み手入力の復元に失敗した集計結果は保存できません。再集計してください。');
+  }
+
   const validationMetrics = validateClientSnapshotPayload_(payload, targetMonth, cutoffDate);
 
   const snapshot = {
@@ -189,6 +193,7 @@ function saveClientSnapshot(payload) {
       businessDaySource: payload.businessDaySource || null,
       holidays: payload.holidays || [],
       calculationAudit: payload.calculationAudit || null,
+      manualInputsApplied: payload.manualInputsApplied !== false,
       validationMetrics,
       over45Definition: '45h超過回数は、対象年1月以降、36協定45h判定対象の残業時間が45時間を超えた月数です。',
       forecastDefinition: '月末残業予測は、45h（法定時間外労働）、60h（月60時間超割増対象・法定休日労働を除く）、80h（時間外＋休日労働）を別々の実績値で、現時点実績 + (現時点実績 ÷ 実績経過日数（出社日数＋集計基準日までの年次有休取得日数）) × 未来の稼働見込み日数（残営業日数－集計基準日後の年次有休予定日数）により算出します。見込みは小数第1位切り上げ、超過判定は > で行います。',
@@ -1833,49 +1838,48 @@ function saveManualInput(payload) {
   const ss = getManagementSpreadsheetReady_();
   const currentSheet = ss.getSheetByName(MANAGEMENT_BASE.MANUAL_CURRENT_SHEET);
   const historySheet = ss.getSheetByName(MANAGEMENT_BASE.MANUAL_HISTORY_SHEET);
-
-  const existingRowNumber = findRowByKey_(currentSheet, 'key', key);
-  const before = existingRowNumber > 0 ? getObjectAtRow_(currentSheet, existingRowNumber) : null;
-
-  const beforeValue = before ? String(before[fieldName] || '') : '';
-
   const now = getNowText_();
-
-  const record = Object.assign(
-    {
-      key,
-      targetMonth,
-      employeeCode,
-      employeeName,
-      department,
-      departmentGroup,
-      agreement36: '',
-      specialReason: '',
-      healthMeasure: '',
-      note: '',
-      deleted: 'FALSE',
-      createdAt: now,
-      createdBy: user.email,
-      updatedAt: now,
-      updatedBy: user.email
-    },
-    before || {}
-  );
-
-  record.targetMonth = targetMonth;
-  record.employeeCode = employeeCode;
-  record.employeeName = employeeName;
-  record.department = department;
-  record.departmentGroup = departmentGroup;
-  record[fieldName] = value;
-  record.deleted = 'FALSE';
-  record.updatedAt = now;
-  record.updatedBy = user.email;
-
   const lock = LockService.getScriptLock();
+  let record;
+
   lock.waitLock(30000);
 
   try {
+    const existingRowNumber = findRowByKey_(currentSheet, 'key', key);
+    const before = existingRowNumber > 0 ? getObjectAtRow_(currentSheet, existingRowNumber) : null;
+    const beforeValue = before ? String(before[fieldName] || '') : '';
+
+    record = Object.assign(
+      {
+        key,
+        targetMonth,
+        employeeCode,
+        employeeName,
+        department,
+        departmentGroup,
+        agreement36: '',
+        specialReason: '',
+        healthMeasure: '',
+        note: '',
+        deleted: 'FALSE',
+        createdAt: now,
+        createdBy: user.email,
+        updatedAt: now,
+        updatedBy: user.email
+      },
+      before || {}
+    );
+
+    record.targetMonth = targetMonth;
+    record.employeeCode = employeeCode;
+    record.employeeName = employeeName;
+    record.department = department;
+    record.departmentGroup = departmentGroup;
+    record[fieldName] = value;
+    record.deleted = 'FALSE';
+    record.updatedAt = now;
+    record.updatedBy = user.email;
+
     upsertObjectByKey_(currentSheet, 'key', key, record);
 
     if (beforeValue !== value) {
