@@ -3567,7 +3567,7 @@
 
         if (!options.showAllEmployees && !employee.actualAlert && !employee.forecastAlert) return;
 
-        result.push(formatEmployeeResult(employee, elapsedDays, targetWorkingDays));
+        result.push(formatEmployeeResult(employee, elapsedDays, targetWorkingDays, agreement45ActualOt));
       });
 
       result.sort((a, b) => {
@@ -3733,7 +3733,7 @@
       };
     }
 
-    function formatEmployeeResult(employee, elapsedDays, targetWorkingDays) {
+    function formatEmployeeResult(employee, elapsedDays, targetWorkingDays, agreement45ActualOt) {
       return {
         rowNo: 0,
         departmentGroup: employee.departmentGroup,
@@ -3783,7 +3783,7 @@
           targetMonthPaidLeave: round2(employee.targetMonthPaidLeave),
           futurePaidLeave: round2(employee.futurePaidLeave),
           remainingWorkDays: round2(employee.forecastRemainingWorkDays),
-          statutoryOvertimeActual: round2(employee.statutoryOt),
+          statutoryOvertimeActual: round2(agreement45ActualOt),
           overtimeFor60Actual: round2(employee.overtimeFor60Actual),
           overtimeAndHolidayActual: round2(employee.overtimeAndHolidayActual),
           plannedHolidayWorkHours: round2(employee.plannedHolidayWorkHours),
