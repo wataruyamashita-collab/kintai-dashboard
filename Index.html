@@ -795,6 +795,22 @@
       animation: forecastCurveBlink45Halo 2s ease-in-out infinite;
     }
 
+    .forecastCurveWarning.blink60 {
+      animation: forecastCurveBlink60 1.5s ease-in-out infinite;
+    }
+
+    .forecastCurveWarningHalo.blink60 {
+      animation: forecastCurveBlink60Halo 1.5s ease-in-out infinite;
+    }
+
+    .forecastCurveWarning.blink80 {
+      animation: forecastCurveBlink80 1s ease-in-out infinite;
+    }
+
+    .forecastCurveWarningHalo.blink80 {
+      animation: forecastCurveBlink80Halo 1s ease-in-out infinite;
+    }
+
     @keyframes forecastCurveBlink45 {
       0%, 100% { opacity: 1; }
       50% { opacity: .35; }
@@ -803,6 +819,26 @@
     @keyframes forecastCurveBlink45Halo {
       0%, 100% { opacity: .25; stroke-width: 4; }
       50% { opacity: .95; stroke-width: 8; }
+    }
+
+    @keyframes forecastCurveBlink60 {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    @keyframes forecastCurveBlink60Halo {
+      0%, 100% { opacity: .22; stroke-width: 4; }
+      50% { opacity: .9; stroke-width: 8; }
+    }
+
+    @keyframes forecastCurveBlink80 {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .2; }
+    }
+
+    @keyframes forecastCurveBlink80Halo {
+      0%, 100% { opacity: .2; stroke-width: 4; }
+      50% { opacity: 1; stroke-width: 9; }
     }
 
     @keyframes forecastCurveBlinkForecast {
@@ -2161,7 +2197,7 @@
 
     const HEADER_ALIASES = {
       '法定時間内残業': ['法定時間内残業', '法定時間内残業時間', '法定内残業', '法定内残業時間', '法内残業'],
-      '残業時間': ['残業時間', '法定時間外残業', '法定時間外残業時間', '法定外残業', '法定外残業時間', '時間外残業', '時間外労働時間'],
+      '残業時間': ['残業時間', '法定時間外残業', '法定時間外残業時間', '時間外残業', '時間外労働時間'],
       '年次有休取得日数(時間単位休を除く)': [
         '年次有休取得日数(時間単位休を除く)',
         '年次有休取得日数（時間単位休を除く）',
@@ -6076,8 +6112,8 @@
         45: {
           actual: statutoryActual,
           forecast: resolveForecast(statutoryActual, calc.forecast45, row.forecast45),
-          basisLabel: '法定外労働時間',
-          shortBasisLabel: '法定外'
+          basisLabel: '残業時間',
+          shortBasisLabel: '残業'
         },
         60: {
           actual: overtime60Actual,
@@ -6118,7 +6154,7 @@
 
     function getForecastLimitDefinitions() {
       return [
-        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45h', basisLabel: '法定外労働時間', shortBasisLabel: '法定外' },
+        { value: 45, className: 'forecastCurveLimit45', legendClass: 'limit45', label: '45h', basisLabel: '残業時間', shortBasisLabel: '残業' },
         { value: 60, className: 'forecastCurveLimit60', legendClass: 'limit60', label: '60h', basisLabel: '月60時間超割増対象時間', shortBasisLabel: '割増対象' },
         { value: 80, className: 'forecastCurveLimit80', legendClass: 'limit80', label: '80h', basisLabel: '時間外＋休日労働時間', shortBasisLabel: '時間外+休日' }
       ];
@@ -6449,6 +6485,10 @@
           'font-weight': 800
         }, { fill: '#eef3f8', stroke: '#8fa3ba', fillOpacity: .96, strokeWidth: .9, centerY: true });
 
+        const progressiveBlinkThreshold = context.isPast
+          ? null
+          : (context.actual <= 45 ? 45 : (context.actual <= 60 ? 60 : 80));
+
         limitStatuses.forEach(limit => {
           if (!limit.crossingDay) return;
           const thresholdY = points.yForHours(limit.value);
@@ -6462,11 +6502,13 @@
           svg.appendChild(crossingLabel);
 
           const is45Limit = limit.value === 45;
-          if (is45Limit) {
-            svg.appendChild(createSvgElement('circle', { class: 'forecastCurveWarningHalo blink45', cx: x, cy: y, r: 10, fill: '#f59e0b', 'fill-opacity': .18, stroke: '#f59e0b', 'stroke-width': 3 }));
+          const blinkClass = limit.value === progressiveBlinkThreshold ? ` blink${limit.value}` : '';
+          const warningColor = limit.value === 45 ? '#f59e0b' : limit.value === 60 ? '#f97316' : '#b91c1c';
+          if (blinkClass) {
+            svg.appendChild(createSvgElement('circle', { class: `forecastCurveWarningHalo${blinkClass}`, cx: x, cy: y, r: limit.value === 80 ? 11 : 10, fill: warningColor, 'fill-opacity': .18, stroke: warningColor, 'stroke-width': 3 }));
           }
-          const warningClass = is45Limit ? 'forecastCurveWarning blink45' : 'forecastCurveWarning';
-          const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: is45Limit ? 6 : 5, tabindex: '0', fill: is45Limit ? '#f59e0b' : '#b91c1c', stroke: '#ffffff', 'stroke-width': 2 });
+          const warningClass = `forecastCurveWarning${blinkClass}`;
+          const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: blinkClass ? 6 : 5, tabindex: '0', fill: warningColor, stroke: '#ffffff', 'stroke-width': 2 });
           const title = createSvgElement('title', {});
           const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
           const forecastLabel = context.isPast ? '確定' : '月末見込み';
