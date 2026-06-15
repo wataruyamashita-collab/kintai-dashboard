@@ -6373,16 +6373,12 @@
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       const curvePointGroups = [points.actualPoints, points.forecastPoints];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
-      const forecastStartDay = getForecastCurveForecastStartDay(context);
-      const forecastStartPoint = forecastStartDay !== null ? getForecastCurveForecastPointForDay(context, points, forecastStartDay) : null;
-      const forecastStartAnchorPoint = forecastStartPoint || currentPoint;
-      const currentLabelOffsetX = -16;
-      const currentLabelX = forecastStartAnchorPoint.x + currentLabelOffsetX;
+      const currentLabelX = currentPoint.x;
       const currentLabelText = context.actual > 0
         ? `実績: ${formatForecastDetailHours(context.actual)} (${context.isPast ? '確定' : '予測開始'})`
         : (context.isPast ? '確定' : '予測開始日');
       const currentLabelY = placeForecastCurveLabelY(
-        forecastStartAnchorPoint.y + (context.isPast ? -18 : 18),
+        currentPoint.y + 22,
         labelYRanges,
         labelMinY,
         labelMaxY,
@@ -6393,9 +6389,9 @@
       if (!context.isPast) {
         svg.appendChild(createSvgElement('line', {
           class: 'forecastCurveForecastStartGuide',
-          x1: forecastStartAnchorPoint.x,
-          y1: forecastStartAnchorPoint.y,
-          x2: currentLabelX,
+          x1: currentPoint.x,
+          y1: currentPoint.y,
+          x2: currentPoint.x,
           y2: currentLabelY,
           stroke: '#8fa3ba',
           'stroke-width': 1,
@@ -6407,7 +6403,7 @@
         class: 'forecastCurveCurrentLabel',
         x: currentLabelX,
         y: currentLabelY,
-        'text-anchor': 'end',
+        'text-anchor': 'middle',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
