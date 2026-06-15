@@ -5425,6 +5425,24 @@
       return { actualPoints, forecastPoints, xForDay, yForHours };
     }
 
+    function getForecastCurveForecastStartDay(context) {
+      if (!context || context.isPast) return null;
+      const elapsedDays = safeNumber(context.elapsedDays);
+      const totalDays = safeNumber(context.totalDays);
+      if (totalDays <= elapsedDays) return null;
+      return clampNumber(Math.floor(elapsedDays) + 1, 1, totalDays);
+    }
+
+    function getForecastCurveForecastPointForDay(context, points, day) {
+      const start = points.forecastPoints[0];
+      const end = points.forecastPoints[points.forecastPoints.length - 1];
+      const elapsedDays = safeNumber(context.elapsedDays);
+      const totalDays = safeNumber(context.totalDays);
+      const denominator = Math.max(1, totalDays - elapsedDays);
+      const progress = (safeNumber(day) - elapsedDays) / denominator;
+      return getLinearSegmentPoint(start, end, progress);
+    }
+
     function renderMonthForecastSparkline(row) {
       const context = getForecastCurveContext(row);
       context.maxHours = 100;
@@ -5974,6 +5992,15 @@
       return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
+    function formatClockTimeWithDayOffsetFromHours(value) {
+      const totalMinutes = Math.round(safeNumber(value) * 60);
+      const minutesPerDay = 24 * 60;
+      const dayOffset = Math.floor(totalMinutes / minutesPerDay);
+      const clockText = formatClockTimeFromHours(value);
+      if (dayOffset <= 0) return clockText;
+      return dayOffset === 1 ? `翌日${clockText}` : `${dayOffset}日後${clockText}`;
+    }
+
     function createForecastDetailDiv(className, text) {
       const div = document.createElement('div');
       if (className) div.className = className;
@@ -6332,7 +6359,7 @@
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
       const currentLabelPlaceLeft = currentPoint.x > width - padding.right - 120;
-      appendSvgText(svg, context.isPast ? '確定' : '予測開始', {
+      appendSvgText(svg, context.isPast ? '確定' : '実績基準日', {
         class: 'forecastCurveCurrentLabel',
         x: currentLabelPlaceLeft ? currentPoint.x - 8 : currentPoint.x + 8,
         y: Math.max(padding.top + 12, currentPoint.y - 12),
@@ -6341,6 +6368,19 @@
         'font-size': 11,
         'font-weight': 800
       });
+      const forecastStartDay = getForecastCurveForecastStartDay(context);
+      if (forecastStartDay !== null) {
+        const forecastStartPoint = getForecastCurveForecastPointForDay(context, points, forecastStartDay);
+        appendSvgText(svg, '予測開始', {
+          class: 'forecastCurveCurrentLabel',
+          x: forecastStartPoint.x,
+          y: Math.max(padding.top + 12, forecastStartPoint.y - 12),
+          'text-anchor': 'middle',
+          fill: '#1f4e79',
+          'font-size': 11,
+          'font-weight': 800
+        });
+      }
       try {
         const monthEndPoint = points.forecastPoints[points.forecastPoints.length - 1];
         const monthEndLabelY = placeForecastCurveLabelY(
@@ -6514,7 +6554,7 @@
       const remainingTo45 = safeNumber(row.remainingTo45);
       const dailyLimitTo45 = safeNumber(row.dailyLimitTo45);
       const dailyPaceTo45 = dailyLimitTo45 > 0 ? dailyLimitTo45 : remaining > 0 ? remainingTo45 / remaining : 0;
-      const leaveByTime = formatClockTimeFromHours(ORDINARY_OVERTIME_START_HOUR + Math.max(0, dailyPaceTo45));
+      const leaveByTime = formatClockTimeWithDayOffsetFromHours(ORDINARY_OVERTIME_START_HOUR + Math.max(0, dailyPaceTo45));
 
       if (remaining <= 0) {
         appendForecastDetailBlock(container, '提案', [
