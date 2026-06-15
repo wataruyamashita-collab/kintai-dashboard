@@ -6322,15 +6322,13 @@
       svg.style.width = '100%';
       svg.style.height = `${height}px`;
 
-      const actualAxisLabel = context.actual > 0 ? formatForecastDetailHours(context.actual) : '';
-      [0, context.actual, 45, 60, 80, context.maxHours]
+      [0, 45, 60, 80, context.maxHours]
         .filter(value => Number.isFinite(Number(value)) && value >= 0)
         .filter((value, index, values) => values.findIndex(item => formatHoursAsHHMM(item) === formatHoursAsHHMM(value)) === index)
         .forEach(value => {
           const y = points.yForHours(value);
-          const isActualAxisValue = actualAxisLabel && formatHoursAsHHMM(value) === actualAxisLabel;
           svg.appendChild(createSvgElement('line', { class: 'forecastCurveGrid', x1: padding.left, y1: y, x2: width - padding.right, y2: y, stroke: '#dfe6ef', 'stroke-width': 1 }));
-          const label = createSvgElement('text', { class: `forecastCurveAxisLabel${isActualAxisValue ? ' forecastCurveActualAxisLabel' : ''}`, x: padding.left - 8, y: y + 4, 'text-anchor': 'end', fill: isActualAxisValue ? '#1f4e79' : '#666666', 'font-size': 11, 'font-weight': isActualAxisValue ? 800 : 700 });
+          const label = createSvgElement('text', { class: 'forecastCurveAxisLabel', x: padding.left - 8, y: y + 4, 'text-anchor': 'end', fill: '#666666', 'font-size': 11, 'font-weight': 700 });
           label.textContent = formatHoursAsHHMM(value);
           svg.appendChild(label);
         });
@@ -6377,10 +6375,12 @@
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
       const forecastStartDay = getForecastCurveForecastStartDay(context);
       const forecastStartPoint = forecastStartDay !== null ? getForecastCurveForecastPointForDay(context, points, forecastStartDay) : null;
-      const currentLabelPlaceLeft = currentPoint.x > width - padding.right - 120;
       const forecastStartAnchorPoint = forecastStartPoint || currentPoint;
-      const currentLabelOffsetX = currentLabelPlaceLeft ? -42 : 42;
+      const currentLabelOffsetX = -16;
       const currentLabelX = forecastStartAnchorPoint.x + currentLabelOffsetX;
+      const currentLabelText = context.actual > 0
+        ? `実績: ${formatForecastDetailHours(context.actual)} (${context.isPast ? '確定' : '予測開始'})`
+        : (context.isPast ? '確定' : '予測開始日');
       const currentLabelY = placeForecastCurveLabelY(
         forecastStartAnchorPoint.y + (context.isPast ? -18 : 18),
         labelYRanges,
@@ -6395,7 +6395,7 @@
           class: 'forecastCurveForecastStartGuide',
           x1: forecastStartAnchorPoint.x,
           y1: forecastStartAnchorPoint.y,
-          x2: currentLabelX - (currentLabelPlaceLeft ? -34 : 34),
+          x2: currentLabelX,
           y2: currentLabelY,
           stroke: '#8fa3ba',
           'stroke-width': 1,
@@ -6403,11 +6403,11 @@
           'stroke-opacity': .78
         }));
       }
-      appendSvgTextPill(svg, context.isPast ? '確定' : '予測開始日', {
+      appendSvgTextPill(svg, currentLabelText, {
         class: 'forecastCurveCurrentLabel',
         x: currentLabelX,
         y: currentLabelY,
-        'text-anchor': 'middle',
+        'text-anchor': 'end',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
