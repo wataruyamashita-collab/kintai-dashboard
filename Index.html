@@ -6220,11 +6220,11 @@
       const opts = options || {};
       const labelAttrs = { ...attrs };
       const fontSize = Number(labelAttrs['font-size'] || labelAttrs.fontSize || 11);
-      const padX = opts.padX === undefined ? 8 : opts.padX;
-      const padY = opts.padY === undefined ? 4 : opts.padY;
+      const padX = opts.padX === undefined ? 10 : opts.padX;
+      const padY = opts.padY === undefined ? 4.5 : opts.padY;
       const textWidth = opts.width || estimateSvgTextWidth(text, fontSize);
-      const pillWidth = textWidth + padX * 2;
-      const pillHeight = fontSize + padY * 2;
+      const pillWidth = Math.ceil(textWidth + padX * 2 + 2);
+      const pillHeight = Math.ceil(fontSize + padY * 2);
       const x = Number(labelAttrs.x || 0);
       const y = Number(labelAttrs.y || 0);
       const anchor = labelAttrs['text-anchor'] || 'start';
@@ -6287,7 +6287,7 @@
       panel.style.background = '#fbfcfe';
       const width = 720;
       const height = 280;
-      const padding = { top: 28, right: 136, bottom: 44, left: 54 };
+      const padding = { top: 28, right: 164, bottom: 44, left: 54 };
       const points = getForecastCurvePoints(context, width, height, padding);
       const limitStatuses = getForecastLimitStatuses(context);
       const labelYRanges = [];
@@ -6380,8 +6380,8 @@
           labelYRanges,
           labelMinY,
           labelMaxY,
-          18,
-          5
+          20,
+          8
         );
         const monthEndLabelX = width - 72;
         svg.appendChild(createSvgElement('line', {
@@ -6441,7 +6441,7 @@
           if (is45Limit) {
             const placeLeft = x > width - padding.right - 112;
             const desiredWarningY = Math.max(padding.top + 16, y - 24);
-            const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 18, 5);
+            const warningLabelY = placeForecastCurveLabelY(desiredWarningY, labelYRanges, labelMinY, labelMaxY, 20, 8);
             const warningLabelX = placeLeft ? x - 76 : x + 76;
             svg.appendChild(createSvgElement('line', {
               class: 'forecastCurveWarningGuide',
