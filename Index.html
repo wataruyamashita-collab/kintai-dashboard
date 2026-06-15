@@ -6096,11 +6096,12 @@
 
     function getForecastLimitBasis(context, threshold) {
       const map = context && context.limitBasisMap ? context.limitBasisMap : {};
-      return map[threshold] || {
+      const labelBasis = map[threshold] || {};
+      return {
         actual: safeNumber(context && context.actual),
         forecast: safeNumber(context && context.forecast),
-        basisLabel: '',
-        shortBasisLabel: ''
+        basisLabel: labelBasis.basisLabel || '',
+        shortBasisLabel: labelBasis.shortBasisLabel || ''
       };
     }
 
@@ -6455,11 +6456,8 @@
         limitStatuses.forEach(limit => {
           if (!limit.crossingDay) return;
           const thresholdY = points.yForHours(limit.value);
-          // Crossing labels are date-based (ceil: e.g. 6月19日), so snap the marker and guide
-          // to the same displayed working day instead of plotting the fractional crossing day.
-          // This keeps the threshold dot visually aligned with the date shown below it.
-          const crossingDisplayDay = Math.ceil(safeNumber(limit.crossingDay));
-          const x = points.xForDay(crossingDisplayDay);
+          const crossingDay = safeNumber(limit.crossingDay);
+          const x = points.xForDay(crossingDay);
           const y = thresholdY;
           svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
 
