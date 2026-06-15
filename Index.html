@@ -6136,6 +6136,8 @@
       return {
         actual: safeNumber(context && context.actual),
         forecast: safeNumber(context && context.forecast),
+        basisActual: safeNumber(labelBasis.actual !== undefined ? labelBasis.actual : (context && context.actual)),
+        basisForecast: safeNumber(labelBasis.forecast !== undefined ? labelBasis.forecast : (context && context.forecast)),
         basisLabel: labelBasis.basisLabel || '',
         shortBasisLabel: labelBasis.shortBasisLabel || ''
       };
@@ -6168,8 +6170,8 @@
         const crossingLabel = crossingDay ? formatForecastCurveDateLabel(context, crossingDay) : '';
         return {
           ...limit,
-          basisActual: safeNumber(basis.actual),
-          basisForecast: safeNumber(basis.forecast),
+          basisActual: safeNumber(basis.basisActual),
+          basisForecast: safeNumber(basis.basisForecast),
           basisLabel: basis.basisLabel || limit.basisLabel,
           shortBasisLabel: basis.shortBasisLabel || limit.shortBasisLabel,
           crossingDay,
@@ -6487,19 +6489,22 @@
 
         const progressiveBlinkThreshold = context.isPast
           ? null
-          : (context.actual <= 45 ? 45 : (context.actual <= 60 ? 60 : 80));
+          : (context.actual > 80 ? 80 : (context.actual <= 45 ? 45 : (context.actual <= 60 ? 60 : 80)));
 
         limitStatuses.forEach(limit => {
-          if (!limit.crossingDay) return;
+          const isEmergencyExceededBlink = limit.exceeded && limit.value === progressiveBlinkThreshold;
+          if (!limit.crossingDay && !isEmergencyExceededBlink) return;
           const thresholdY = points.yForHours(limit.value);
           const crossingDay = safeNumber(limit.crossingDay);
-          const x = points.xForDay(crossingDay);
+          const x = limit.crossingDay ? points.xForDay(crossingDay) : currentPoint.x;
           const y = thresholdY;
-          svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
+          if (limit.crossingDay) {
+            svg.appendChild(createSvgElement('line', { class: 'forecastCurveCrossLine', x1: x, y1: y, x2: x, y2: height - padding.bottom, stroke: '#8fa3ba', 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
 
-          const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 14, 'text-anchor': 'middle', fill: '#26384d', 'font-size': 11, 'font-weight': 700 });
-          crossingLabel.textContent = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
-          svg.appendChild(crossingLabel);
+            const crossingLabel = createSvgElement('text', { class: 'forecastCurveCrossLabel', x, y: height - padding.bottom + 14, 'text-anchor': 'middle', fill: '#26384d', 'font-size': 11, 'font-weight': 700 });
+            crossingLabel.textContent = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
+            svg.appendChild(crossingLabel);
+          }
 
           const is45Limit = limit.value === 45;
           const blinkClass = limit.value === progressiveBlinkThreshold ? ` blink${limit.value}` : '';
@@ -6510,7 +6515,7 @@
           const warningClass = `forecastCurveWarning${blinkClass}`;
           const warning = createSvgElement('circle', { class: warningClass, cx: x, cy: y, r: blinkClass ? 6 : 5, tabindex: '0', fill: warningColor, stroke: '#ffffff', 'stroke-width': 2 });
           const title = createSvgElement('title', {});
-          const crossingTitleDate = limit.crossingLabel || formatForecastCurveDateLabel(context, limit.crossingDay);
+          const crossingTitleDate = limit.crossingLabel || (limit.crossingDay ? formatForecastCurveDateLabel(context, limit.crossingDay) : formatForecastCurveDateLabel(context, context.elapsedDays));
           const forecastLabel = context.isPast ? '確定' : '月末見込み';
           title.textContent = `${crossingTitleDate}時点：${formatHoursAsHHMM(limit.value)}到達見込み（現時点実績 ${formatForecastDetailHours(limit.basisActual)}、${forecastLabel} ${formatForecastDetailHours(limit.basisForecast)}）`;
           warning.appendChild(title);
