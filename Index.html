@@ -3072,6 +3072,25 @@
       targetMonthInput.value = importedMonths[importedMonths.length - 1].replace(/\//g, '-');
     }
 
+    function hasActualWorkRecordForCutoff(row) {
+      if (!row) return false;
+
+      const actualFields = [
+        FIELD.LEGAL_OT,
+        FIELD.STATUTORY_OT,
+        FIELD.PAID_LEAVE,
+        FIELD.PRESCRIBED_HOLIDAY_WORK,
+        FIELD.LEGAL_HOLIDAY_WORK,
+        FIELD.ACTUAL_WORK_HOURS,
+        FIELD.ATTENDANCE_DAYS,
+        FIELD.PRESCRIBED_EXCESS_HOURS,
+        FIELD.RAW_N_PAID_LEAVE_DAYS,
+        FIELD.RAW_P_DEDUCT_HOURS
+      ];
+
+      return actualFields.some(field => safeNumber(row[field]) > 0);
+    }
+
     function determineAutoCutoffDate(rows, targetMonth) {
       if (!rows || rows.length === 0) return '';
       const target = parseYearMonth(targetMonth);
@@ -3079,7 +3098,7 @@
 
       for (let i = 0; i < rows.length; i++) {
         const dateStr = rows[i][FIELD.DATE];
-        if (!dateStr) continue;
+        if (!dateStr || !hasActualWorkRecordForCutoff(rows[i])) continue;
         const p = parseDateKey(dateStr);
         if (p && p.year === target.year && p.month === target.month) {
           if (dateStr > maxDateStr) maxDateStr = dateStr;
