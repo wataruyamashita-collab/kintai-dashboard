@@ -3078,14 +3078,11 @@
       const actualFields = [
         FIELD.LEGAL_OT,
         FIELD.STATUTORY_OT,
-        FIELD.PAID_LEAVE,
         FIELD.PRESCRIBED_HOLIDAY_WORK,
         FIELD.LEGAL_HOLIDAY_WORK,
         FIELD.ACTUAL_WORK_HOURS,
         FIELD.ATTENDANCE_DAYS,
-        FIELD.PRESCRIBED_EXCESS_HOURS,
-        FIELD.RAW_N_PAID_LEAVE_DAYS,
-        FIELD.RAW_P_DEDUCT_HOURS
+        FIELD.PRESCRIBED_EXCESS_HOURS
       ];
 
       return actualFields.some(field => safeNumber(row[field]) > 0);
