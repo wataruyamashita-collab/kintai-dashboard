@@ -6350,24 +6350,33 @@
       }
       const currentPoint = points.actualPoints[points.actualPoints.length - 1];
       svg.appendChild(createSvgElement('circle', { class: 'forecastCurvePoint', cx: currentPoint.x, cy: currentPoint.y, r: 4, fill: '#ffffff', stroke: '#1f4e79', 'stroke-width': 2 }));
+      const forecastStartDay = getForecastCurveForecastStartDay(context);
+      const forecastStartPoint = forecastStartDay !== null ? getForecastCurveForecastPointForDay(context, points, forecastStartDay) : null;
+      const isForecastStartNearCurrent = Boolean(forecastStartPoint)
+        && Math.abs(forecastStartPoint.x - currentPoint.x) < 28
+        && Math.abs(forecastStartPoint.y - currentPoint.y) < 18;
       const currentLabelPlaceLeft = currentPoint.x > width - padding.right - 120;
+      const currentLabelY = isForecastStartNearCurrent
+        ? Math.max(padding.top + 12, currentPoint.y - 20)
+        : Math.max(padding.top + 12, currentPoint.y - 12);
       appendSvgText(svg, context.isPast ? '確定' : '実績基準日', {
         class: 'forecastCurveCurrentLabel',
         x: currentLabelPlaceLeft ? currentPoint.x - 8 : currentPoint.x + 8,
-        y: Math.max(padding.top + 12, currentPoint.y - 12),
+        y: currentLabelY,
         'text-anchor': currentLabelPlaceLeft ? 'end' : 'start',
         fill: '#1f4e79',
         'font-size': 11,
         'font-weight': 800
       });
-      const forecastStartDay = getForecastCurveForecastStartDay(context);
-      if (forecastStartDay !== null) {
-        const forecastStartPoint = getForecastCurveForecastPointForDay(context, points, forecastStartDay);
+      if (forecastStartPoint) {
+        const forecastStartLabelY = isForecastStartNearCurrent
+          ? Math.min(height - padding.bottom - 8, Math.max(padding.top + 26, forecastStartPoint.y - 4))
+          : Math.max(padding.top + 12, forecastStartPoint.y - 12);
         appendSvgText(svg, '予測開始', {
           class: 'forecastCurveCurrentLabel',
-          x: forecastStartPoint.x,
-          y: Math.max(padding.top + 12, forecastStartPoint.y - 12),
-          'text-anchor': 'middle',
+          x: isForecastStartNearCurrent ? forecastStartPoint.x + 8 : forecastStartPoint.x,
+          y: forecastStartLabelY,
+          'text-anchor': isForecastStartNearCurrent ? 'start' : 'middle',
           fill: '#1f4e79',
           'font-size': 11,
           'font-weight': 800
