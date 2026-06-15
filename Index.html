@@ -3779,7 +3779,7 @@
         estimatedOtDisplay: formatHoursAsHHMM(employee.estimatedOt),
         fixedOt: round2(employee.confirmedOt),
         fixedOtDisplay: formatHoursAsHHMM(employee.confirmedOt),
-        statutoryOt: round2(employee.statutoryOt),
+        statutoryOt: round2(agreement45ActualOt),
         actualAlert: employee.actualAlert,
         forecastAlert: employee.forecastAlert,
         monthEndForecast: formatHoursAsHHMM(employee.monthEndForecast),
@@ -5278,7 +5278,6 @@
 
     function getForecastCurveContext(row) {
       const calc = row.forecastCalculation || {};
-      const basis = resolveMonthEndForecastBasis(calc, row);
       const labels = getForecastDisplayLabels(row);
       const targetMonth = getForecastTargetMonth(row);
       const elapsed = safeNumber(calc.elapsedDays !== undefined ? calc.elapsedDays : row.elapsedDays);
@@ -5286,12 +5285,8 @@
       const totalFromCalc = safeNumber(calc.totalWorkDays !== undefined ? calc.totalWorkDays : row.targetWorkingDays);
       const totalDays = Math.max(1, totalFromCalc || elapsed + remaining || elapsed || 1);
       const elapsedDays = labels.isPast ? totalDays : clampNumber(elapsed || 0, 0, totalDays);
-      const actual = labels.isPast
-        ? getPastConfirmedOvertimeActual(calc, row) || safeNumber(basis.actual)
-        : safeNumber(basis.actual);
-      const forecast = labels.isPast
-        ? actual
-        : safeNumber(row.monthEndForecastValue) || safeNumber(calc.overallForecast) || safeNumber(basis.forecast);
+      const actual = safeNumber(calc.statutoryOvertimeActual) || safeNumber(row.alertBaseOt) || safeNumber(row.statutoryOt);
+      const forecast = safeNumber(row.monthEndForecastValue) || safeNumber(calc.overallForecast) || safeNumber(calc.forecast45) || safeNumber(row.forecast45);
       const maxHours = Math.max(10, 45, 80, actual, forecast);
 
       return {
